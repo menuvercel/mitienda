@@ -169,8 +169,7 @@ export default function AlmacenPage() {
       formData.append('cantidad', newProduct.cantidad.toString());
       
       if (newProduct.foto) {
-        const uploadedImage = await uploadImage(newProduct.foto);
-        formData.append('foto', uploadedImage.url);
+        formData.append('foto', newProduct.foto);
       }
   
       await agregarProducto(formData);

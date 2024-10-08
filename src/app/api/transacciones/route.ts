@@ -3,31 +3,58 @@ import { verifyToken, DecodedToken } from '@/lib/auth';
 import { query } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
-  const decoded = verifyToken(token) as DecodedToken | null;
-
-  if (!decoded || decoded.rol !== 'Almacen') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
-
-  const body = await request.json();
-  const { productoId, vendedorId, cantidad } = body;
-
-  if (!productoId || !vendedorId || !cantidad) {
-    return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 });
-  }
-
   try {
-    // Update this query
-    const result = await query(
-      'INSERT INTO transacciones (producto, cantidad, precio, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [productoId, cantidad, 0, decoded.id, vendedorId, new Date()]
-    );
+    const token = request.cookies.get('token')?.value;
+    const decoded = verifyToken(token) as DecodedToken | null;
 
-    return NextResponse.json(result.rows[0]);
+    if (!decoded || decoded.rol !== 'Almacen') {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { productoId, vendedorId, cantidad } = body;
+
+    if (!productoId || !vendedorId || !cantidad) {
+      return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 });
+    }
+
+    // Start a transaction
+    await query('BEGIN');
+
+    try {
+      // Insert into transacciones table
+      await query(
+        'INSERT INTO transacciones (producto, cantidad, precio, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6)',
+        [productoId, cantidad, 0, decoded.id, vendedorId, new Date()]
+      );
+
+      // Update productos table
+      await query(
+        'UPDATE productos SET cantidad = cantidad - $1 WHERE id = $2',
+        [cantidad, productoId]
+      );
+
+      // Insert or update usuario_productos table
+      const result = await query(
+        `INSERT INTO usuario_productos (usuario_id, producto_id, cantidad) 
+         VALUES ($1, $2, $3) 
+         ON CONFLICT (usuario_id, producto_id) 
+         DO UPDATE SET cantidad = usuario_productos.cantidad + $3`,
+        [vendedorId, productoId, cantidad]
+      );
+
+      // Commit the transaction
+      await query('COMMIT');
+
+      return NextResponse.json({ message: 'Producto entregado exitosamente' });
+    } catch (error) {
+      // Rollback the transaction if there's an error
+      await query('ROLLBACK');
+      throw error;
+    }
   } catch (error) {
-    console.error('Error al crear transacción:', error);
-    return NextResponse.json({ error: 'Error al crear transacción' }, { status: 500 });
+    console.error('Error al entregar producto:', error);
+    return NextResponse.json({ error: 'Error al entregar producto' }, { status: 500 });
   }
 }
 
