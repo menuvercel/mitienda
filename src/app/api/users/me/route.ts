@@ -11,6 +11,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const decoded = verifyToken(token);
+    
+    if (!decoded || typeof decoded !== 'object' || !('id' in decoded)) {
+      throw new Error('Token inválido');
+    }
+
     const result = await query('SELECT id, nombre, telefono, rol FROM usuarios WHERE id = $1', [decoded.id]);
     
     if (result.rows.length === 0) {
@@ -24,6 +29,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error al obtener el usuario:', error);
+    if (error instanceof Error && error.message === 'Token inválido') {
+      return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
+    }
     return NextResponse.json({ error: 'Error al obtener la información del usuario' }, { status: 500 });
   }
 }
