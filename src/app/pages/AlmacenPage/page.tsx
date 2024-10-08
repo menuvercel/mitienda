@@ -213,18 +213,28 @@ export default function AlmacenPage() {
     }
   };
 
-// src/app/pages/AlmacenPage/page.tsx
-
-const handleEditProduct = async (editedProduct: Producto, foto: File | null) => {
-  try {
-    await editarProducto(editedProduct.id, editedProduct, foto || undefined);
-    await fetchInventario();
-    setSelectedProduct(null);
-  } catch (error) {
-    console.error('Error editing product:', error);
-    alert('Error al editar el producto. Por favor, inténtelo de nuevo.');
-  }
-};
+  const handleEditProduct = async (editedProduct: Producto, foto: File | null) => {
+    try {
+      const formData = new FormData();
+      formData.append('nombre', editedProduct.nombre);
+      formData.append('precio', editedProduct.precio.toString());
+      formData.append('cantidad', editedProduct.cantidad.toString());
+      
+      if (foto) {
+        formData.append('foto', foto);
+      } else if (editedProduct.foto) {
+        // If no new file is selected, but there's an existing photo URL
+        formData.append('fotoUrl', editedProduct.foto);
+      }
+  
+      await editarProducto(editedProduct.id, formData);
+      await fetchInventario();
+      setSelectedProduct(null);
+    } catch (error) {
+      console.error('Error editing product:', error);
+      alert('Error al editar el producto. Por favor, inténtelo de nuevo.');
+    }
+  };
 
   const handleDeleteProduct = async (productId: string) => {
     try {

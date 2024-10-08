@@ -123,26 +123,15 @@ export const agregarProducto = async (formData: FormData) => {
   return response.data;
 };
 
-export const editarProducto = async (id: string, producto: Partial<Producto>, foto?: File) => {
-  const formData = new FormData();
-  Object.entries(producto).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      formData.append(key, value.toString());
-    }
-  });
-  
-  if (foto) {
-    formData.append('foto', foto);
-  }
-
+export const editarProducto = async (id: string, formData: FormData) => {
   const response = await api.put(`/productos/${id}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
-
   return response.data;
 };
+
 
 export const entregarProducto = async (productoId: string, vendedorId: string, cantidad: number) => {
   const response = await api.post('/transacciones', { productoId, vendedorId, cantidad });

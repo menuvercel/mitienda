@@ -55,7 +55,26 @@ export async function POST(request: NextRequest) {
   }
 
 
-export async function GET() {
-  const result = await query('SELECT * FROM productos');
-  return NextResponse.json(result.rows);
-}
+  export async function GET(request: NextRequest) {
+    try {
+        const token = request.cookies.get('token')?.value;
+        const decoded = verifyToken(token);
+        
+        if (!decoded || (decoded as { rol: string }).rol !== 'Almacen') {
+          return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+  
+      const result = await query('SELECT * FROM productos');
+      
+      console.log('Products with image URLs:', result.rows.map(product => ({
+        id: product.id,
+        nombre: product.nombre,
+        foto: product.foto
+      })));
+  
+      return NextResponse.json(result.rows);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+    }
+  }
