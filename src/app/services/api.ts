@@ -4,17 +4,17 @@ import { Venta, Vendedor, Producto } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
+const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true
+});
+
 interface User {
   id: string;
   nombre: string;
   rol: string;
   telefono?: string;
 }
-
-const api = axios.create({
-  baseURL: API_URL,
-  withCredentials: true
-});
 
 export const uploadImage = async (file: File) => {
   const formData = new FormData();
@@ -40,7 +40,7 @@ export const getCurrentUser = async (): Promise<User> => {
 
 export const login = async (nombre: string, password: string): Promise<User> => {
   try {
-    const response = await  api.post('/auth/login', { nombre, password });
+    const response = await api.post('/auth/login', { nombre, password });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
