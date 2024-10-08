@@ -1,0 +1,219 @@
+import axios from 'axios';
+import { Venta } from '@/types';
+import { Vendedor } from '@/types';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+interface User {
+  id: string;
+  nombre: string;
+  rol: string;
+  telefono?: string;
+  productos?: Array<any>;
+}
+
+interface Producto {
+  id: string;
+  nombre: string;
+  precio: number;
+  cantidad: number;
+  foto?: string;
+}
+
+const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true
+});
+
+export const uploadImage = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const getCurrentUser = async (): Promise<User> => {
+  try {
+    const response = await api.get<User>('/users/me');
+    console.log('Raw user data:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener el usuario actual:', error);
+    throw new Error('No se pudo obtener la información del usuario. Por favor, inicia sesión nuevamente.');
+  }
+};
+
+export const login = async (nombre: string, password: string): Promise<User> => {
+  try {
+    const response = await api.post('/auth/login', { nombre, password });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error('Error en la solicitud de login:', error.response?.data || error.message);
+    } else {
+      console.error('Error en la solicitud de login:', error);
+    }
+    throw new Error('Error de autenticación. Por favor, verifica tus credenciales e intenta de nuevo.');
+  }
+};
+
+export const logout = async (): Promise<void> => {
+  try {
+    await api.post('/auth/logout');
+  } catch (error) {
+    console.error('Error al cerrar sesión:', error);
+    throw error;
+  }
+};
+
+export const getVendedores = async (): Promise<Vendedor[]> => {
+  const response = await fetch('/users/vendedores');
+  if (!response.ok) {
+    throw new Error('Failed to fetch vendedores');
+  }
+  return response.json();
+};
+
+export const getInventario = async (): Promise<Producto[]> => {
+  try {
+    const response = await api.get<Producto[]>('/productos/inventario');
+    console.log('Raw inventory data:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching inventory:', error);
+    throw error;
+  }
+};
+
+export const registerUser = async (userData: Omit<User, 'id'>): Promise<User> => {
+  const response = await api.post<User>('/auth/register', userData);
+  return response.data;
+};
+
+export const getProductosVendedor = async (vendedorId: string) => {
+  if (!vendedorId) {
+    throw new Error('ID del vendedor no proporcionado');
+  }
+  try {
+    const response = await api.get(`/users/productos/${vendedorId}`);
+    return response.data;
+  } catch (error) {
+    return handleApiError(error, 'productos');
+  }
+};
+
+export const agregarProducto = async (formData: FormData) => {
+  const response = await api.post('/productos', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+// src/app/services/api.ts
+
+export const editarProducto = async (id: string, producto: Partial<Producto>, foto?: File) => {
+  const formData = new FormData();
+  Object.entries(producto).forEach(([key, value]) => {
+    if (value !== undefined) {
+      formData.append(key, value.toString());
+    }
+  });
+  
+  if (foto) {
+    formData.append('foto', foto);
+  }
+
+  const response = await fetch(`/api/productos/${id}`, {
+    method: 'PUT',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to edit product');
+  }
+
+  return response.json();
+};
+
+export const entregarProducto = async (productoId: string, vendedorId: string, cantidad: number) => {
+  const response = await api.post('/transacciones/entregar', { productoId, vendedorId, cantidad });
+  return response.data;
+};
+
+export const getTransacciones = async () => {
+  const response = await api.get('/transacciones');
+  return response.data;
+};
+
+export const eliminarProducto = async (id: string): Promise<void> => {
+  await api.delete(`/productos/${id}`);
+};
+
+export const realizarVenta = async (productoId: string, cantidad: number, fecha: string): Promise<void> => {
+  console.log('Datos enviados a realizarVenta:', { productoId, cantidad, fecha });
+  const response = await api.post('/ventas', { productoId, cantidad, fecha });
+  if (!response.data) {
+    throw new Error('Error al realizar la venta');
+  }
+};
+
+export const getVentasDia = async (vendedorId: string): Promise<Venta[]> => {
+  console.log('Solicitando ventas del día para vendedor:', vendedorId);
+  try {
+    const response = await api.get(`/ventas/dia/${vendedorId}`);
+    console.log('Respuesta de ventas del día:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener ventas del día:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Respuesta del servidor:', error.response.data);
+    }
+    throw error;
+  }
+};
+
+export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
+  console.log('Solicitando ventas del mes para vendedor:', vendedorId);
+  const response = await api.get(`/ventas/mes/${vendedorId}`);
+  console.log('Respuesta de ventas del mes:', response.data);
+  return response.data;
+};
+
+export const getTransaccionesVendedor = async (vendedorId: string) => {
+  try {
+    const response = await api.get(`/transacciones/${vendedorId}`);
+    return response.data;
+  } catch (error) {
+    return handleApiError(error, 'transacciones');
+  }
+};
+
+const handleApiError = (error: unknown, context: string) => {
+  if (axios.isAxiosError(error)) {
+    if (error.response) {
+      console.error(`Error de respuesta del servidor (${context}):`, error.response.data);
+      console.error('Estado HTTP:', error.response.status);
+      if (error.response.status === 403) {
+        console.error(`No tienes permiso para ver estos ${context}`);
+        return [];
+      }
+      throw new Error(`Error de autenticación: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
+    } else if (error.request) {
+      console.error('No se recibió respuesta del servidor');
+      throw new Error('No se pudo conectar con el servidor. Por favor, verifica tu conexión a internet.');
+    } else {
+      console.error('Error al configurar la solicitud:', error.message);
+      throw new Error('Error al intentar autenticar. Por favor, intenta de nuevo más tarde.');
+    }
+  } else {
+    console.error('Error desconocido:', error);
+    throw new Error('Ocurrió un error inesperado. Por favor, intenta de nuevo.');
+  }
+};
+
+export default api;
