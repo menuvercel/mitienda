@@ -1,22 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, DecodedToken } from '@/lib/auth';
 import { query } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
-  const decoded = verifyToken(token);
+  const decoded = verifyToken(token) as DecodedToken | null;
 
-  if (!decoded) {
+  if (!decoded || decoded.rol !== 'Almacen') {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
   const body = await request.json();
   const { productoId, vendedorId, cantidad } = body;
 
+  if (!productoId || !vendedorId || !cantidad) {
+    return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 });
+  }
+
   try {
     const result = await query(
       'INSERT INTO transacciones (producto_id, cantidad, precio, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [productoId, cantidad, 0, (decoded as { id: string }).id, vendedorId, new Date()]
+      [productoId, cantidad, 0, decoded.id, vendedorId, new Date()]
     );
 
     return NextResponse.json(result.rows[0]);
@@ -28,7 +32,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
-  const decoded = verifyToken(token);
+  const decoded = verifyToken(token) as DecodedToken | null;
 
   if (!decoded) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });

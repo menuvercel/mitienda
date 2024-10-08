@@ -6,6 +6,10 @@ export async function query(text: string, params?: any[]) {
     return result;
   } catch (error) {
     console.error('Database query error:', error);
-    throw error;
+    if (error instanceof Error) {
+      throw new Error(`Database error: ${error.message}`);
+    } else {
+      throw new Error('An unknown database error occurred');
+    }
   }
 }

@@ -109,7 +109,8 @@ export const getProductosVendedor = async (vendedorId: string) => {
     const response = await api.get(`/users/productos/${vendedorId}`);
     return response.data;
   } catch (error) {
-    return handleApiError(error, 'productos');
+    console.error('Error al obtener productos del vendedor:', error);
+    throw new Error('No se pudieron obtener los productos del vendedor');
   }
 };
 
@@ -173,10 +174,7 @@ export const getVentasDia = async (vendedorId: string): Promise<Venta[]> => {
     return response.data;
   } catch (error) {
     console.error('Error al obtener ventas del día:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('Respuesta del servidor:', error.response.data);
-    }
-    throw error;
+    throw new Error('No se pudieron obtener las ventas del día');
   }
 };
 
@@ -194,7 +192,8 @@ export const getTransaccionesVendedor = async (vendedorId: string) => {
     const response = await api.get(`/transacciones?vendedorId=${vendedorId}`);
     return response.data;
   } catch (error) {
-    return handleApiError(error, 'transacciones');
+    console.error('Error al obtener transacciones:', error);
+    throw new Error('No se pudieron obtener las transacciones');
   }
 };
 
