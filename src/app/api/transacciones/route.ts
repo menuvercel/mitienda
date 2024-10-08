@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { createTransaccion, findTransaccionesByVendedor } from '@/db/transacciones';
+import { query } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
@@ -14,16 +14,12 @@ export async function POST(request: NextRequest) {
   const { productoId, vendedorId, cantidad } = body;
 
   try {
-    const transaccion = await createTransaccion({
-      producto: productoId,
-      cantidad,
-      precio: 0, // Asume que el precio se calcula en el backend
-      desde: (decoded as { id: string }).id, // Asume que el almacén es el que crea la transacción
-      hacia: vendedorId,
-      fecha: new Date()
-    });
+    const result = await query(
+      'INSERT INTO transacciones (producto_id, cantidad, precio, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [productoId, cantidad, 0, (decoded as { id: string }).id, vendedorId, new Date()]
+    );
 
-    return NextResponse.json(transaccion);
+    return NextResponse.json(result.rows[0]);
   } catch (error) {
     console.error('Error al crear transacción:', error);
     return NextResponse.json({ error: 'Error al crear transacción' }, { status: 500 });
@@ -31,12 +27,12 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-    const token = request.cookies.get('token')?.value;
-    const decoded = verifyToken(token);
-  
-    if (!decoded) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
+  const token = request.cookies.get('token')?.value;
+  const decoded = verifyToken(token);
+
+  if (!decoded) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
 
   const { searchParams } = new URL(request.url);
   const vendedorId = searchParams.get('vendedorId');
@@ -46,8 +42,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const transacciones = await findTransaccionesByVendedor(vendedorId);
-    return NextResponse.json(transacciones);
+    const result = await query(
+      'SELECT t.*, p.nombre as producto_nombre FROM transacciones t JOIN productos p ON t.producto_id = p.id WHERE t.hacia = $1 ORDER BY t.fecha DESC',
+      [vendedorId]
+    );
+    return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Error al obtener transacciones:', error);
     return NextResponse.json({ error: 'Error al obtener transacciones' }, { status: 500 });

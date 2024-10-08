@@ -1,45 +1,48 @@
-import dbConnect from '../lib/db';
-import Venta, { IVenta } from '@/models/Venta';
+import { query } from '@/lib/db';
+import { IVenta } from '@/models/Venta';
 
 export async function createVenta(venta: Partial<IVenta>): Promise<IVenta> {
-    await dbConnect();
-    return Venta.create(venta);
-  }
+  const { producto, cantidad, precioUnitario, total, vendedor, fecha } = venta;
+  const result = await query(
+    'INSERT INTO ventas (producto, cantidad, precio_unitario, total, vendedor, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+    [producto, cantidad, precioUnitario, total, vendedor, fecha]
+  );
+  return result.rows[0];
+}
 
-  export async function findVentasByVendedorAndDate(
-    vendedorId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<IVenta[]> {
-    await dbConnect();
-    return Venta.find({
-      vendedor: vendedorId,
-      fecha: { $gte: startDate, $lte: endDate }
-    }).populate('producto', 'nombre foto');
-  }
+export async function findVentasByVendedorAndDate(
+  vendedorId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<IVenta[]> {
+  const result = await query(
+    `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto
+     FROM ventas v
+     JOIN productos p ON v.producto = p.id
+     WHERE v.vendedor = $1 AND v.fecha BETWEEN $2 AND $3`,
+    [vendedorId, startDate, endDate]
+  );
+  return result.rows;
+}
 
-  export async function getIngresosDia(): Promise<any[]> {
-    await dbConnect();
-    const fecha = new Date();
-    fecha.setHours(0, 0, 0, 0);
-    return Venta.aggregate([
-      { $match: { fecha: { $gte: fecha } } },
-      { $group: { _id: '$vendedor', total: { $sum: '$total' } } },
-      { $lookup: { from: 'usuarios', localField: '_id', foreignField: '_id', as: 'vendedor' } },
-      { $unwind: '$vendedor' },
-      { $project: { vendedor_id: '$_id', vendedor_nombre: '$vendedor.nombre', total: 1, _id: 0 } }
-    ]);
-  }
+export async function getIngresosDia(): Promise<any[]> {
+  const result = await query(
+    `SELECT v.vendedor as vendedor_id, u.nombre as vendedor_nombre, SUM(v.total) as total
+     FROM ventas v
+     JOIN usuarios u ON v.vendedor = u.id
+     WHERE DATE(v.fecha) = CURRENT_DATE
+     GROUP BY v.vendedor, u.nombre`
+  );
+  return result.rows;
+}
 
-  export async function getIngresosMes(): Promise<any[]> {
-    await dbConnect();
-    const fecha = new Date();
-    fecha.setDate(1);
-    fecha.setHours(0, 0, 0, 0);
-    return Venta.aggregate([
-      { $match: { fecha: { $gte: fecha } } },
-      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$fecha' } }, total: { $sum: '$total' } } },
-      { $sort: { _id: 1 } },
-      { $project: { fecha: '$_id', total: 1, _id: 0 } }
-    ]);
-  }
+export async function getIngresosMes(): Promise<any[]> {
+  const result = await query(
+    `SELECT DATE(v.fecha) as fecha, SUM(v.total) as total
+     FROM ventas v
+     WHERE DATE_TRUNC('month', v.fecha) = DATE_TRUNC('month', CURRENT_DATE)
+     GROUP BY DATE(v.fecha)
+     ORDER BY fecha`
+  );
+  return result.rows;
+}

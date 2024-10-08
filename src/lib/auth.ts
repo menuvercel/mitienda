@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
 
+const SECRET_KEY = process.env.JWT_SECRET || 'your_secret_key';
+
 export interface DecodedToken {
   id: string;
   rol: string;
@@ -11,21 +13,14 @@ export interface User {
   rol: string;
 }
 
-export function generateToken(user: { _id: string; nombre: string; rol: string }) {
-  return jwt.sign(
-    { id: user._id, nombre: user.nombre, rol: user.rol },
-    process.env.JWT_SECRET as string,
-    { expiresIn: '1d' }
-  );
+export function generateToken(user: { id: string; nombre: string; rol: string }) {
+  return jwt.sign(user, SECRET_KEY, { expiresIn: '1d' });
 }
 
-export function verifyToken(token: string | undefined): DecodedToken | null {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET is not defined');
-  }
+export function verifyToken(token: string | undefined) {
+  if (!token) return null;
   try {
-    return jwt.verify(token as string, secret) as DecodedToken;
+    return jwt.verify(token, SECRET_KEY);
   } catch (error) {
     return null;
   }

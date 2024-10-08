@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getVendedores } from '@/db/usuarios';
+import { query } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
@@ -11,8 +11,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const vendedores = await getVendedores();
-    return NextResponse.json(vendedores);
+    const result = await query('SELECT id, nombre, telefono, rol FROM usuarios WHERE rol = $1', ['Vendedor']);
+    return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Error al obtener vendedores:', error);
     return NextResponse.json({ error: 'Error al obtener vendedores' }, { status: 500 });

@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
-import dbConnect from '@/lib/db';
-import { createProducto, getAllProductos } from '@/db/producto';
+import { query } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
-  await dbConnect();
-
   const token = request.cookies.get('token')?.value;
   const decoded = verifyToken(token);
 
@@ -29,20 +26,15 @@ export async function POST(request: NextRequest) {
     fotoUrl = blob.url;
   }
 
-  const producto = await createProducto({
-    nombre,
-    precio: Number(precio),
-    cantidad: Number(cantidad),
-    foto: fotoUrl
-  });
+  const result = await query(
+    'INSERT INTO productos (nombre, precio, cantidad, foto) VALUES ($1, $2, $3, $4) RETURNING *',
+    [nombre, Number(precio), Number(cantidad), fotoUrl]
+  );
 
-  return NextResponse.json(producto);
+  return NextResponse.json(result.rows[0]);
 }
 
 export async function GET() {
-  await dbConnect();
-
-  const productos = await getAllProductos();
-
-  return NextResponse.json(productos);
+  const result = await query('SELECT * FROM productos');
+  return NextResponse.json(result.rows);
 }

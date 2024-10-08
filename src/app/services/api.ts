@@ -1,23 +1,14 @@
 import axios from 'axios';
-import { Venta } from '@/types';
-import { Vendedor } from '@/types';
+import { Venta, Vendedor, Producto } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 interface User {
   id: string;
   nombre: string;
   rol: string;
   telefono?: string;
-  productos?: Array<any>;
-}
-
-interface Producto {
-  id: string;
-  nombre: string;
-  precio: number;
-  cantidad: number;
-  foto?: string;
 }
 
 const api = axios.create({
@@ -49,7 +40,7 @@ export const getCurrentUser = async (): Promise<User> => {
 
 export const login = async (nombre: string, password: string): Promise<User> => {
   try {
-    const response = await api.post('/auth/login', { nombre, password });
+    const response = await  api.post('/auth/login', { nombre, password });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -71,16 +62,13 @@ export const logout = async (): Promise<void> => {
 };
 
 export const getVendedores = async (): Promise<Vendedor[]> => {
-  const response = await fetch('/users/vendedores');
-  if (!response.ok) {
-    throw new Error('Failed to fetch vendedores');
-  }
-  return response.json();
+  const response = await api.get('/users/vendedores');
+  return response.data;
 };
 
 export const getInventario = async (): Promise<Producto[]> => {
   try {
-    const response = await api.get<Producto[]>('/productos/inventario');
+    const response = await api.get<Producto[]>('/productos');
     console.log('Raw inventory data:', response.data);
     return response.data;
   } catch (error) {
@@ -114,12 +102,11 @@ export const agregarProducto = async (formData: FormData) => {
   });
   return response.data;
 };
-// src/app/services/api.ts
 
 export const editarProducto = async (id: string, producto: Partial<Producto>, foto?: File) => {
   const formData = new FormData();
   Object.entries(producto).forEach(([key, value]) => {
-    if (value !== undefined) {
+    if (value !== undefined && value !== null) {
       formData.append(key, value.toString());
     }
   });
@@ -128,20 +115,17 @@ export const editarProducto = async (id: string, producto: Partial<Producto>, fo
     formData.append('foto', foto);
   }
 
-  const response = await fetch(`/api/productos/${id}`, {
-    method: 'PUT',
-    body: formData,
+  const response = await api.put(`/productos/${id}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
   });
 
-  if (!response.ok) {
-    throw new Error('Failed to edit product');
-  }
-
-  return response.json();
+  return response.data;
 };
 
 export const entregarProducto = async (productoId: string, vendedorId: string, cantidad: number) => {
-  const response = await api.post('/transacciones/entregar', { productoId, vendedorId, cantidad });
+  const response = await api.post('/transacciones', { productoId, vendedorId, cantidad });
   return response.data;
 };
 
@@ -165,7 +149,7 @@ export const realizarVenta = async (productoId: string, cantidad: number, fecha:
 export const getVentasDia = async (vendedorId: string): Promise<Venta[]> => {
   console.log('Solicitando ventas del día para vendedor:', vendedorId);
   try {
-    const response = await api.get(`/ventas/dia/${vendedorId}`);
+    const response = await api.get(`/ventas?vendedorId=${vendedorId}&startDate=${new Date().toISOString().split('T')[0]}&endDate=${new Date().toISOString().split('T')[0]}`);
     console.log('Respuesta de ventas del día:', response.data);
     return response.data;
   } catch (error) {
@@ -179,14 +163,16 @@ export const getVentasDia = async (vendedorId: string): Promise<Venta[]> => {
 
 export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
   console.log('Solicitando ventas del mes para vendedor:', vendedorId);
-  const response = await api.get(`/ventas/mes/${vendedorId}`);
+  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  const lastDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0];
+  const response = await api.get(`/ventas?vendedorId=${vendedorId}&startDate=${firstDayOfMonth}&endDate=${lastDayOfMonth}`);
   console.log('Respuesta de ventas del mes:', response.data);
   return response.data;
 };
 
 export const getTransaccionesVendedor = async (vendedorId: string) => {
   try {
-    const response = await api.get(`/transacciones/${vendedorId}`);
+    const response = await api.get(`/transacciones?vendedorId=${vendedorId}`);
     return response.data;
   } catch (error) {
     return handleApiError(error, 'transacciones');

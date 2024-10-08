@@ -1,23 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import Usuario, { IUsuario } from '@/models/Usuario';
+import { query } from '@/lib/db';
 import { generateToken } from '@/lib/auth';
-import { Document } from 'mongoose';
+import bcrypt from 'bcrypt';
 
 export async function POST(request: NextRequest) {
-  await dbConnect();
-
   const { nombre, password }: { nombre: string; password: string } = await request.json();
 
-  const user = await Usuario.findOne({ nombre }) as (IUsuario & Document) | null;
+  const result = await query('SELECT * FROM usuarios WHERE nombre = $1', [nombre]);
+  const user = result.rows[0];
 
-  if (!user || !(await user.comparePassword(password))) {
+  if (!user || !(await bcrypt.compare(password, user.password))) {
     return NextResponse.json({ error: 'Credenciales inválidas' }, { status: 401 });
   }
 
-  // Convertimos el usuario a un formato compatible con generateToken
   const userForToken = {
-    _id: user._id.toString(),
+    id: user.id,
     nombre: user.nombre,
     rol: user.rol
   };
@@ -25,7 +22,7 @@ export async function POST(request: NextRequest) {
   const token: string = generateToken(userForToken);
 
   const response: NextResponse = NextResponse.json({
-    id: userForToken._id,
+    id: userForToken.id,
     nombre: userForToken.nombre,
     rol: userForToken.rol,
     token

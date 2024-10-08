@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Image from 'next/image'
-import { Producto, Vendedor } from '@/types'
+import { Producto, Vendedor } from '@/types';
 
 
 interface ProductDialogProps {
@@ -92,12 +92,12 @@ export default function ProductDialog({ product, onClose, vendedores, onEdit, on
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="flex justify-center">
-            <Image
-              src={newImage ? URL.createObjectURL(newImage) : product.foto}
-              alt={product.nombre}
-              width={200}
-              height={200}
-              className="object-cover rounded"
+          <Image
+            src={newImage ? URL.createObjectURL(newImage) : (product.foto || '/placeholder.svg')}
+            alt={product.nombre}
+            width={200}
+            height={200}
+            className="object-cover rounded"
             />
           </div>
 
