@@ -91,22 +91,34 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     console.log('Foreign key constraints:', checkConstraints.rows);
 
-    if (checkConstraints.rows.length > 0) {
-      // If there are constraints, we need to handle them before deleting
-      for (const constraint of checkConstraints.rows) {
-        await query(`DELETE FROM ${constraint.table_name} WHERE ${constraint.column_name} = $1`, [id]);
+    // Start a transaction
+    await query('BEGIN');
+
+    try {
+      if (checkConstraints.rows.length > 0) {
+        // If there are constraints, we need to handle them before deleting
+        for (const constraint of checkConstraints.rows) {
+          await query(`DELETE FROM ${constraint.table_name} WHERE ${constraint.column_name} = $1`, [id]);
+        }
       }
+
+      const result = await query('DELETE FROM productos WHERE id = $1 RETURNING *', [id]);
+
+      console.log('Delete query result:', result);
+
+      if (result.rowCount === 0) {
+        throw new Error('No se pudo eliminar el producto');
+      }
+
+      // Commit the transaction
+      await query('COMMIT');
+
+      return NextResponse.json({ message: 'Producto eliminado exitosamente' });
+    } catch (error) {
+      // Rollback the transaction in case of error
+      await query('ROLLBACK');
+      throw error;
     }
-
-    const result = await query('DELETE FROM productos WHERE id = $1 RETURNING *', [id]);
-
-    console.log('Delete query result:', result);
-
-    if (result.rowCount === 0) {
-      return NextResponse.json({ error: 'No se pudo eliminar el producto' }, { status: 500 });
-    }
-
-    return NextResponse.json({ message: 'Producto eliminado exitosamente' });
   } catch (error) {
     console.error('Error deleting product:', error);
     return NextResponse.json({ error: 'Error interno del servidor', details: (error as Error).message }, { status: 500 });
