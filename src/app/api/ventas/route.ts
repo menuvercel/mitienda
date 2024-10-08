@@ -18,15 +18,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // First, get the product price
+    // Update this query
     const productResult = await query('SELECT precio FROM productos WHERE id = $1', [productoId]);
     if (productResult.rows.length === 0) {
       return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
     }
     const precioUnitario = productResult.rows[0].precio;
 
+    // Update this query
     const result = await query(
-      'INSERT INTO ventas (producto_id, cantidad, precio_unitario, total, vendedor_id, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      'INSERT INTO ventas (producto, cantidad, precio_unitario, total, vendedor, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
       [productoId, cantidad, precioUnitario, precioUnitario * cantidad, decoded.id, new Date(fecha)]
     );
 
@@ -55,11 +56,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Update this query
     const result = await query(
       `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto
        FROM ventas v
-       JOIN productos p ON v.producto_id = p.id
-       WHERE v.vendedor_id = $1 AND v.fecha BETWEEN $2 AND $3
+       JOIN productos p ON v.producto = p.id
+       WHERE v.vendedor = $1 AND v.fecha BETWEEN $2 AND $3
        ORDER BY v.fecha DESC`,
       [vendedorId, startDate, endDate]
     );

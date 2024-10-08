@@ -18,8 +18,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Update this query
     const result = await query(
-      'INSERT INTO transacciones (producto_id, cantidad, precio, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      'INSERT INTO transacciones (producto, cantidad, precio, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
       [productoId, cantidad, 0, decoded.id, vendedorId, new Date()]
     );
 
@@ -46,8 +47,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Update this query
     const result = await query(
-      'SELECT t.*, p.nombre as producto_nombre FROM transacciones t JOIN productos p ON t.producto_id = p.id WHERE t.hacia = $1 ORDER BY t.fecha DESC',
+      'SELECT t.*, p.nombre as producto_nombre FROM transacciones t JOIN productos p ON t.producto = p.id WHERE t.hacia = $1 ORDER BY t.fecha DESC',
       [vendedorId]
     );
     return NextResponse.json(result.rows);
