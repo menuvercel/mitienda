@@ -182,12 +182,15 @@ const useVendedorData = (vendedorId: string) => {
 const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
   const [isOpen, setIsOpen] = useState(false)
 
+  // Ensure total is a number
+  const total = typeof venta.total === 'number' ? venta.total : parseFloat(venta.total);
+
   return (
     <>
       <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
         <TableCell>{venta.fecha}</TableCell>
         <TableCell>{venta.ventas.length}</TableCell>
-        <TableCell>${venta.total.toFixed(2)}</TableCell>
+        <TableCell>${isNaN(total) ? '0.00' : total.toFixed(2)}</TableCell>
         <TableCell>
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </TableCell>
@@ -205,23 +208,29 @@ const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {venta.ventas.map((v) => (
-                  <TableRow key={v._id}>
-                    <TableCell className="flex items-center space-x-2">
-                      <Image
-                        src={v.producto.foto || '/placeholder.svg'}
-                        alt={v.producto.nombre}
-                        width={40}
-                        height={40}
-                        className="rounded-md"
-                      />
-                      <span>{v.producto.nombre}</span>
-                    </TableCell>
-                    <TableCell>{v.cantidad}</TableCell>
-                    <TableCell>${v.precioUnitario.toFixed(2)}</TableCell>
-                    <TableCell>${v.total.toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
+                {venta.ventas.map((v) => {
+                  // Ensure precioUnitario and total are numbers
+                  const precioUnitario = typeof v.precioUnitario === 'number' ? v.precioUnitario : parseFloat(v.precioUnitario);
+                  const ventaTotal = typeof v.total === 'number' ? v.total : parseFloat(v.total);
+
+                  return (
+                    <TableRow key={v._id}>
+                      <TableCell className="flex items-center space-x-2">
+                        <Image
+                          src={v.producto.foto || '/placeholder.svg'}
+                          alt={v.producto.nombre}
+                          width={40}
+                          height={40}
+                          className="rounded-md"
+                        />
+                        <span>{v.producto.nombre}</span>
+                      </TableCell>
+                      <TableCell>{v.cantidad}</TableCell>
+                      <TableCell>${isNaN(precioUnitario) ? '0.00' : precioUnitario.toFixed(2)}</TableCell>
+                      <TableCell>${isNaN(ventaTotal) ? '0.00' : ventaTotal.toFixed(2)}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableCell>
@@ -649,15 +658,20 @@ export default function VendedorPage() {
                   </TableHeader>
                   <TableBody>
                     {transacciones && transacciones.length > 0 ? (
-                      transacciones.map((transaccion) => (
-                        <TableRow key={transaccion._id} className="bg-green-100">
-                          <TableCell>{new Date(transaccion.fecha).toLocaleDateString()}</TableCell>
-                          <TableCell>Entrega de Almacén</TableCell>
-                          <TableCell>{transaccion.producto.nombre}</TableCell>
-                          <TableCell>{transaccion.cantidad}</TableCell>
-                          <TableCell>${transaccion.precio.toFixed(2)}</TableCell>
-                        </TableRow>
-                      ))
+                      transacciones.map((transaccion) => {
+                        // Ensure precio is a number
+                        const precio = typeof transaccion.precio === 'number' ? transaccion.precio : parseFloat(transaccion.precio);
+
+                        return (
+                          <TableRow key={transaccion._id} className="bg-green-100">
+                            <TableCell>{new Date(transaccion.fecha).toLocaleDateString()}</TableCell>
+                            <TableCell>Entrega de Almacén</TableCell>
+                            <TableCell>{transaccion.producto.nombre}</TableCell>
+                            <TableCell>{transaccion.cantidad}</TableCell>
+                            <TableCell>${isNaN(precio) ? '0.00' : precio.toFixed(2)}</TableCell>
+                          </TableRow>
+                        );
+                      })
                     ) : (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center">No hay actividades registradas</TableCell>
