@@ -191,18 +191,8 @@ export default function AlmacenPage() {
       console.log(`Entregando producto: ID=${productId}, VendedorID=${vendedorId}, Cantidad=${cantidad}`);
       await entregarProducto(productId, vendedorId, cantidad);
       
-      setInventario(prevInventario => 
-        prevInventario.map(producto => 
-          producto.id === productId 
-            ? { ...producto, cantidad: producto.cantidad - cantidad }
-            : producto
-        )
-      );
-  
-      if (vendedorSeleccionado === vendedorId) {
-        const updatedProductos = await getProductosVendedor(vendedorId);
-        setProductosVendedor(updatedProductos);
-      }
+      // Refresh the inventory
+      await fetchInventario();
   
       setSelectedProduct(null);
   

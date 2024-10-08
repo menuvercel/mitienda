@@ -107,6 +107,7 @@ export const getProductosVendedor = async (vendedorId: string) => {
   }
   try {
     const response = await api.get(`/users/productos/${vendedorId}`);
+    console.log('Productos del vendedor:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error al obtener productos del vendedor:', error);

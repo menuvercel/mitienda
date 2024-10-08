@@ -125,3 +125,31 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }, { status: 500 });
   }
 }
+
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const token = request.cookies.get('token')?.value;
+    const decoded = verifyToken(token) as DecodedToken | null;
+
+    if (!decoded) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const { id } = params;
+
+    const result = await query(
+      `SELECT up.producto_id as id, p.nombre, p.precio, up.cantidad, p.foto
+       FROM usuario_productos up
+       JOIN productos p ON up.producto_id = p.id
+       WHERE up.usuario_id = $1`,
+      [id]
+    );
+
+    console.log('Productos del vendedor:', result.rows);
+
+    return NextResponse.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching vendor products:', error);
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+  }
+}
