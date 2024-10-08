@@ -60,6 +60,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
+
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const token = request.cookies.get('token')?.value;
@@ -73,12 +74,36 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     console.log('Attempting to delete product with ID:', id);
 
+    // Check if the product exists before deleting
+    const checkProduct = await query('SELECT * FROM productos WHERE id = $1', [id]);
+    
+    if (checkProduct.rows.length === 0) {
+      return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
+    }
+
+    // Check for any foreign key constraints
+    const checkConstraints = await query(`
+      SELECT conname, conrelid::regclass AS table_name, a.attname AS column_name
+      FROM pg_constraint c
+      JOIN pg_attribute a ON a.attnum = ANY(c.conkey) AND a.attrelid = c.conrelid
+      WHERE c.confrelid = 'productos'::regclass AND c.confkey @> ARRAY[1]
+    `);
+
+    console.log('Foreign key constraints:', checkConstraints.rows);
+
+    if (checkConstraints.rows.length > 0) {
+      // If there are constraints, we need to handle them before deleting
+      for (const constraint of checkConstraints.rows) {
+        await query(`DELETE FROM ${constraint.table_name} WHERE ${constraint.column_name} = $1`, [id]);
+      }
+    }
+
     const result = await query('DELETE FROM productos WHERE id = $1 RETURNING *', [id]);
 
     console.log('Delete query result:', result);
 
     if (result.rowCount === 0) {
-      return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
+      return NextResponse.json({ error: 'No se pudo eliminar el producto' }, { status: 500 });
     }
 
     return NextResponse.json({ message: 'Producto eliminado exitosamente' });
