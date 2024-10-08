@@ -4,10 +4,25 @@ import { Venta, Vendedor, Producto } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
+
+
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true
 });
+
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 interface User {
   id: string;
@@ -31,7 +46,10 @@ export const getCurrentUser = async (): Promise<User> => {
   try {
     const response = await api.get<User>('/users/me');
     console.log('Raw user data:', response.data);
-    return response.data;
+    return {
+      ...response.data,
+      id: response.data.id.toString() // Ensure ID is always a string
+    };
   } catch (error) {
     console.error('Error al obtener el usuario actual:', error);
     throw new Error('No se pudo obtener la información del usuario. Por favor, inicia sesión nuevamente.');
@@ -41,6 +59,7 @@ export const getCurrentUser = async (): Promise<User> => {
 export const login = async (nombre: string, password: string): Promise<User> => {
   try {
     const response = await api.post('/auth/login', { nombre, password });
+    localStorage.setItem('token', response.data.token); // Store the token
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {

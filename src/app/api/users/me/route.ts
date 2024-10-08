@@ -4,21 +4,26 @@ import { query } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
-  const decoded = verifyToken(token);
 
-  if (!decoded) {
+  if (!token) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
   try {
-    const result = await query('SELECT id, nombre, telefono, rol FROM usuarios WHERE id = $1', [(decoded as { id: string }).id]);
-    const user = result.rows[0];
-    if (!user) {
+    const decoded = verifyToken(token);
+    const result = await query('SELECT id, nombre, telefono, rol FROM usuarios WHERE id = $1', [decoded.id]);
+    
+    if (result.rows.length === 0) {
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
     }
-    return NextResponse.json(user);
+
+    const user = result.rows[0];
+    return NextResponse.json({
+      ...user,
+      id: user.id.toString() // Ensure ID is always a string
+    });
   } catch (error) {
-    console.error('Error al obtener usuario:', error);
-    return NextResponse.json({ error: 'Error al obtener usuario' }, { status: 500 });
+    console.error('Error al obtener el usuario:', error);
+    return NextResponse.json({ error: 'Error al obtener la información del usuario' }, { status: 500 });
   }
 }

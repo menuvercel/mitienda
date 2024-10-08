@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { login } from "../../services/auth"
 
+
 export default function LoginPage() {
   const [nombre, setNombre] = useState('')
   const [password, setPassword] = useState('')
@@ -23,6 +24,7 @@ export default function LoginPage() {
       const userData = await login(nombre, password);
       console.log('Respuesta del servidor:', userData);
       
+      // En tu componente LoginPage
       if (userData.rol === 'Vendedor') {
         console.log('Redirigiendo a la página de vendedor');
         router.push(`/pages/VendedorPage/${userData.id}`);

@@ -141,7 +141,7 @@ const useVendedorData = (vendedorId: string) => {
         const user = await getCurrentUser();
         console.log('Usuario actual:', user.id);
         if (user && user.rol === 'Vendedor') {
-          if (user.id === vendedorId) {
+          if (user.id.toString() === vendedorId.toString()) {
             setIsAuthenticated(true);
             await Promise.all([fetchProductos(), fetchVentasRegistro(), fetchTransacciones()]);
           } else {
@@ -162,6 +162,7 @@ const useVendedorData = (vendedorId: string) => {
     checkAuth();
   }, [vendedorId, fetchProductos, fetchVentasRegistro, fetchTransacciones, router]);
 
+  
   return { 
     isAuthenticated, 
     isLoading, 

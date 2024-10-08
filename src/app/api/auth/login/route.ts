@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import { generateToken } from '@/lib/auth';
 import bcrypt from 'bcrypt';
 
+
 export async function POST(request: NextRequest) {
   const { nombre, password }: { nombre: string; password: string } = await request.json();
 
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
   }
 
   const userForToken = {
-    id: user.id,
+    id: user.id.toString(), // Ensure ID is a string
     nombre: user.nombre,
     rol: user.rol
   };
