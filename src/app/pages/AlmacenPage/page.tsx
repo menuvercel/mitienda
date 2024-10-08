@@ -199,7 +199,15 @@ export default function AlmacenPage() {
       alert('Producto entregado exitosamente');
     } catch (error) {
       console.error('Error entregando producto:', error);
-      alert(`Error al entregar producto: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      if (error instanceof Error) {
+        alert(`Error al entregar producto: ${error.message}`);
+      } else if (typeof error === 'object' && error !== null && 'response' in error) {
+        // Asumiendo que es un error de Axios
+        const axiosError = error as any;
+        alert(`Error al entregar producto: ${axiosError.response?.data?.error || 'Error desconocido'}`);
+      } else {
+        alert('Error desconocido al entregar producto');
+      }
     }
   };
 

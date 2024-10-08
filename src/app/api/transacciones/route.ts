@@ -14,49 +14,57 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { productoId, vendedorId, cantidad } = body;
 
-    console.log('Received transaction data:', { productoId, vendedorId, cantidad });
+    console.log('Datos de transacción recibidos:', { productoId, vendedorId, cantidad });
 
     if (!productoId || !vendedorId || !cantidad) {
       return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 });
     }
 
-    // Start a transaction
+    // Iniciar una transacción
     await query('BEGIN');
 
     try {
-      // Insert into transacciones table
+      // Obtener el precio del producto
+      const productResult = await query('SELECT precio FROM productos WHERE id = $1', [productoId]);
+      if (productResult.rows.length === 0) {
+        throw new Error('Producto no encontrado');
+      }
+      const precio = productResult.rows[0].precio;
+
+      // Insertar en la tabla transacciones
       const transactionResult = await query(
         'INSERT INTO transacciones (producto, cantidad, precio, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [productoId, cantidad, 0, decoded.id, vendedorId, new Date()]
+        [productoId, cantidad, precio, decoded.id, vendedorId, new Date()]
       );
-      console.log('Transaction inserted:', transactionResult.rows[0]);
+      console.log('Transacción insertada:', transactionResult.rows[0]);
 
-      // Update productos table
+      // Actualizar la tabla productos
       const updateProductResult = await query(
         'UPDATE productos SET cantidad = cantidad - $1 WHERE id = $2 RETURNING *',
         [cantidad, productoId]
       );
-      console.log('Product updated:', updateProductResult.rows[0]);
+      console.log('Producto actualizado:', updateProductResult.rows[0]);
 
-      // Insert or update usuario_productos table
+      // Insertar o actualizar la tabla usuario_productos
       const upsertResult = await query(
-        `INSERT INTO usuario_productos (usuario_id, producto_id, cantidad) 
-         VALUES ($1, $2, $3) 
+        `INSERT INTO usuario_productos (usuario_id, producto_id, cantidad, precio) 
+         VALUES ($1, $2, $3, $4) 
          ON CONFLICT (usuario_id, producto_id) 
-         DO UPDATE SET cantidad = usuario_productos.cantidad + $3
+         DO UPDATE SET cantidad = usuario_productos.cantidad + $3,
+                       precio = EXCLUDED.precio
          RETURNING *`,
-        [vendedorId, productoId, cantidad]
+        [vendedorId, productoId, cantidad, precio]
       );
-      console.log('Usuario_productos updated:', upsertResult.rows[0]);
+      console.log('usuario_productos actualizado:', upsertResult.rows[0]);
 
-      // Commit the transaction
+      // Confirmar la transacción
       await query('COMMIT');
 
       return NextResponse.json({ message: 'Producto entregado exitosamente', transaction: transactionResult.rows[0] });
     } catch (error) {
-      // Rollback the transaction if there's an error
+      // Revertir la transacción si hay un error
       await query('ROLLBACK');
-      console.error('Error during transaction:', error);
+      console.error('Error durante la transacción:', error);
       throw error;
     }
   } catch (error) {
