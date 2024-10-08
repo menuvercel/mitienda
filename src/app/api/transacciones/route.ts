@@ -53,6 +53,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Error al obtener transacciones:', error);
-    return NextResponse.json({ error: 'Error al obtener transacciones' }, { status: 500 });
+    return NextResponse.json({ error: 'Error al obtener transacciones', details: (error as Error).message }, { status: 500 });
   }
 }

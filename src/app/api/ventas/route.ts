@@ -46,11 +46,12 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
+  const vendedorId = searchParams.get('vendedorId');
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
 
-  if (!startDate || !endDate) {
-    return NextResponse.json({ error: 'Se requieren fechas de inicio y fin' }, { status: 400 });
+  if (!vendedorId || !startDate || !endDate) {
+    return NextResponse.json({ error: 'Se requieren vendedorId, startDate y endDate' }, { status: 400 });
   }
 
   try {
@@ -60,11 +61,11 @@ export async function GET(request: NextRequest) {
        JOIN productos p ON v.producto_id = p.id
        WHERE v.vendedor_id = $1 AND v.fecha BETWEEN $2 AND $3
        ORDER BY v.fecha DESC`,
-      [decoded.id, new Date(startDate), new Date(endDate)]
+      [vendedorId, startDate, endDate]
     );
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Error al obtener ventas:', error);
-    return NextResponse.json({ error: 'Error al obtener ventas' }, { status: 500 });
+    return NextResponse.json({ error: 'Error al obtener ventas', details: (error as Error).message }, { status: 500 });
   }
 }

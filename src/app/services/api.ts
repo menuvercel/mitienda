@@ -174,7 +174,10 @@ export const getVentasDia = async (vendedorId: string): Promise<Venta[]> => {
     return response.data;
   } catch (error) {
     console.error('Error al obtener ventas del día:', error);
-    throw new Error('No se pudieron obtener las ventas del día');
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Respuesta del servidor:', error.response.data);
+    }
+    throw new Error(`No se pudieron obtener las ventas del día: ${(error as Error).message}`);
   }
 };
 
@@ -193,7 +196,10 @@ export const getTransaccionesVendedor = async (vendedorId: string) => {
     return response.data;
   } catch (error) {
     console.error('Error al obtener transacciones:', error);
-    throw new Error('No se pudieron obtener las transacciones');
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Respuesta del servidor:', error.response.data);
+    }
+    throw new Error(`No se pudieron obtener las transacciones: ${(error as Error).message}`);
   }
 };
 
