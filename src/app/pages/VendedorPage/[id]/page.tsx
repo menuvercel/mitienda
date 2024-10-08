@@ -97,7 +97,7 @@ const useVendedorData = (vendedorId: string) => {
   const fetchProductos = useCallback(async () => {
     try {
       const data = await getProductosVendedor(vendedorId)
-      setProductosDisponibles(data.filter((p: Producto) => p.cantidad > 0))
+      setProductosDisponibles(data.filter((p: Transaccion) => p.cantidad > 0))
       setProductosAgotados(data.filter((p: Producto) => p.cantidad === 0))
     } catch (error) {
       console.error('Error al obtener productos:', error)
