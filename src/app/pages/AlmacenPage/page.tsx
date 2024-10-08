@@ -241,6 +241,7 @@ export default function AlmacenPage() {
       const response = await eliminarProducto(productId);
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Server error details:', errorData);
         throw new Error(errorData.error || 'Error desconocido al eliminar el producto');
       }
       await fetchInventario();
@@ -248,7 +249,11 @@ export default function AlmacenPage() {
       alert('Producto eliminado exitosamente');
     } catch (error) {
       console.error('Error deleting product:', error);
-      alert(`Error al eliminar el producto: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      if (error instanceof Error) {
+        alert(`Error al eliminar el producto: ${error.message}`);
+      } else {
+        alert('Error desconocido al eliminar el producto');
+      }
     }
   }
 

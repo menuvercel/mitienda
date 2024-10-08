@@ -62,22 +62,27 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  console.log('DELETE function called');
   try {
     const token = request.cookies.get('token')?.value;
+    console.log('Token:', token);
     const decoded = verifyToken(token) as DecodedToken | null;
+    console.log('Decoded token:', decoded);
 
     if (!decoded || decoded.rol !== 'Almacen') {
+      console.log('Authorization failed');
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     const { id } = params;
-
     console.log('Attempting to delete product with ID:', id);
 
     // Check if the product exists before deleting
     const checkProduct = await query('SELECT * FROM productos WHERE id = $1', [id]);
+    console.log('Check product result:', checkProduct);
     
     if (checkProduct.rows.length === 0) {
+      console.log('Product not found');
       return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
     }
 
@@ -93,34 +98,43 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     // Start a transaction
     await query('BEGIN');
+    console.log('Transaction started');
 
     try {
       if (checkConstraints.rows.length > 0) {
-        // If there are constraints, we need to handle them before deleting
+        console.log('Handling foreign key constraints');
         for (const constraint of checkConstraints.rows) {
+          console.log(`Deleting from ${constraint.table_name} where ${constraint.column_name} = ${id}`);
           await query(`DELETE FROM ${constraint.table_name} WHERE ${constraint.column_name} = $1`, [id]);
         }
       }
 
+      console.log('Deleting product');
       const result = await query('DELETE FROM productos WHERE id = $1 RETURNING *', [id]);
-
       console.log('Delete query result:', result);
 
       if (result.rowCount === 0) {
+        console.log('Product not deleted');
         throw new Error('No se pudo eliminar el producto');
       }
 
       // Commit the transaction
       await query('COMMIT');
+      console.log('Transaction committed');
 
       return NextResponse.json({ message: 'Producto eliminado exitosamente' });
     } catch (error) {
       // Rollback the transaction in case of error
       await query('ROLLBACK');
+      console.log('Transaction rolled back due to error:', error);
       throw error;
     }
   } catch (error) {
-    console.error('Error deleting product:', error);
-    return NextResponse.json({ error: 'Error interno del servidor', details: (error as Error).message }, { status: 500 });
+    console.error('Error in DELETE function:', error);
+    return NextResponse.json({ 
+      error: 'Error interno del servidor', 
+      details: (error as Error).message,
+      stack: (error as Error).stack
+    }, { status: 500 });
   }
 }

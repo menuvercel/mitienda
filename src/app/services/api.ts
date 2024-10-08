@@ -153,6 +153,7 @@ export const eliminarProducto = async (productId: string) => {
 
   if (!response.ok) {
     const errorData = await response.json();
+    console.error('Server error response:', errorData);
     throw new Error(errorData.error || 'Error al eliminar el producto');
   }
 
