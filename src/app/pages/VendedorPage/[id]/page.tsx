@@ -97,9 +97,11 @@ const useVendedorData = (vendedorId: string) => {
   const fetchProductos = useCallback(async () => {
     try {
       const data = await getProductosVendedor(vendedorId)
-      console.log(data);
+      console.log('Raw data from getProductosVendedor:', data);
       setProductosDisponibles(data.filter((p: Producto) => p.cantidad > 0))
       setProductosAgotados(data.filter((p: Producto) => p.cantidad === 0))
+      console.log('Productos disponibles:', productosDisponibles);
+      console.log('Productos agotados:', productosAgotados);
     } catch (error) {
       console.error('Error al obtener productos:', error)
       setError('No se pudieron cargar los productos. Por favor, intenta de nuevo.')
@@ -394,37 +396,40 @@ export default function VendedorPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                {productosFiltrados.map((producto) => (
-                  <div
-                    key={producto.id}
-                    className="w-full h-auto p-2 flex items-center text-left bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors"
-                  >
-                    {producto.foto ? (
-                      <Image
-                        src={producto.foto}
-                        alt={producto.nombre}
-                        width={50}
-                        height={50}
-                        className="object-cover rounded mr-4"
-                        onError={(e) => {
-                          console.error(`Error loading image for ${producto.nombre}:`, e);
-                          e.currentTarget.src = '/placeholder.svg';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-4">
-                        <span className="text-gray-500 text-xs">Sin imagen</span>
-                      </div>
-                    )}
-                    <div className="flex-grow">
-                      <span className="font-semibold text-gray-800">{producto.nombre}</span>
-                      <div className="text-sm text-gray-600">
-                        <span className="mr-4">Precio: ${producto.precio}</span>
-                        <span>Cantidad: {producto.cantidad}</span>
+                {productosFiltrados.map((producto) => {
+                  console.log('Rendering producto:', producto);
+                  return (
+                    <div
+                      key={producto.id}
+                      className="w-full h-auto p-2 flex items-center text-left bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors"
+                    >
+                      {producto.foto ? (
+                        <Image
+                          src={producto.foto}
+                          alt={producto.nombre}
+                          width={50}
+                          height={50}
+                          className="object-cover rounded mr-4"
+                          onError={(e) => {
+                            console.error(`Error loading image for ${producto.nombre}:`, e);
+                            e.currentTarget.src = '/placeholder.svg';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-4">
+                          <span className="text-gray-500 text-xs">Sin imagen</span>
+                        </div>
+                      )}
+                      <div className="flex-grow">
+                        <span className="font-semibold text-gray-800">{producto.nombre}</span>
+                        <div className="text-sm text-gray-600">
+                          <span className="mr-4">Precio: ${producto.precio}</span>
+                          <span>Cantidad: {producto.cantidad}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </TabsContent>
             <TabsContent value="agotados">

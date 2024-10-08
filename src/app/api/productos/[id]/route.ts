@@ -145,6 +145,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       [id]
     );
 
+    console.log('Raw query result:', result);
     console.log('Productos del vendedor:', result.rows);
 
     return NextResponse.json(result.rows);
