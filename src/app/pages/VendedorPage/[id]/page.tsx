@@ -182,12 +182,13 @@ const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
   const [isOpen, setIsOpen] = useState(false)
 
   const total = typeof venta.total === 'number' ? venta.total : parseFloat(venta.total);
+  const totalCantidad = venta.ventas.reduce((sum, v) => sum + v.cantidad, 0);
 
   return (
     <>
       <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
         <TableCell>{venta.fecha}</TableCell>
-        <TableCell>{venta.ventas.length}</TableCell>
+        <TableCell>{totalCantidad}</TableCell>
         <TableCell>${isNaN(total) ? '0.00' : total.toFixed(2)}</TableCell>
         <TableCell>
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -591,7 +592,7 @@ export default function VendedorPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Fecha</TableHead>
-                      <TableHead>Cantidad de Ventas</TableHead>
+                      <TableHead>Cantidad de Productos Vendidos</TableHead>
                       <TableHead>Total</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
