@@ -17,8 +17,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     const vendedorId = params.id;
-    const result = await query('SELECT p.* FROM productos p JOIN usuario_productos up ON p.id = up.producto_id WHERE up.usuario_id = $1', [vendedorId]);
+    const result = await query(
+      `SELECT p.id, p.nombre, p.precio, p.foto, up.cantidad
+       FROM productos p
+       JOIN usuario_productos up ON p.id = up.producto_id
+       WHERE up.usuario_id = $1`,
+      [vendedorId]
+    );
     
+    console.log('Productos obtenidos para el vendedor:', result.rows);
+
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Error al obtener productos del vendedor:', error);
