@@ -98,8 +98,8 @@ const useVendedorData = (vendedorId: string) => {
     try {
       const data = await getProductosVendedor(vendedorId)
       console.log('Raw data from getProductosVendedor:', data);
-      setProductosDisponibles(data.filter((p: Producto) => p.cantidad > 0))
-      setProductosAgotados(data.filter((p: Producto) => p.cantidad === 0))
+      setProductosDisponibles(data.filter((up: Producto) => up.cantidad > 0))
+      setProductosAgotados(data.filter((up: Producto) => up.cantidad === 0))
       console.log('Productos disponibles:', productosDisponibles);
       console.log('Productos agotados:', productosAgotados);
     } catch (error) {
