@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Venta, Vendedor, Producto, Entrega, Transaccion } from '@/types';
+import { Venta, Vendedor, Producto, Entrega } from '@/types';
 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
@@ -101,7 +101,7 @@ export const registerUser = async (userData: Omit<User, 'id'>): Promise<User> =>
   return response.data;
 };
 
-export const getProductosVendedor = async (vendedorId: string): Promise<Producto[]> => {
+export const getProductosVendedor = async (vendedorId: string) => {
   if (!vendedorId) {
     throw new Error('ID del vendedor no proporcionado');
   }
@@ -200,18 +200,13 @@ export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
   return response.data;
 };
 
-export const getTransaccionesVendedor = async (vendedorId: string): Promise<Transaccion[]> => {
-  console.log('Solicitando transacciones para vendedor:', vendedorId);
+export const getTransaccionesVendedor = async (vendedorId: string) => {
   try {
     const response = await api.get(`/transacciones?vendedorId=${vendedorId}`);
-    console.log('Respuesta de transacciones:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error al obtener transacciones:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('Respuesta del servidor:', error.response.data);
-    }
-    throw new Error(`No se pudieron obtener las transacciones: ${(error as Error).message}`);
+    console.error('Error al obtener transacciones del vendedor:', error);
+    throw new Error('No se pudieron obtener las transacciones del vendedor');
   }
 };
 
