@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -20,7 +21,6 @@ import {
   getVentasMes,
   getCurrentUser
 } from '../../../services/api'
-import Image from 'next/image'
 
 interface Producto {
   id: string;
@@ -165,7 +165,6 @@ const useVendedorData = (vendedorId: string) => {
     checkAuth();
   }, [vendedorId, fetchProductos, fetchVentasRegistro, fetchTransacciones, router]);
 
-  
   return { 
     isAuthenticated, 
     isLoading, 
@@ -185,7 +184,6 @@ const useVendedorData = (vendedorId: string) => {
 const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
   const [isOpen, setIsOpen] = useState(false)
 
-  // Ensure total is a number
   const total = typeof venta.total === 'number' ? venta.total : parseFloat(venta.total);
 
   return (
@@ -212,7 +210,6 @@ const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
               </TableHeader>
               <TableBody>
                 {venta.ventas.map((v) => {
-                  // Ensure precioUnitario and total are numbers
                   const precioUnitario = typeof v.precioUnitario === 'number' ? v.precioUnitario : parseFloat(v.precioUnitario);
                   const ventaTotal = typeof v.total === 'number' ? v.total : parseFloat(v.total);
 
@@ -362,7 +359,7 @@ export default function VendedorPage() {
       <Sheet open={menuAbierto} onOpenChange={setMenuAbierto}>
         <SheetTrigger asChild>
           <Button variant="outline" size="icon" className="fixed top-4 right-4 z-50">
-            <MenuIcon className="h-4 w-4" />
+            <MenuIcon  className="h-4 w-4" />
           </Button>
         </SheetTrigger>
         <SheetContent side="right" className="w-[200px]">
@@ -665,7 +662,6 @@ export default function VendedorPage() {
                   <TableBody>
                     {transacciones && transacciones.length > 0 ? (
                       transacciones.map((transaccion) => {
-                        // Ensure precio is a number
                         const precio = typeof transaccion.precio === 'number' ? transaccion.precio : parseFloat(transaccion.precio);
 
                         return (
