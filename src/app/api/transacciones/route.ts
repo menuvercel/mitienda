@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await query(
-      `SELECT t.*, p.nombre as producto_nombre 
+      `SELECT t.id, p.nombre as producto, t.cantidad, t.precio, t.desde, t.hacia, t.fecha
        FROM transacciones t 
        JOIN productos p ON t.producto = p.id 
        WHERE t.hacia = $1 
