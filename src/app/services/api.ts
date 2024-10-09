@@ -162,11 +162,13 @@ export const eliminarProducto = async (productId: string) => {
   return response;
 };
 
-export const realizarVenta = async (productoId: string, cantidad: number, fecha: string): Promise<void> => {
-  console.log('Datos enviados a realizarVenta:', { productoId, cantidad, fecha });
-  const response = await api.post('/ventas', { productoId, cantidad, fecha });
-  if (!response.data) {
-    throw new Error('Error al realizar la venta');
+export const realizarVenta = async (productoId: string, cantidad: number, fecha: string) => {
+  try {
+    const response = await api.post('/ventas', { productoId, cantidad, fecha });
+    return response.data;
+  } catch (error) {
+    console.error('Error al realizar la venta:', error);
+    throw new Error('No se pudo realizar la venta');
   }
 };
 
@@ -199,11 +201,8 @@ export const getTransaccionesVendedor = async (vendedorId: string) => {
     const response = await api.get(`/transacciones?vendedorId=${vendedorId}`);
     return response.data;
   } catch (error) {
-    console.error('Error al obtener transacciones:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('Respuesta del servidor:', error.response.data);
-    }
-    throw new Error(`No se pudieron obtener las transacciones: ${(error as Error).message}`);
+    console.error('Error al obtener transacciones del vendedor:', error);
+    throw new Error('No se pudieron obtener las transacciones del vendedor');
   }
 };
 

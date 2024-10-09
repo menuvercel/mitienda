@@ -89,9 +89,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Update this query
     const result = await query(
-      'SELECT t.*, p.nombre as producto_nombre FROM transacciones t JOIN productos p ON t.producto = p.id WHERE t.hacia = $1 ORDER BY t.fecha DESC',
+      `SELECT t.*, p.nombre as producto_nombre 
+       FROM transacciones t 
+       JOIN productos p ON t.producto = p.id 
+       WHERE t.hacia = $1 
+       ORDER BY t.fecha DESC`,
       [vendedorId]
     );
     return NextResponse.json(result.rows);
