@@ -18,10 +18,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Start a transaction
+    // Convertimos la fecha ISO a un objeto Date
+    const fechaVenta = new Date(fecha);
+    
+    // Inicio de la transacción
     await query('BEGIN');
 
-    // Get product price and check vendor's stock
+    // Obtener precio del producto y verificar stock del vendedor
     const productResult = await query(
       'SELECT p.precio, up.cantidad as stock_vendedor FROM productos p JOIN usuario_productos up ON p.id = up.producto_id WHERE p.id = $1 AND up.usuario_id = $2',
       [productoId, decoded.id]
@@ -39,24 +42,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Stock insuficiente' }, { status: 400 });
     }
 
-    // Update vendor's stock
+    // Actualizar stock del vendedor
     await query(
       'UPDATE usuario_productos SET cantidad = cantidad - $1 WHERE producto_id = $2 AND usuario_id = $3',
       [cantidad, productoId, decoded.id]
     );
 
-    // Create sale record
+    // Crear registro de venta
     const saleResult = await query(
       'INSERT INTO ventas (producto, cantidad, precio_unitario, total, vendedor, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [productoId, cantidad, precioUnitario, precioUnitario * cantidad, decoded.id, new Date(fecha)]
+      [productoId, cantidad, precioUnitario, precioUnitario * cantidad, decoded.id, fechaVenta]
     );
 
-    // Commit the transaction
+    // Confirmar la transacción
     await query('COMMIT');
 
     return NextResponse.json(saleResult.rows[0]);
   } catch (error) {
-    // Rollback the transaction in case of error
+    // Revertir la transacción en caso de error
     await query('ROLLBACK');
     console.error('Error al crear venta:', error);
     return NextResponse.json({ error: 'Error al crear venta' }, { status: 500 });

@@ -182,10 +182,20 @@ const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
   const total = typeof venta.total === 'number' ? venta.total : parseFloat(venta.total);
   const totalCantidad = venta.ventas.reduce((sum, v) => sum + v.cantidad, 0);
 
+  // Formatear la fecha correctamente
+  const formatearFecha = (fecha: string) => {
+    const fechaObj = new Date(fecha);
+    return fechaObj.toLocaleDateString('es-ES', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
   return (
     <>
       <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
-        <TableCell>{venta.fecha}</TableCell>
+        <TableCell>{formatearFecha(venta.fecha)}</TableCell>
         <TableCell>{totalCantidad}</TableCell>
         <TableCell>${isNaN(total) ? '0.00' : total.toFixed(2)}</TableCell>
         <TableCell>
@@ -297,12 +307,12 @@ export default function VendedorPage() {
       alert('Por favor, seleccione una fecha.')
       return
     }
-
+  
     try {
       await Promise.all(productosSeleccionados.map(producto => {
         return realizarVenta(producto.id, producto.cantidadVendida, fecha);
       }));
-
+  
       setProductosSeleccionados([])
       setFecha('')
       await fetchProductos()

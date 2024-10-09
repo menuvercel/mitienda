@@ -164,7 +164,11 @@ export const eliminarProducto = async (productId: string) => {
 
 export const realizarVenta = async (productoId: string, cantidad: number, fecha: string) => {
   try {
-    const response = await api.post('/ventas', { productoId, cantidad, fecha });
+    // Ajustamos la fecha para que sea a las 12:00 PM en la zona horaria local
+    const fechaAjustada = new Date(fecha + 'T12:00:00');
+    const fechaISO = fechaAjustada.toISOString();
+
+    const response = await api.post('/ventas', { productoId, cantidad, fecha: fechaISO });
     return response.data;
   } catch (error) {
     console.error('Error al realizar la venta:', error);
