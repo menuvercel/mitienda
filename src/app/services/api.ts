@@ -106,7 +106,9 @@ export const getProductosVendedor = async (vendedorId: string) => {
     throw new Error('ID del vendedor no proporcionado');
   }
   try {
-    const response = await api.get(`/api/users/productos/${vendedorId}`);
+    const response = await api.get(`/users/productos/${vendedorId}`);
+    console.log('Raw API response:', response);
+    console.log('Productos del vendedor:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error al obtener productos del vendedor:', error);
