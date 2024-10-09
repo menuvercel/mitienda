@@ -17,16 +17,16 @@ import {
   registerUser, 
   getProductosVendedor,
   getVentasVendedor,
-  getEntregasVendedor,
   agregarProducto,
   editarProducto,
   entregarProducto,
   eliminarProducto,
+  getTransaccionesVendedor,
   editarVendedor
 } from '../../services/api'
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
-import { Producto, Vendedor, Venta, Entrega } from '@/types'
+import { Producto, Vendedor, Venta, Entrega, Transaccion } from '@/types'
 
 interface NewUser {
   nombre: string;
@@ -101,7 +101,7 @@ export default function AlmacenPage() {
   })
   const [productosVendedor, setProductosVendedor] = useState<Producto[]>([])
   const [ventasVendedor, setVentasVendedor] = useState<Venta[]>([])
-  const [entregasVendedor, setEntregasVendedor] = useState<Entrega[]>([])
+  const [transaccionesVendedor, setTransaccionesVendedor] = useState<Transaccion[]>([])
   const [vendedorSeleccionado, setVendedorSeleccionado] = useState<Vendedor | null>(null)
   const [showAddProductModal, setShowAddProductModal] = useState(false)
   const [newProduct, setNewProduct] = useState<NewProduct>({
@@ -140,18 +140,18 @@ export default function AlmacenPage() {
   const handleVerVendedor = async (vendedor: Vendedor) => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const [productos, ventas, entregas] = await Promise.all([
+      const [productos, ventas, transaccion] = await Promise.all([
         getProductosVendedor(vendedor.id),
         getVentasVendedor(vendedor.id, today, today), // This will fetch today's sales
-        getEntregasVendedor(vendedor.id)
+        getTransaccionesVendedor(vendedor.id)
       ]);
       setProductosVendedor(productos);
       setVentasVendedor(ventas);
-      setEntregasVendedor(entregas);
+      setTransaccionesVendedor(transaccion);
       setVendedorSeleccionado(vendedor);
     } catch (error) {
       console.error('Error al obtener datos del vendedor:', error);
-      alert('No se pudieron cargar los datos del vendedor. Por favor, inténtalo de nuevo.');
+      alert('Se está montando la logica');
     }
   };
 
@@ -497,7 +497,7 @@ export default function AlmacenPage() {
           onEdit={handleEditVendedor}
           productos={productosVendedor}
           ventas={ventasVendedor}
-          entregas={entregasVendedor}
+          transaccion={transaccionesVendedor}
         />
       )}
     </div>

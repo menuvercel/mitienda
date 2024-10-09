@@ -250,20 +250,6 @@ export const getVentasVendedor = async (vendedorId: string, startDate: string, e
   }
 };
 
-export const getEntregasVendedor = async (vendedorId: string): Promise<Entrega[]> => {
-  console.log('Solicitando entregas para vendedor:', vendedorId);
-  try {
-    const response = await api.get(`/entregas?vendedorId=${vendedorId}`);
-    console.log('Respuesta de entregas:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener entregas:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('Respuesta del servidor:', error.response.data);
-    }
-    throw new Error(`No se pudieron obtener las entregas: ${(error as Error).message}`);
-  }
-};
 
 export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor): Promise<void> => {
   try {

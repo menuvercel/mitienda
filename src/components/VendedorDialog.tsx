@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Vendedor, Producto, Venta, Entrega } from '@/types'
+import { Vendedor, Producto, Venta, Transaccion } from '@/types'
 
 interface VendorDialogProps {
   vendor: Vendedor
@@ -12,10 +12,10 @@ interface VendorDialogProps {
   onEdit: (editedVendor: Vendedor) => Promise<void>
   productos: Producto[]
   ventas: Venta[]
-  entregas: Entrega[]
+  transaccion: Transaccion[]
 }
 
-export default function VendorDialog({ vendor, onClose, onEdit, productos, ventas, entregas }: VendorDialogProps) {
+export default function VendorDialog({ vendor, onClose, onEdit, productos, ventas, transaccion }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
 
@@ -71,7 +71,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, venta
               <TabsTrigger value="disponibles">Productos Disponibles</TabsTrigger>
               <TabsTrigger value="agotados">Productos Agotados</TabsTrigger>
               <TabsTrigger value="ventas">Ventas</TabsTrigger>
-              <TabsTrigger value="entregas">Entregas</TabsTrigger>
+              <TabsTrigger value="transaccion">Transacciones</TabsTrigger>
             </TabsList>
             <TabsContent value="disponibles">
               <Table>
@@ -143,11 +143,11 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, venta
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {entregas.map(entrega => (
-                    <TableRow key={entrega.id}>
-                      <TableCell>{new Date(entrega.fecha).toLocaleDateString()}</TableCell>
-                      <TableCell>{entrega.producto.nombre}</TableCell>
-                      <TableCell>{entrega.cantidad}</TableCell>
+                  {transaccion.map(transaccion => (
+                    <TableRow key={transaccion.id}>
+                      <TableCell>{new Date(transaccion.fecha).toLocaleDateString()}</TableCell>
+                      <TableCell>{transaccion.producto}</TableCell>
+                      <TableCell>{transaccion.cantidad}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
