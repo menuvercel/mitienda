@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await query(
-      `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto
+      `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario
        FROM ventas v
        JOIN productos p ON v.producto = p.id
        WHERE v.vendedor = $1 AND v.fecha BETWEEN $2 AND $3

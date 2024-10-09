@@ -10,13 +10,11 @@ export interface Producto {
 
 export interface Venta {
   _id: string;
-  producto: {
-    _id: string;
-    nombre: string;
-    foto: string;
-  };
+  producto: string;
+  producto_nombre: string;
+  producto_foto: string;
   cantidad: number;
-  precioUnitario: number;
+  precio_unitario: number;
   total: number;
   vendedor: string;
   fecha: string;

@@ -46,13 +46,11 @@ interface Transaccion {
 
 interface Venta {
   _id: string;
-  producto: {
-    _id: string;
-    nombre: string;
-    foto: string;
-  };
+  producto: string;
+  producto_nombre: string;
+  producto_foto: string;
   cantidad: number;
-  precioUnitario: number;
+  precio_unitario: number;
   total: number;
   vendedor: string;
   fecha: string;
@@ -208,20 +206,20 @@ const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
               </TableHeader>
               <TableBody>
                 {venta.ventas.map((v) => {
-                  const precioUnitario = typeof v.precioUnitario === 'number' ? v.precioUnitario : parseFloat(v.precioUnitario);
+                  const precioUnitario = typeof v.precio_unitario === 'number' ? v.precio_unitario : parseFloat(v.precio_unitario);
                   const ventaTotal = typeof v.total === 'number' ? v.total : parseFloat(v.total);
 
                   return (
                     <TableRow key={v._id}>
                       <TableCell className="flex items-center space-x-2">
                         <Image
-                          src={v.producto.foto || '/placeholder.svg'}
-                          alt={v.producto.nombre}
+                          src={v.producto_foto || '/placeholder.svg'}
+                          alt={v.producto_nombre}
                           width={40}
                           height={40}
                           className="rounded-md"
                         />
-                        <span>{v.producto.nombre}</span>
+                        <span>{v.producto_nombre}</span>
                       </TableCell>
                       <TableCell>{v.cantidad}</TableCell>
                       <TableCell>${isNaN(precioUnitario) ? '0.00' : precioUnitario.toFixed(2)}</TableCell>
