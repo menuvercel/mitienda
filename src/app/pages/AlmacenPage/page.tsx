@@ -16,7 +16,7 @@ import {
   getInventario, 
   registerUser, 
   getProductosVendedor,
-  getVentasVendedor,
+  getVentasDia,
   agregarProducto,
   editarProducto,
   entregarProducto,
@@ -26,7 +26,7 @@ import {
 } from '../../services/api'
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
-import { Producto, Vendedor, Venta, Entrega, Transaccion } from '@/types'
+import { Producto, Vendedor, Venta, Transaccion } from '@/types'
 
 interface NewUser {
   nombre: string;
@@ -139,19 +139,20 @@ export default function AlmacenPage() {
 
   const handleVerVendedor = async (vendedor: Vendedor) => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const [productos, ventas, transaccion] = await Promise.all([
+      const [productos, ventas, transacciones] = await Promise.all([
         getProductosVendedor(vendedor.id),
-        getVentasVendedor(vendedor.id, today, today), // This will fetch today's sales
+        getVentasDia(vendedor.id),
         getTransaccionesVendedor(vendedor.id)
       ]);
       setProductosVendedor(productos);
       setVentasVendedor(ventas);
-      setTransaccionesVendedor(transaccion);
+      setTransaccionesVendedor(transacciones);
       setVendedorSeleccionado(vendedor);
     } catch (error) {
       console.error('Error al obtener datos del vendedor:', error);
-      alert('Se está montando la logica');
+      alert('No se pudieron cargar todos los datos del vendedor. Algunos datos pueden estar incompletos.');
+      // Still set the vendor as selected, even if some data is missing
+      setVendedorSeleccionado(vendedor);
     }
   };
 
@@ -259,15 +260,19 @@ export default function AlmacenPage() {
 
   const handleEditVendedor = async (editedVendor: Vendedor) => {
     try {
-      await editarVendedor(editedVendor.id, editedVendor)
-      await fetchVendedores()
-      setVendedorSeleccionado(null)
-      alert('Vendedor actualizado exitosamente')
+      await editarVendedor(editedVendor.id, editedVendor);
+      await fetchVendedores();
+      setVendedorSeleccionado(null);
+      alert('Vendedor actualizado exitosamente');
     } catch (error) {
-      console.error('Error editing vendor:', error)
-      alert('Error al editar el vendedor. Por favor, inténtelo de nuevo.')
+      console.error('Error editing vendor:', error);
+      if (error instanceof Error) {
+        alert(`Error al editar el vendedor: ${error.message}`);
+      } else {
+        alert('Error desconocido al editar el vendedor');
+      }
     }
-  }
+  };
 
   const filteredInventario = inventario.filter((producto) =>
     producto.nombre.toLowerCase().includes(searchTerm.toLowerCase())
@@ -490,16 +495,16 @@ export default function AlmacenPage() {
         />
       )}
 
-      {vendedorSeleccionado && (
-        <VendorDialog
-          vendor={vendedorSeleccionado}
-          onClose={() => setVendedorSeleccionado(null)}
-          onEdit={handleEditVendedor}
-          productos={productosVendedor}
-          ventas={ventasVendedor}
-          transaccion={transaccionesVendedor}
-        />
-      )}
+    {vendedorSeleccionado && (
+      <VendorDialog
+        vendor={vendedorSeleccionado}
+        onClose={() => setVendedorSeleccionado(null)}
+        onEdit={handleEditVendedor}
+        productos={productosVendedor}
+        ventas={ventasVendedor}
+        transaccion={transaccionesVendedor}
+      />
+    )}
     </div>
   )
 }
