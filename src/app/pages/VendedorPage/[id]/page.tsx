@@ -62,12 +62,6 @@ interface VentaAgrupada {
   total: number;
 }
 
-const formatCurrency = (value: number | string | undefined): string => {
-  if (typeof value === 'undefined') return '$0.00';
-  const numValue = typeof value === 'string' ? parseFloat(value) : value;
-  return isNaN(numValue) ? '$0.00' : `$${numValue.toFixed(2)}`;
-};
-
 const useVendedorData = (vendedorId: string) => {
   const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -189,8 +183,8 @@ const agruparVentas = useCallback((ventas: Venta[]) => {
 const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
   const [isOpen, setIsOpen] = useState(false)
 
-  const total = venta.ventas.reduce((sum, v) => sum + (typeof v.total === 'number' ? v.total : 0), 0);
-  const totalCantidad = venta.ventas.reduce((sum, v) => sum + (typeof v.cantidad === 'number' ? v.cantidad : 0), 0);
+  const total = venta.ventas.reduce((sum, v) => sum + v.total, 0);
+  const totalCantidad = venta.ventas.reduce((sum, v) => sum + v.cantidad, 0);
 
   // Format the date to DD/MM/YY
   const formatearFecha = (fecha: string) => {
@@ -207,7 +201,7 @@ const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
       <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
         <TableCell>{formatearFecha(venta.fecha)}</TableCell>
         <TableCell>{totalCantidad}</TableCell>
-        <TableCell>{formatCurrency(total)}</TableCell>
+        <TableCell>${total.toFixed(2)}</TableCell>
         <TableCell>
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </TableCell>
@@ -238,8 +232,8 @@ const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
                       <span>{v.producto_nombre}</span>
                     </TableCell>
                     <TableCell>{v.cantidad}</TableCell>
-                    <TableCell>{formatCurrency(v.precio_unitario)}</TableCell>
-                    <TableCell>{formatCurrency(v.total)}</TableCell>
+                    <TableCell>${v.precio_unitario.toFixed(2)}</TableCell>
+                    <TableCell>${v.total.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -314,9 +308,9 @@ export default function VendedorPage() {
     }
   
     try {
-      // Create a date object at noon UTC on the selected date
-      const [year, month, day] = fecha.split('-').map(Number);
-      const fechaVenta = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+      // Ensure the date is set to noon in the local time zone
+      const fechaVenta = new Date(fecha);
+      fechaVenta.setHours(12, 0, 0, 0);
       
       await Promise.all(productosSeleccionados.map(producto => {
         return realizarVenta(producto.id, producto.cantidadVendida, fechaVenta.toISOString());
@@ -506,12 +500,7 @@ export default function VendedorPage() {
                 <Input
                   type="date"
                   value={fecha}
-                  onChange={(e) => {
-                    const selectedDate = new Date(e.target.value);
-                    const offset = selectedDate.getTimezoneOffset();
-                    selectedDate.setMinutes(selectedDate.getMinutes() - offset);
-                    setFecha(selectedDate.toISOString().split('T')[0]);
-                  }}
+                  onChange={(e) => setFecha(e.target.value)}
                 />
                 <h2 className="text-xl font-semibold">2. Selecciona los productos</h2>
                 <Dialog>
