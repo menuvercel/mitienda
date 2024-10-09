@@ -36,10 +36,7 @@ interface ProductoVenta extends Producto {
 
 interface Transaccion {
   _id: string;
-  producto: {
-    _id: string;
-    nombre: string;
-  };
+  producto: string
   cantidad: number;
   precio: number;
   desde: string;
@@ -637,7 +634,7 @@ export default function VendedorPage() {
                     <TableRow key={transaccion._id}>
                       <TableCell>{new Date(transaccion.fecha).toLocaleString()}</TableCell>
                       <TableCell>Entrega de Almacén</TableCell>
-                      <TableCell>{transaccion.producto.nombre}</TableCell>
+                      <TableCell>{transaccion.producto}</TableCell>
                       <TableCell>{transaccion.cantidad}</TableCell>
                       <TableCell>${isNaN(precio) ? '0.00' : precio.toFixed(2)}</TableCell>
                     </TableRow>
