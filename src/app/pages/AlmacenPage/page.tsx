@@ -296,26 +296,23 @@ export default function AlmacenPage() {
               <CardTitle>Vendedores</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Teléfono</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {vendedores.map((vendedor) => (
-                    <TableRow key={vendedor.id}>
-                      <TableCell>{vendedor.nombre}</TableCell>
-                      <TableCell>{vendedor.telefono}</TableCell>
-                      <TableCell>
-                        <Button onClick={() => handleVerVendedor(vendedor)}>Ver Detalles</Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="space-y-2">
+                {vendedores.map((vendedor) => (
+                  <Button
+                    key={vendedor.id}
+                    onClick={() => handleVerVendedor(vendedor)}
+                    className="w-full h-auto p-4 flex items-center text-left bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors"
+                    variant="ghost"
+                  >
+                    <div className="flex-grow">
+                      <span className="font-semibold text-gray-800">{vendedor.nombre}</span>
+                      <div className="text-sm text-gray-600">
+                        <span>Teléfono: {vendedor.telefono}</span>
+                      </div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
