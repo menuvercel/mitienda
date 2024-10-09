@@ -177,9 +177,10 @@ const useVendedorData = (vendedorId: string) => {
 }
 
 const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false);
 
-  const total = typeof venta.total === 'number' ? venta.total : parseFloat(venta.total);
+  // Calculate the total from the individual product totals
+  const total = venta.ventas.reduce((sum, v) => sum + (typeof v.total === 'number' ? v.total : parseFloat(v.total)), 0);
   const totalCantidad = venta.ventas.reduce((sum, v) => sum + v.cantidad, 0);
 
   return (
@@ -233,8 +234,8 @@ const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
         </TableRow>
       )}
     </>
-  )
-}
+  );
+};
 
 export default function VendedorPage() {
   const params = useParams()
