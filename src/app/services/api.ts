@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Venta, Vendedor, Producto } from '@/types';
+import { Venta, Vendedor, Producto, Entrega } from '@/types';
 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
@@ -230,6 +230,51 @@ const handleApiError = (error: unknown, context: string) => {
   } else {
     console.error('Error desconocido:', error);
     throw new Error('Ocurrió un error inesperado. Por favor, intenta de nuevo.');
+  }
+};
+
+/*estas son las funciones nuevas*/
+
+export const getVentasVendedor = async (vendedorId: string): Promise<Venta[]> => {
+  console.log('Solicitando todas las ventas para vendedor:', vendedorId);
+  try {
+    const response = await api.get(`/ventas?vendedorId=${vendedorId}`);
+    console.log('Respuesta de todas las ventas:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener todas las ventas:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Respuesta del servidor:', error.response.data);
+    }
+    throw new Error(`No se pudieron obtener todas las ventas: ${(error as Error).message}`);
+  }
+};
+
+export const getEntregasVendedor = async (vendedorId: string): Promise<Entrega[]> => {
+  console.log('Solicitando entregas para vendedor:', vendedorId);
+  try {
+    const response = await api.get(`/entregas?vendedorId=${vendedorId}`);
+    console.log('Respuesta de entregas:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener entregas:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Respuesta del servidor:', error.response.data);
+    }
+    throw new Error(`No se pudieron obtener las entregas: ${(error as Error).message}`);
+  }
+};
+
+export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor): Promise<void> => {
+  try {
+    const response = await api.put(`/users/vendedores/${vendedorId}`, editedVendor);
+    console.log('Vendedor actualizado:', response.data);
+  } catch (error) {
+    console.error('Error al editar vendedor:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Respuesta del servidor:', error.response.data);
+    }
+    throw new Error(`No se pudo editar el vendedor: ${(error as Error).message}`);
   }
 };
 

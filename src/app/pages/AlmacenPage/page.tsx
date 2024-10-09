@@ -15,16 +15,18 @@ import {
   getCurrentUser, 
   getInventario, 
   registerUser, 
-  getProductosVendedor, 
+  getProductosVendedor,
+  getVentasVendedor,
+  getEntregasVendedor,
   agregarProducto,
   editarProducto,
   entregarProducto,
-  eliminarProducto
+  eliminarProducto,
+  editarVendedor
 } from '../../services/api'
 import ProductDialog from '@/components/ProductDialog'
-import { Producto, Vendedor } from '@/types';
-import { uploadImage } from '../../services/api';
-
+import VendorDialog from '@/components/VendedorDialog'
+import { Producto, Vendedor, Venta, Entrega } from '@/types'
 
 interface NewUser {
   nombre: string;
@@ -43,19 +45,19 @@ interface NewProduct {
 const useAlmacenData = () => {
   const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [vendedores, setVendedores] = useState<Vendedor[]>([]);
-  const [inventario, setInventario] = useState<Producto[]>([]);
+  const [vendedores, setVendedores] = useState<Vendedor[]>([])
+  const [inventario, setInventario] = useState<Producto[]>([])
 
   const fetchVendedores = useCallback(async () => {
     try {
-      const data = await getVendedores();
-      setVendedores(data);
-      console.log('Lista de vendedores cargada:', data);
+      const data = await getVendedores()
+      setVendedores(data)
+      console.log('Lista de vendedores cargada:', data)
     } catch (error) {
-      console.error('Error al obtener vendedores:', error);
-      alert('No se pudieron cargar los vendedores. Por favor, inténtalo de nuevo.');
+      console.error('Error al obtener vendedores:', error)
+      alert('No se pudieron cargar los vendedores. Por favor, inténtalo de nuevo.')
     }
-  }, []);
+  }, [])
 
   const fetchInventario = useCallback(async () => {
     try {
@@ -98,7 +100,9 @@ export default function AlmacenPage() {
     rol: ''
   })
   const [productosVendedor, setProductosVendedor] = useState<Producto[]>([])
-  const [vendedorSeleccionado, setVendedorSeleccionado] = useState<string | null>(null)
+  const [ventasVendedor, setVentasVendedor] = useState<Venta[]>([])
+  const [entregasVendedor, setEntregasVendedor] = useState<Entrega[]>([])
+  const [vendedorSeleccionado, setVendedorSeleccionado] = useState<Vendedor | null>(null)
   const [showAddProductModal, setShowAddProductModal] = useState(false)
   const [newProduct, setNewProduct] = useState<NewProduct>({
     nombre: '',
@@ -108,7 +112,6 @@ export default function AlmacenPage() {
   })
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null)
-
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewUser({ ...newUser, [e.target.name]: e.target.value })
@@ -134,21 +137,23 @@ export default function AlmacenPage() {
     }
   }
 
-  const handleVerProductos = async (vendedorId: string) => {
-    if (!vendedorId) {
-      console.error('ID del vendedor es undefined');
-      return;
-    }
+  const handleVerVendedor = async (vendedor: Vendedor) => {
     try {
-      const productos = await getProductosVendedor(vendedorId);
-      setProductosVendedor(productos);
-      setVendedorSeleccionado(vendedorId);
+      const [productos, ventas, entregas] = await Promise.all([
+        getProductosVendedor(vendedor.id),
+        getVentasVendedor(vendedor.id),
+        getEntregasVendedor(vendedor.id)
+      ])
+      setProductosVendedor(productos)
+      setVentasVendedor(ventas)
+      setEntregasVendedor(entregas)
+      setVendedorSeleccionado(vendedor)
     } catch (error) {
-      console.error('Error al obtener productos del vendedor:', error);
-      alert('No se pudieron cargar los productos del vendedor. Por favor, inténtalo de nuevo.');
+      console.error('Error al obtener datos del vendedor:', error)
+      alert('No se pudieron cargar los datos del vendedor. Por favor, inténtalo de nuevo.')
     }
-  };
-  
+  }
+
   const handleProductInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target
     if (type === 'file') {
@@ -163,95 +168,103 @@ export default function AlmacenPage() {
 
   const handleAddProduct = async () => {
     try {
-      const formData = new FormData();
-      formData.append('nombre', newProduct.nombre);
-      formData.append('precio', newProduct.precio.toString());
-      formData.append('cantidad', newProduct.cantidad.toString());
+      const formData = new FormData()
+      formData.append('nombre', newProduct.nombre)
+      formData.append('precio', newProduct.precio.toString())
+      formData.append('cantidad', newProduct.cantidad.toString())
       
       if (newProduct.foto) {
-        formData.append('foto', newProduct.foto);
+        formData.append('foto', newProduct.foto)
       }
   
-      await agregarProducto(formData);
-      setShowAddProductModal(false);
+      await agregarProducto(formData)
+      setShowAddProductModal(false)
       setNewProduct({
         nombre: '',
         precio: 0,
         cantidad: 0,
         foto: null
-      });
-      await fetchInventario();
+      })
+      await fetchInventario()
     } catch (error) {
-      console.error('Error al agregar producto:', error);
+      console.error('Error al agregar producto:', error)
     }
-  };
+  }
 
   const handleProductDelivery = async (productId: string, vendedorId: string, cantidad: number) => {
     try {
-      console.log(`Entregando producto: ID=${productId}, VendedorID=${vendedorId}, Cantidad=${cantidad}`);
-      await entregarProducto(productId, vendedorId, cantidad);
+      console.log(`Entregando producto: ID=${productId}, VendedorID=${vendedorId}, Cantidad=${cantidad}`)
+      await entregarProducto(productId, vendedorId, cantidad)
       
-      // Refresh the inventory
-      await fetchInventario();
+      await fetchInventario()
+      setSelectedProduct(null)
   
-      setSelectedProduct(null);
-  
-      alert('Producto entregado exitosamente');
+      alert('Producto entregado exitosamente')
     } catch (error) {
-      console.error('Error entregando producto:', error);
+      console.error('Error entregando producto:', error)
       if (error instanceof Error) {
-        alert(`Error al entregar producto: ${error.message}`);
+        alert(`Error al entregar producto: ${error.message}`)
       } else if (typeof error === 'object' && error !== null && 'response' in error) {
-        // Asumiendo que es un error de Axios
-        const axiosError = error as any;
-        alert(`Error al entregar producto: ${axiosError.response?.data?.error || 'Error desconocido'}`);
+        const axiosError = error as any
+        alert(`Error al entregar producto: ${axiosError.response?.data?.error || 'Error desconocido'}`)
       } else {
-        alert('Error desconocido al entregar producto');
+        alert('Error desconocido al entregar producto')
       }
     }
-  };
+  }
 
   const handleEditProduct = async (editedProduct: Producto, foto: File | null) => {
     try {
-      const formData = new FormData();
-      formData.append('nombre', editedProduct.nombre);
-      formData.append('precio', editedProduct.precio.toString());
-      formData.append('cantidad', editedProduct.cantidad.toString());
+      const formData = new FormData()
+      formData.append('nombre', editedProduct.nombre)
+      formData.append('precio', editedProduct.precio.toString())
+      formData.append('cantidad', editedProduct.cantidad.toString())
       
       if (foto) {
-        formData.append('foto', foto);
+        formData.append('foto', foto)
       } else if (editedProduct.foto) {
-        // If no new file is selected, but there's an existing photo URL
-        formData.append('fotoUrl', editedProduct.foto);
+        formData.append('fotoUrl', editedProduct.foto)
       }
   
-      await editarProducto(editedProduct.id, formData);
-      await fetchInventario();
-      setSelectedProduct(null);
+      await editarProducto(editedProduct.id, formData)
+      await fetchInventario()
+      setSelectedProduct(null)
     } catch (error) {
-      console.error('Error editing product:', error);
-      alert('Error al editar el producto. Por favor, inténtelo de nuevo.');
+      console.error('Error editing product:', error)
+      alert('Error al editar el producto. Por favor, inténtelo de nuevo.')
     }
-  };
+  }
 
   const handleDeleteProduct = async (productId: string) => {
     try {
-      const response = await eliminarProducto(productId);
+      const response = await eliminarProducto(productId)
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Server error details:', errorData);
-        throw new Error(errorData.error || 'Error desconocido al eliminar el producto');
+        const errorData = await response.json()
+        console.error('Server error details:', errorData)
+        throw new Error(errorData.error || 'Error desconocido al eliminar el producto')
       }
-      await fetchInventario();
-      setSelectedProduct(null);
-      alert('Producto eliminado exitosamente');
+      await fetchInventario()
+      setSelectedProduct(null)
+      alert('Producto eliminado exitosamente')
     } catch (error) {
-      console.error('Error deleting product:', error);
+      console.error('Error deleting product:', error)
       if (error instanceof Error) {
-        alert(`Error al eliminar el producto: ${error.message}`);
+        alert(`Error al eliminar el producto: ${error.message}`)
       } else {
-        alert('Error desconocido al eliminar el producto');
+        alert('Error desconocido al eliminar el producto')
       }
+    }
+  }
+
+  const handleEditVendedor = async (editedVendor: Vendedor) => {
+    try {
+      await editarVendedor(editedVendor.id, editedVendor)
+      await fetchVendedores()
+      setVendedorSeleccionado(null)
+      alert('Vendedor actualizado exitosamente')
+    } catch (error) {
+      console.error('Error editing vendor:', error)
+      alert('Error al editar el vendedor. Por favor, inténtelo de nuevo.')
     }
   }
 
@@ -287,6 +300,7 @@ export default function AlmacenPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nombre</TableHead>
+                    <TableHead>Teléfono</TableHead>
                     <TableHead>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -294,8 +308,9 @@ export default function AlmacenPage() {
                   {vendedores.map((vendedor) => (
                     <TableRow key={vendedor.id}>
                       <TableCell>{vendedor.nombre}</TableCell>
+                      <TableCell>{vendedor.telefono}</TableCell>
                       <TableCell>
-                        <Button onClick={() => handleVerProductos(vendedor.id)}>Ver Productos</Button>
+                        <Button onClick={() => handleVerVendedor(vendedor)}>Ver Detalles</Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -334,8 +349,8 @@ export default function AlmacenPage() {
                         height={50}
                         className="object-cover rounded mr-4"
                         onError={(e) => {
-                          console.error(`Error loading image for ${producto.nombre}:`, e);
-                          e.currentTarget.src = '/placeholder.svg';
+                          console.error(`Error loading image for ${producto.nombre}:`, e)
+                          e.currentTarget.src = '/placeholder.svg'
                         }}
                       />
                     ) : (
@@ -373,6 +388,7 @@ export default function AlmacenPage() {
                 onChange={handleInputChange}
                 placeholder="Nombre completo"
               />
+            
             </div>
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">Contraseña</label>
@@ -409,54 +425,6 @@ export default function AlmacenPage() {
             </div>
             <Button onClick={handleRegisterUser}>Registrar</Button>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!vendedorSeleccionado} onOpenChange={() => setVendedorSeleccionado(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Productos del Vendedor</DialogTitle>
-          </DialogHeader>
-          <Table>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Foto</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Precio</TableHead>
-                  <TableHead>Cantidad</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {productosVendedor.map((producto) => (
-                  <TableRow key={producto.id}>
-                    <TableCell>
-                      {producto.foto ? (
-                        <Image
-                          src={producto.foto}
-                          alt={producto.nombre}
-                          width={50}
-                          height={50}
-                          className="object-cover rounded"
-                          onError={(e) => {
-                            console.error(`Error loading image for ${producto.nombre}`);
-                            e.currentTarget.src = '/placeholder.svg';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
-                          <span className="text-gray-500 text-xs">Sin imagen</span>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>{producto.nombre}</TableCell>
-                    <TableCell>${producto.precio}</TableCell>
-                    <TableCell>{producto.cantidad}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Table>
         </DialogContent>
       </Dialog>
 
@@ -513,7 +481,7 @@ export default function AlmacenPage() {
         </DialogContent>
       </Dialog>
 
-{selectedProduct && (
+      {selectedProduct && (
         <ProductDialog
           product={{...selectedProduct, foto: selectedProduct.foto || ''}}
           onClose={() => setSelectedProduct(null)}
@@ -521,6 +489,17 @@ export default function AlmacenPage() {
           onEdit={handleEditProduct}
           onDelete={handleDeleteProduct}
           onDeliver={handleProductDelivery}
+        />
+      )}
+
+      {vendedorSeleccionado && (
+        <VendorDialog
+          vendor={vendedorSeleccionado}
+          onClose={() => setVendedorSeleccionado(null)}
+          onEdit={handleEditVendedor}
+          productos={productosVendedor}
+          ventas={ventasVendedor}
+          entregas={entregasVendedor}
         />
       )}
     </div>

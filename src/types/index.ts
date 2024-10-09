@@ -44,3 +44,11 @@ export interface Transaccion {
   hacia: string;
   fecha: Date;
 }
+
+export interface Entrega {
+  id: string;
+  fecha: string;
+  producto: Producto;
+  cantidad: number;
+  vendedor: Vendedor;
+}
