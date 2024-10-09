@@ -314,9 +314,9 @@ export default function VendedorPage() {
     }
   
     try {
-      // Ensure the date is set to noon in the local time zone
-      const fechaVenta = new Date(fecha);
-      fechaVenta.setHours(12, 0, 0, 0);
+      // Create a date object at noon UTC on the selected date
+      const [year, month, day] = fecha.split('-').map(Number);
+      const fechaVenta = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
       
       await Promise.all(productosSeleccionados.map(producto => {
         return realizarVenta(producto.id, producto.cantidadVendida, fechaVenta.toISOString());
@@ -508,7 +508,8 @@ export default function VendedorPage() {
                   value={fecha}
                   onChange={(e) => {
                     const selectedDate = new Date(e.target.value);
-                    selectedDate.setHours(12, 0, 0, 0); // Set to noon in local time
+                    const offset = selectedDate.getTimezoneOffset();
+                    selectedDate.setMinutes(selectedDate.getMinutes() - offset);
                     setFecha(selectedDate.toISOString().split('T')[0]);
                   }}
                 />
