@@ -318,6 +318,7 @@ export default function VendedorPage() {
     }
   }
 
+
   const productosAgotadosFiltrados = productosAgotados.filter(p => 
     p.nombre.toLowerCase().includes(busqueda.toLowerCase())
   )
@@ -614,77 +615,43 @@ export default function VendedorPage() {
             </TabsContent>
           </Tabs>
         )}
-
         {seccionActual === 'registro' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Registro de Actividades</h2>
-            <Tabs defaultValue="dia">
-              <TabsList>
-                <TabsTrigger value="dia">Ventas del Día</TabsTrigger>
-                <TabsTrigger value="todas">Todas las Actividades</TabsTrigger>
-              </TabsList>
-              <TabsContent value="dia">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Cantidad de Ventas</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ventasAgrupadas.length > 0 ? (
-                      ventasAgrupadas
-                        .filter(venta => new Date(venta.fecha).toDateString() === new Date().toDateString())
-                        .map((venta) => (
-                          <VentaDesplegable key={venta.fecha} venta={venta} />
-                        ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center">No hay ventas registradas hoy</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TabsContent>
-              <TabsContent value="todas">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Actividad</TableHead>
-                      <TableHead>Producto</TableHead>
-                      <TableHead>Cantidad</TableHead>
-                      <TableHead>Precio</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transacciones && transacciones.length > 0 ? (
-                      transacciones.map((transaccion) => {
-                        const precio = typeof transaccion.precio === 'number' ? transaccion.precio : parseFloat(transaccion.precio);
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Registro de Actividades</h2>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Fecha</TableHead>
+                <TableHead>Actividad</TableHead>
+                <TableHead>Producto</TableHead>
+                <TableHead>Cantidad</TableHead>
+                <TableHead>Precio</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {transacciones && transacciones.length > 0 ? (
+                transacciones.map((transaccion) => {
+                  const precio = typeof transaccion.precio === 'number' ? transaccion.precio : parseFloat(transaccion.precio);
 
-                        return (
-                          <TableRow key={transaccion._id} className="bg-green-100">
-                            <TableCell>{new Date(transaccion.fecha).toLocaleDateString()}</TableCell>
-                            <TableCell>Entrega de Almacén</TableCell>
-                            <TableCell>{transaccion.producto.nombre}</TableCell>
-                            <TableCell>{transaccion.cantidad}</TableCell>
-                            <TableCell>${isNaN(precio) ? '0.00' : precio.toFixed(2)}</TableCell>
-                          </TableRow>
-                        );
-                      })
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center">No hay actividades registradas</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TabsContent>
-            </Tabs>
-          </div>
-        )}
+                  return (
+                    <TableRow key={transaccion._id}>
+                      <TableCell>{new Date(transaccion.fecha).toLocaleString()}</TableCell>
+                      <TableCell>Entrega de Almacén</TableCell>
+                      <TableCell>{transaccion.producto.nombre}</TableCell>
+                      <TableCell>{transaccion.cantidad}</TableCell>
+                      <TableCell>${isNaN(precio) ? '0.00' : precio.toFixed(2)}</TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">No hay actividades registradas</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
       </main>
     </div>
   )
