@@ -183,17 +183,17 @@ const agruparVentas = useCallback((ventas: Venta[]) => {
 const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
   const [isOpen, setIsOpen] = useState(false)
 
-  const total = typeof venta.total === 'number' ? venta.total : parseFloat(venta.total);
+  const total = venta.ventas.reduce((sum, v) => sum + v.total, 0);
   const totalCantidad = venta.ventas.reduce((sum, v) => sum + v.cantidad, 0);
 
-  // Formatear la fecha correctamente
+  // Format the date to DD/MM/YY
   const formatearFecha = (fecha: string) => {
     const fechaObj = new Date(fecha);
     return fechaObj.toLocaleDateString('es-ES', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
+      year: '2-digit', 
+      month: '2-digit', 
+      day: '2-digit' 
+    }).replace(/\//g, '/');
   };
 
   return (
@@ -201,7 +201,7 @@ const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
       <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
         <TableCell>{formatearFecha(venta.fecha)}</TableCell>
         <TableCell>{totalCantidad}</TableCell>
-        <TableCell>${isNaN(total) ? '0.00' : total.toFixed(2)}</TableCell>
+        <TableCell>${total.toFixed(2)}</TableCell>
         <TableCell>
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </TableCell>
@@ -219,28 +219,23 @@ const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {venta.ventas.map((v) => {
-                  const precioUnitario = typeof v.precio_unitario === 'number' ? v.precio_unitario : parseFloat(v.precio_unitario);
-                  const ventaTotal = typeof v.total === 'number' ? v.total : parseFloat(v.total);
-
-                  return (
-                    <TableRow key={v._id}>
-                      <TableCell className="flex items-center space-x-2">
-                        <Image
-                          src={v.producto_foto || '/placeholder.svg'}
-                          alt={v.producto_nombre}
-                          width={40}
-                          height={40}
-                          className="rounded-md"
-                        />
-                        <span>{v.producto_nombre}</span>
-                      </TableCell>
-                      <TableCell>{v.cantidad}</TableCell>
-                      <TableCell>${isNaN(precioUnitario) ? '0.00' : precioUnitario.toFixed(2)}</TableCell>
-                      <TableCell>${isNaN(ventaTotal) ? '0.00' : ventaTotal.toFixed(2)}</TableCell>
-                    </TableRow>
-                  );
-                })}
+                {venta.ventas.map((v) => (
+                  <TableRow key={v._id}>
+                    <TableCell className="flex items-center space-x-2">
+                      <Image
+                        src={v.producto_foto || '/placeholder.svg'}
+                        alt={v.producto_nombre}
+                        width={40}
+                        height={40}
+                        className="rounded-md"
+                      />
+                      <span>{v.producto_nombre}</span>
+                    </TableCell>
+                    <TableCell>{v.cantidad}</TableCell>
+                    <TableCell>${v.precio_unitario.toFixed(2)}</TableCell>
+                    <TableCell>${v.total.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </TableCell>
@@ -313,8 +308,12 @@ export default function VendedorPage() {
     }
   
     try {
+      // Ensure the date is set to noon in the local time zone
+      const fechaVenta = new Date(fecha);
+      fechaVenta.setHours(12, 0, 0, 0);
+      
       await Promise.all(productosSeleccionados.map(producto => {
-        return realizarVenta(producto.id, producto.cantidadVendida, fecha);
+        return realizarVenta(producto.id, producto.cantidadVendida, fechaVenta.toISOString());
       }));
   
       setProductosSeleccionados([])
@@ -496,13 +495,17 @@ export default function VendedorPage() {
               <TabsTrigger value="registro">Registro de Ventas</TabsTrigger>
             </TabsList>
             <TabsContent value="vender">
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold">1. Selecciona la fecha</h2>
-                <Input
-                  type="date"
-                  value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
-                />
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold">1. Selecciona la fecha</h2>
+              <Input
+                type="date"
+                value={fecha}
+                onChange={(e) => {
+                  const selectedDate = new Date(e.target.value);
+                  selectedDate.setHours(12, 0, 0, 0); // Set to noon in local time
+                  setFecha(selectedDate.toISOString().split('T')[0]);
+                }}
+              />
                 <h2 className="text-xl font-semibold">2. Selecciona los productos</h2>
                 <Dialog>
                   <DialogTrigger asChild>
