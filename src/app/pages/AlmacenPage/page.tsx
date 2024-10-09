@@ -139,20 +139,21 @@ export default function AlmacenPage() {
 
   const handleVerVendedor = async (vendedor: Vendedor) => {
     try {
+      const today = new Date().toISOString().split('T')[0];
       const [productos, ventas, entregas] = await Promise.all([
         getProductosVendedor(vendedor.id),
-        getVentasVendedor(vendedor.id),
+        getVentasVendedor(vendedor.id, today, today), // This will fetch today's sales
         getEntregasVendedor(vendedor.id)
-      ])
-      setProductosVendedor(productos)
-      setVentasVendedor(ventas)
-      setEntregasVendedor(entregas)
-      setVendedorSeleccionado(vendedor)
+      ]);
+      setProductosVendedor(productos);
+      setVentasVendedor(ventas);
+      setEntregasVendedor(entregas);
+      setVendedorSeleccionado(vendedor);
     } catch (error) {
-      console.error('Error al obtener datos del vendedor:', error)
-      alert('No se pudieron cargar los datos del vendedor. Por favor, inténtalo de nuevo.')
+      console.error('Error al obtener datos del vendedor:', error);
+      alert('No se pudieron cargar los datos del vendedor. Por favor, inténtalo de nuevo.');
     }
-  }
+  };
 
   const handleProductInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target

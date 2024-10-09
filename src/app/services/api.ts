@@ -235,18 +235,18 @@ const handleApiError = (error: unknown, context: string) => {
 
 /*estas son las funciones nuevas*/
 
-export const getVentasVendedor = async (vendedorId: string): Promise<Venta[]> => {
-  console.log('Solicitando todas las ventas para vendedor:', vendedorId);
+export const getVentasVendedor = async (vendedorId: string, startDate: string, endDate: string): Promise<Venta[]> => {
+  console.log('Solicitando ventas para vendedor:', vendedorId);
   try {
-    const response = await api.get(`/ventas?vendedorId=${vendedorId}`);
-    console.log('Respuesta de todas las ventas:', response.data);
+    const response = await api.get(`/ventas?vendedorId=${vendedorId}&startDate=${startDate}&endDate=${endDate}`);
+    console.log('Respuesta de ventas:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error al obtener todas las ventas:', error);
+    console.error('Error al obtener ventas:', error);
     if (axios.isAxiosError(error) && error.response) {
       console.error('Respuesta del servidor:', error.response.data);
     }
-    throw new Error(`No se pudieron obtener todas las ventas: ${(error as Error).message}`);
+    throw new Error(`No se pudieron obtener las ventas: ${(error as Error).message}`);
   }
 };
 
