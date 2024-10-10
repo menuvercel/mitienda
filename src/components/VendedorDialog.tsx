@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
 
 interface VendorDialogProps {
@@ -37,7 +39,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, venta
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[90vw] h-[90vh] flex flex-col">
+      <DialogContent className="max-w-[90vw] max-h-[90vh] w-fit h-fit flex flex-col">
         <DialogHeader>
           <DialogTitle>{vendor.nombre}</DialogTitle>
         </DialogHeader>
@@ -57,50 +59,73 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, venta
                   onChange={handleInputChange}
                   placeholder="Teléfono"
                 />
-                <div className="flex gap-2">
-                  <Button onClick={handleEdit}>Guardar cambios</Button>
-                  <Button variant="outline" onClick={() => setMode('view')}>Cancelar</Button>
-                </div>
+                <Button onClick={handleEdit}>Guardar cambios</Button>
               </>
             ) : mode === 'productos' ? (
-              <>
-                <h3 className="text-lg font-semibold">Productos Disponibles</h3>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Precio</TableHead>
-                      <TableHead>Cantidad</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {productosDisponibles.map(producto => (
-                      <TableRow key={producto.id}>
-                        <TableCell>{producto.nombre}</TableCell>
-                        <TableCell>${producto.precio}</TableCell>
-                        <TableCell>{producto.cantidad}</TableCell>
+              <Tabs defaultValue="disponibles" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
+                  <TabsTrigger value="agotados">Agotados</TabsTrigger>
+                </TabsList>
+                <TabsContent value="disponibles">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Foto</TableHead>
+                        <TableHead>Nombre</TableHead>
+                        <TableHead>Precio</TableHead>
+                        <TableHead>Cantidad</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <h3 className="text-lg font-semibold mt-4">Productos Agotados</h3>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Precio</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {productosAgotados.map(producto => (
-                      <TableRow key={producto.id}>
-                        <TableCell>{producto.nombre}</TableCell>
-                        <TableCell>${producto.precio}</TableCell>
+                    </TableHeader>
+                    <TableBody>
+                      {productosDisponibles.map(producto => (
+                        <TableRow key={producto.id}>
+                          <TableCell>
+                            <Image
+                              src={producto.foto || '/placeholder.svg'}
+                              alt={producto.nombre}
+                              width={50}
+                              height={50}
+                              className="object-cover rounded"
+                            />
+                          </TableCell>
+                          <TableCell>{producto.nombre}</TableCell>
+                          <TableCell>${producto.precio}</TableCell>
+                          <TableCell>{producto.cantidad}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TabsContent>
+                <TabsContent value="agotados">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Foto</TableHead>
+                        <TableHead>Nombre</TableHead>
+                        <TableHead>Precio</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </>
+                    </TableHeader>
+                    <TableBody>
+                      {productosAgotados.map(producto => (
+                        <TableRow key={producto.id}>
+                          <TableCell>
+                            <Image
+                              src={producto.foto || '/placeholder.svg'}
+                              alt={producto.nombre}
+                              width={50}
+                              height={50}
+                              className="object-cover rounded"
+                            />
+                          </TableCell>
+                          <TableCell>{producto.nombre}</TableCell>
+                          <TableCell>${producto.precio}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TabsContent>
+              </Tabs>
             ) : mode === 'ventas' ? (
               <Table>
                 <TableHeader>
@@ -133,7 +158,10 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, venta
                 </TableHeader>
                 <TableBody>
                   {transacciones.map(transaccion => (
-                    <TableRow key={transaccion.id}>
+                    <TableRow 
+                      key={transaccion.id}
+                      className={transaccion.desde === 'Almacen' ? 'bg-green-100' : ''}
+                    >
                       <TableCell>{new Date(transaccion.fecha).toLocaleDateString()}</TableCell>
                       <TableCell>{transaccion.producto}</TableCell>
                       <TableCell>{transaccion.cantidad}</TableCell>
@@ -142,15 +170,12 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, venta
                 </TableBody>
               </Table>
             ) : (
-              <>
-                <p>Teléfono: {vendor.telefono}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button onClick={() => setMode('edit')}>Editar</Button>
-                  <Button onClick={() => setMode('productos')}>Productos</Button>
-                  <Button onClick={() => setMode('ventas')}>Ventas</Button>
-                  <Button onClick={() => setMode('transacciones')}>Transacciones</Button>
-                </div>
-              </>
+              <div className="flex flex-col space-y-2">
+                <Button onClick={() => setMode('edit')}>Editar</Button>
+                <Button onClick={() => setMode('productos')}>Productos</Button>
+                <Button onClick={() => setMode('ventas')}>Ventas</Button>
+                <Button onClick={() => setMode('transacciones')}>Transacciones</Button>
+              </div>
             )}
           </div>
         </ScrollArea>
