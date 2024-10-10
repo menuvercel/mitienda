@@ -39,7 +39,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, venta
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-[90vw] max-h-[90vh] w-fit h-fit flex flex-col">
+      <DialogContent className="w-[90vw] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{vendor.nombre}</DialogTitle>
         </DialogHeader>
@@ -154,17 +154,27 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, venta
                     <TableHead>Fecha</TableHead>
                     <TableHead>Producto</TableHead>
                     <TableHead>Cantidad</TableHead>
+                    <TableHead>Desde</TableHead>
+                    <TableHead>Hacia</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {transacciones.map(transaccion => (
                     <TableRow 
                       key={transaccion.id}
-                      className={transaccion.desde === 'Almacen' ? 'bg-green-100' : ''}
+                      className={
+                        transaccion.desde === 'Almacen' && transaccion.hacia === 'Vendedor'
+                          ? 'bg-green-100'
+                          : transaccion.desde === 'Vendedor' && transaccion.hacia === 'Almacen'
+                          ? 'bg-red-100'
+                          : ''
+                      }
                     >
                       <TableCell>{new Date(transaccion.fecha).toLocaleDateString()}</TableCell>
                       <TableCell>{transaccion.producto}</TableCell>
                       <TableCell>{transaccion.cantidad}</TableCell>
+                      <TableCell>{transaccion.desde}</TableCell>
+                      <TableCell>{transaccion.hacia}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
