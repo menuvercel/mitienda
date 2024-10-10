@@ -1,10 +1,7 @@
 import axios from 'axios';
 import { Venta, Vendedor, Producto, Entrega } from '@/types';
 
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
-
-
 
 const api = axios.create({
   baseURL: API_URL,
@@ -253,7 +250,7 @@ export const getVentasVendedor = async (vendedorId: string, startDate: string, e
 
 export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor): Promise<void> => {
   try {
-    const response = await api.put(`/users/vendedores/${vendedorId}`, editedVendor);
+    const response = await api.put(`/users/vendedores?id=${vendedorId}`, editedVendor);
     console.log('Vendedor actualizado:', response.data);
   } catch (error) {
     console.error('Error al editar vendedor:', error);
@@ -263,5 +260,4 @@ export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor)
     throw new Error(`No se pudo editar el vendedor: ${(error as Error).message}`);
   }
 };
-
 export default api;
