@@ -16,7 +16,7 @@ import {
   getInventario, 
   registerUser, 
   getProductosVendedor,
-  getVentasDia,
+  getVentasVendedor,
   agregarProducto,
   editarProducto,
   entregarProducto,
@@ -139,9 +139,10 @@ export default function AlmacenPage() {
 
   const handleVerVendedor = async (vendedor: Vendedor) => {
     try {
+      const today = new Date().toISOString().split('T')[0];
       const [productos, ventas, transacciones] = await Promise.all([
         getProductosVendedor(vendedor.id),
-        getVentasDia(vendedor.id),
+        getVentasVendedor(vendedor.id, today, today),
         getTransaccionesVendedor(vendedor.id)
       ]);
       setProductosVendedor(productos);
@@ -151,7 +152,6 @@ export default function AlmacenPage() {
     } catch (error) {
       console.error('Error al obtener datos del vendedor:', error);
       alert('No se pudieron cargar todos los datos del vendedor. Algunos datos pueden estar incompletos.');
-      // Still set the vendor as selected, even if some data is missing
       setVendedorSeleccionado(vendedor);
     }
   };
