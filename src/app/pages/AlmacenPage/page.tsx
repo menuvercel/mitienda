@@ -502,7 +502,7 @@ export default function AlmacenPage() {
         onEdit={handleEditVendedor}
         productos={productosVendedor}
         ventas={ventasVendedor}
-        transaccion={transaccionesVendedor}
+        transacciones={transaccionesVendedor}
       />
     )}
     </div>
