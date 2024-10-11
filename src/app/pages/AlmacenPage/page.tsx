@@ -10,6 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Menu } from "lucide-react"
 import { 
   getVendedores, 
   getCurrentUser, 
@@ -119,6 +121,8 @@ export default function AlmacenPage() {
   })
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [activeSection, setActiveSection] = useState('productos')
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewUser({ ...newUser, [e.target.name]: e.target.value })
@@ -246,23 +250,16 @@ export default function AlmacenPage() {
 
   const handleDeleteVendorProduct = async (productId: string, vendedorId: string, cantidad: number) => {
     try {
-      // Delete the product
       await eliminarProducto(productId);
-
-      // Create a "Baja" transaction
       await crearBajaTransaccion(productId, vendedorId, cantidad);
 
-      // Refresh the vendor's products
       if (vendedorSeleccionado) {
         const updatedProducts = await getProductosVendedor(vendedorSeleccionado.id);
         setProductosVendedor(updatedProducts);
-
-        // Refresh the vendor's transactions
         const updatedTransactions = await getTransaccionesVendedor(vendedorSeleccionado.id);
         setTransaccionesVendedor(updatedTransactions);
       }
 
-      // Refresh the overall inventory
       await fetchInventario();
 
       alert('Producto eliminado y transacción de baja creada exitosamente');
@@ -271,7 +268,6 @@ export default function AlmacenPage() {
       alert('Error al eliminar el producto del vendedor. Por favor, inténtelo de nuevo.');
     }
   };
-
 
   const handleEditVendedor = async (editedVendor: Vendedor) => {
     try {
@@ -298,46 +294,49 @@ export default function AlmacenPage() {
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Panel de Almacén</h1>
-      <Button onClick={() => setShowRegisterModal(true)} className="mb-4 mr-2">
-        Agregar Usuario
-      </Button>
-      <Button onClick={() => setShowAddProductModal(true)} className="mb-4">
-        Agregar Producto
-      </Button>
-      <Tabs defaultValue="vendedores">
-        <TabsList>
-          <TabsTrigger value="vendedores">Vendedores</TabsTrigger>
-          <TabsTrigger value="inventario">Productos en Almacen</TabsTrigger>
-        </TabsList>
-        <TabsContent value="vendedores">
-          <Card>
-            <CardHeader>
-              <CardTitle>Vendedores</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {vendedores.map((vendedor) => (
-                  <Button
-                    key={vendedor.id}
-                    onClick={() => handleVerVendedor(vendedor)}
-                    className="w-full h-auto p-4 flex items-center text-left bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors"
-                    variant="ghost"
-                  >
-                    <div className="flex-grow">
-                      <span className="font-semibold text-gray-800">{vendedor.nombre}</span>
-                      <div className="text-sm text-gray-600">
-                        <span>Teléfono: {vendedor.telefono}</span>
-                      </div>
-                    </div>
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="inventario">
+    <div className="container mx-auto p-4 relative">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Panel de Almacén</h1>
+        <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="icon" className="fixed top-4 right-4 z-50">
+              <Menu className="h-6 w-6" />
+              <span className="sr-only">Abrir menú</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right">
+            <nav className="flex flex-col space-y-4">
+              <Button
+                variant="ghost"
+                className={activeSection === 'productos' ? 'bg-accent' : ''}
+                onClick={() => setActiveSection('productos')}
+              >
+                Productos
+              </Button>
+              <Button
+                variant="ghost"
+                className={activeSection === 'vendedores' ? 'bg-accent' : ''}
+                onClick={() => setActiveSection('vendedores')}
+              >
+                Vendedores
+              </Button>
+              <Button
+                variant="ghost"
+                className={activeSection === 'ventas' ? 'bg-accent' : ''}
+                onClick={() => setActiveSection('ventas')}
+              >
+                Ventas
+              </Button>
+            </nav>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {activeSection === 'productos' && (
+        <div>
+          <Button onClick={() => setShowAddProductModal(true)} className="mb-4">
+            Agregar Producto
+          </Button>
           <Card>
             <CardHeader>
               <CardTitle>Lista de productos</CardTitle>
@@ -378,7 +377,7 @@ export default function AlmacenPage() {
                     )}
                     <div className="flex-grow">
                       <span className="font-semibold text-gray-800">{producto.nombre}</span>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm  text-gray-600">
                         <span className="mr-4">Precio: ${producto.precio}</span>
                         <span>Cantidad: {producto.cantidad}</span>
                       </div>
@@ -388,8 +387,53 @@ export default function AlmacenPage() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
+
+      {activeSection === 'vendedores' && (
+        <div>
+          <Button onClick={() => setShowRegisterModal(true)} className="mb-4">
+            Agregar Usuario
+          </Button>
+          <Card>
+            <CardHeader>
+              <CardTitle>Vendedores</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {vendedores.map((vendedor) => (
+                  <Button
+                    key={vendedor.id}
+                    onClick={() => handleVerVendedor(vendedor)}
+                    className="w-full h-auto p-4 flex items-center text-left bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors"
+                    variant="ghost"
+                  >
+                    <div className="flex-grow">
+                      <span className="font-semibold text-gray-800">{vendedor.nombre}</span>
+                      <div className="text-sm text-gray-600">
+                        <span>Teléfono: {vendedor.telefono}</span>
+                      </div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeSection === 'ventas' && (
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Ventas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>La lógica para las ventas se implementará más adelante.</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Dialog open={showRegisterModal} onOpenChange={setShowRegisterModal}>
         <DialogContent>
@@ -406,7 +450,6 @@ export default function AlmacenPage() {
                 onChange={handleInputChange}
                 placeholder="Nombre completo"
               />
-            
             </div>
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">Contraseña</label>
@@ -521,7 +564,6 @@ export default function AlmacenPage() {
           onProductDelete={handleDeleteVendorProduct}
         />
       )}
-
     </div>
   )
 }
