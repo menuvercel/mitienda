@@ -70,6 +70,12 @@ interface VentaSemana {
   ganancia: number;
 }
 
+interface VentaDia {
+  fecha: string;
+  ventas: Venta[];
+  total: number;
+}
+
 const useVendedorData = (vendedorId: string) => {
   const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -82,6 +88,27 @@ const useVendedorData = (vendedorId: string) => {
   const [ventasDia, setVentasDia] = useState<Venta[]>([])
   const [ventasAgrupadas, setVentasAgrupadas] = useState<VentaAgrupada[]>([])
   const [ventasSemanales, setVentasSemanales] = useState<VentaSemana[]>([])
+  const [ventasDiarias, setVentasDiarias] = useState<VentaDia[]>([]);
+
+
+  const agruparVentasPorDia = useCallback((ventas: Venta[]) => {
+    const ventasDiarias: VentaDia[] = [];
+    ventas.forEach((venta) => {
+      const fecha = new Date(venta.fecha).toLocaleDateString();
+      const diaExistente = ventasDiarias.find(d => d.fecha === fecha);
+      if (diaExistente) {
+        diaExistente.ventas.push(venta);
+        diaExistente.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0;
+      } else {
+        ventasDiarias.push({
+          fecha,
+          ventas: [venta],
+          total: typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0
+        });
+      }
+    });
+    return ventasDiarias.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  }, []);
 
   const agruparVentas = useCallback((ventas: Venta[]) => {
     const ventasAgrupadas = ventas.reduce((acc: VentaAgrupada[], venta) => {
@@ -158,6 +185,7 @@ const useVendedorData = (vendedorId: string) => {
       setVentasRegistro(todasLasVentas);
       setVentasAgrupadas(agruparVentas(todasLasVentas));
       setVentasSemanales(agruparVentasPorSemana(todasLasVentas));
+      setVentasDiarias(agruparVentasPorDia(todasLasVentas));
     } catch (error) {
       console.error('Error al obtener registro de ventas:', error);
       if (error instanceof Error) {
@@ -166,7 +194,7 @@ const useVendedorData = (vendedorId: string) => {
         setError('No se pudo cargar el registro de ventas. Por favor, intenta de nuevo.');
       }
     }
-  }, [vendedorId, agruparVentas, agruparVentasPorSemana]);
+  }, [vendedorId, agruparVentas, agruparVentasPorSemana, agruparVentasPorDia]);
 
   const fetchTransacciones = useCallback(async () => {
     try {
@@ -218,11 +246,62 @@ const useVendedorData = (vendedorId: string) => {
     ventasDia,
     ventasAgrupadas,
     ventasSemanales,
+    ventasDiarias,
     fetchProductos, 
     fetchVentasRegistro,
     fetchTransacciones
   }
 }
+
+
+const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+        <TableCell>{venta.fecha}</TableCell>
+        <TableCell>${venta.total.toFixed(2)}</TableCell>
+        <TableCell>
+          {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </TableCell>
+      </TableRow>
+      {isOpen && (
+        <TableRow>
+          <TableCell colSpan={3}>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead>Producto</TableHead>
+                  <TableHead>Cantidad</TableHead>
+                  <TableHead>Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {venta.ventas.map((v) => (
+                  <TableRow key={v._id}>
+                    <TableCell className="flex items-center space-x-2">
+                      <Image
+                        src={v.producto_foto || '/placeholder.svg'}
+                        alt={v.producto_nombre}
+                        width={40}
+                        height={40}
+                        className="rounded-md"
+                      />
+                      <span>{v.producto_nombre}</span>
+                    </TableCell>
+                    <TableCell>{v.cantidad}</TableCell>
+                    <TableCell>${typeof v.total === 'number' ? v.total.toFixed(2) : parseFloat(v.total).toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
+};
 
 const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -288,6 +367,7 @@ export default function VendedorPage() {
     transacciones,
     ventasAgrupadas,
     ventasSemanales,
+    ventasDiarias,
     fetchProductos, 
     fetchVentasRegistro,
   } = useVendedorData(vendedorId)
@@ -623,35 +703,65 @@ export default function VendedorPage() {
                 <h2 className="text-xl font-semibold">3. Enviar el formulario de ventas</h2>
                 <Button onClick={handleEnviarVenta}>Enviar</Button>
               </div>
-            </TabsContent>
-            <TabsContent value="registro">
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold">Registro de Ventas</h2>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Semana</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Ganancia</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ventasSemanales.length > 0 ? (
-                      ventasSemanales.map((venta) => (
-                        <VentaSemanaDesplegable key={venta.fechaInicio} venta={venta} />
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center">No hay ventas registradas</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-          </Tabs>
-        )}
+              </TabsContent>
+              <TabsContent value="registro">
+                <div className="space-y-4">
+                  <h2 className="text-xl font-semibold">Registro de Ventas</h2>
+                  <Tabs defaultValue="diarias">
+                    <TabsList>
+                      <TabsTrigger value="diarias">Diarias</TabsTrigger>
+                      <TabsTrigger value="semanales">Semanales</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="diarias">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Total</TableHead>
+                            <TableHead></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {ventasDiarias.length > 0 ? (
+                            ventasDiarias.map((venta) => (
+                              <VentaDiaDesplegable key={venta.fecha} venta={venta} />
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={3} className="text-center">No hay ventas registradas</TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </TabsContent>
+                    <TabsContent value="semanales">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Semana</TableHead>
+                            <TableHead>Total</TableHead>
+                            <TableHead>Ganancia</TableHead>
+                            <TableHead></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {ventasSemanales.length > 0 ? (
+                            ventasSemanales.map((venta) => (
+                              <VentaSemanaDesplegable key={venta.fechaInicio} venta={venta} />
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={4} className="text-center">No hay ventas registradas</TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
         {seccionActual === 'registro' && (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Registro de Actividades</h2>
