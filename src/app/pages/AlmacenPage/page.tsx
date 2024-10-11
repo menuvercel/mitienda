@@ -418,24 +418,24 @@ export default function AlmacenPage() {
                   className="max-w-sm"
                 />
               </div>
-              <div className="flex justify-end space-x-2 mb-2">
+              <div className="flex justify-start space-x-2 mb-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleSort('nombre')}
-                  className="flex items-center"
+                  className="flex items-center text-xs px-2 py-1"
                 >
                   Nombre
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                  <ArrowUpDown className="ml-1 h-3 w-3" />
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleSort('cantidad')}
-                  className="flex items-center"
+                  className="flex items-center text-xs px-2 py-1"
                 >
                   Cantidad
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                  <ArrowUpDown className="ml-1 h-3 w-3" />
                 </Button>
               </div>
               <div className="space-y-2">
@@ -536,9 +536,9 @@ export default function AlmacenPage() {
             <div className="space-y-4">
               <Input
                 placeholder="Buscar productos..."
-                
                 value={productSearchTerm}
-                onChange={(e) => setProductSearchTerm(e.target.value)}
+                onChange={(e) => 
+                setProductSearchTerm(e.target.value)}
               />
               <div className="max-h-[300px] overflow-y-auto space-y-2">
                 {filteredInventarioForMassDelivery.map((producto) => (
