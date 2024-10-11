@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
-import { X, DollarSign, ArrowLeftRight, Search } from 'lucide-react'
+import { X, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp } from 'lucide-react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 interface VendorDialogProps {
   vendor: Vendedor
@@ -84,21 +85,63 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     )
   }
 
+  const VentaDesplegable = ({ venta }: { venta: Venta }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+      <>
+        <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+          <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
+          <TableCell>${formatPrice(venta.total)}</TableCell>
+          <TableCell>
+            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </TableCell>
+        </TableRow>
+        {isOpen && (
+          <TableRow>
+            <TableCell colSpan={3}>
+              <div className="flex items-center space-x-2 p-2">
+                <Image
+                  src={venta.producto_foto || '/placeholder.svg'}
+                  alt={venta.producto_nombre}
+                  width={40}
+                  height={40}
+                  className="rounded-md"
+                />
+                <span>{venta.producto_nombre}</span>
+                <span>Cantidad: {venta.cantidad}</span>
+                <span>Precio unitario: ${formatPrice(venta.precio_unitario)}</span>
+              </div>
+            </TableCell>
+          </TableRow>
+        )}
+      </>
+    );
+  };
+
   const renderVentasList = () => {
     const filteredVentas = filterItems(ventas, searchTerm)
     return (
-      <div className="space-y-2">
-        {filteredVentas.map(venta => (
-          <div key={venta._id} className="flex items-center bg-white p-4 rounded-lg shadow">
-            <DollarSign className="w-10 h-10 text-green-500 mr-4" />
-            <div className="flex-grow">
-              <p className="font-bold">{venta.producto_nombre}</p>
-              <p className="text-sm">{new Date(venta.fecha).toLocaleDateString()}</p>
-              <p className="text-sm">Cantidad: {venta.cantidad} - Total: ${formatPrice(venta.total)}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Fecha</TableHead>
+            <TableHead>Total</TableHead>
+            <TableHead></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredVentas.length > 0 ? (
+            filteredVentas.map(venta => (
+              <VentaDesplegable key={venta._id} venta={venta} />
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={3} className="text-center">No hay ventas registradas</TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
     )
   }
 
