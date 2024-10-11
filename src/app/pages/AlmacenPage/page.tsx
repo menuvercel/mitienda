@@ -11,8 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Menu } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Menu } from "lucide-react"
 import { 
   getVendedores, 
   getCurrentUser, 
@@ -374,9 +374,14 @@ export default function AlmacenPage() {
 
       {activeSection === 'productos' && (
         <div>
-          <Button onClick={() => setShowAddProductModal(true)} className="mb-4">
-            Agregar Producto
-          </Button>
+          <div className="flex justify-between mb-4">
+            <Button onClick={() => setShowAddProductModal(true)}>
+              Agregar Producto
+            </Button>
+            <Button onClick={() => setShowMassDeliveryDialog(true)}>
+              Entrega Masiva
+            </Button>
+          </div>
           <Card>
             <CardHeader>
               <CardTitle>Lista de productos</CardTitle>
@@ -432,14 +437,9 @@ export default function AlmacenPage() {
 
       {activeSection === 'vendedores' && (
         <div>
-          <div className="flex justify-between mb-4">
-            <Button onClick={() => setShowRegisterModal(true)}>
-              Agregar Usuario
-            </Button>
-            <Button onClick={() => setShowMassDeliveryDialog(true)}>
-              Entrega Masiva
-            </Button>
-          </div>
+          <Button onClick={() => setShowRegisterModal(true)} className="mb-4">
+            Agregar Usuario
+          </Button>
           <Card>
             <CardHeader>
               <CardTitle>Vendedores</CardTitle>
@@ -494,7 +494,7 @@ export default function AlmacenPage() {
               />
               <div className="max-h-[300px] overflow-y-auto space-y-2">
                 {filteredInventarioForMassDelivery.map((producto) => (
-                  <div key={producto.id} className="flex items-center space-x-2">
+                  <div key={producto.id} className="flex items-center space-x-2 p-2 border rounded">
                     <Checkbox
                       id={`product-${producto.id}`}
                       checked={!!selectedProducts[producto.id]}
@@ -507,7 +507,22 @@ export default function AlmacenPage() {
                         }
                       }}
                     />
-                    <label htmlFor={`product-${producto.id}`} className="flex-grow">{producto.nombre}</label>
+                    <div className="flex-grow flex items-center space-x-2">
+                      <Image
+                        src={producto.foto || '/placeholder.svg'}
+                        alt={producto.nombre}
+                        width={40}
+                        height={40}
+                        className="object-cover rounded"
+                      />
+                      <div>
+                        <label htmlFor={`product-${producto.id}`} className="font-medium">{producto.nombre}</label>
+                        <div className="text-sm text-gray-600">
+                          <span className="mr-2">Precio: ${producto.precio}</span>
+                          <span>Disponible: {producto.cantidad}</span>
+                        </div>
+                      </div>
+                    </div>
                     {selectedProducts[producto.id] && (
                       <Input
                         type="number"
@@ -524,7 +539,8 @@ export default function AlmacenPage() {
                   </div>
                 ))}
               </div>
-              <Button onClick={() => setMassDeliveryStep(2)} disabled={Object.keys(selectedProducts).length === 0}>
+              <Button onClick={() => setMassDeliveryStep(2)} 
+                disabled={Object.keys(selectedProducts).length === 0}>
                 Siguiente
               </Button>
             </div>
