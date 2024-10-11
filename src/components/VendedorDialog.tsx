@@ -48,48 +48,46 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }
 
   const renderProductTable = (products: Producto[]) => (
-    <div className="overflow-auto max-h-[60vh]">
-      <div className="min-w-[600px]">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[100px] sticky left-0 bg-background z-20">Foto</TableHead>
-              <TableHead className="sticky top-0 bg-background z-10">Nombre</TableHead>
-              <TableHead className="sticky top-0 bg-background z-10">Precio</TableHead>
-              <TableHead className="sticky top-0 bg-background z-10">Cantidad</TableHead>
-              <TableHead className="sticky top-0 bg-background z-10">Acciones</TableHead>
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[100px]">Foto</TableHead>
+            <TableHead>Nombre</TableHead>
+            <TableHead>Precio</TableHead>
+            <TableHead>Cantidad</TableHead>
+            <TableHead>Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {products.map(producto => (
+            <TableRow key={producto.id}>
+              <TableCell className="p-2">
+                <Image
+                  src={producto.foto || '/placeholder.svg'}
+                  alt={producto.nombre}
+                  width={50}
+                  height={50}
+                  className="object-cover rounded"
+                />
+              </TableCell>
+              <TableCell className="p-2">{producto.nombre}</TableCell>
+              <TableCell className="p-2">${formatPrice(producto.precio)}</TableCell>
+              <TableCell className="p-2">{producto.cantidad}</TableCell>
+              <TableCell className="p-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDeleteProduct(producto.id, producto.cantidad)}
+                  aria-label={`Eliminar ${producto.nombre}`}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {products.map(producto => (
-              <TableRow key={producto.id}>
-                <TableCell className="p-2 sticky left-0 bg-background">
-                  <Image
-                    src={producto.foto || '/placeholder.svg'}
-                    alt={producto.nombre}
-                    width={50}
-                    height={50}
-                    className="object-cover rounded"
-                  />
-                </TableCell>
-                <TableCell className="p-2">{producto.nombre}</TableCell>
-                <TableCell className="p-2">${formatPrice(producto.precio)}</TableCell>
-                <TableCell className="p-2">{producto.cantidad}</TableCell>
-                <TableCell className="p-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDeleteProduct(producto.id, producto.cantidad)}
-                    aria-label={`Eliminar ${producto.nombre}`}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   )
 
@@ -124,10 +122,14 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   <TabsTrigger value="agotados">Agotados</TabsTrigger>
                 </TabsList>
                 <TabsContent value="disponibles">
-                  {renderProductTable(productos.filter(p => p.cantidad > 0))}
+                  <ScrollArea className="h-[60vh]">
+                    {renderProductTable(productos.filter(p => p.cantidad > 0))}
+                  </ScrollArea>
                 </TabsContent>
                 <TabsContent value="agotados">
-                  {renderProductTable(productos.filter(p => p.cantidad === 0))}
+                  <ScrollArea className="h-[60vh]">
+                    {renderProductTable(productos.filter(p => p.cantidad === 0))}
+                  </ScrollArea>
                 </TabsContent>
               </Tabs>
             ) : mode === 'ventas' ? (
@@ -136,10 +138,10 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="sticky top-0 bg-background z-10">Fecha</TableHead>
-                        <TableHead className="sticky top-0 bg-background z-10">Producto</TableHead>
-                        <TableHead className="sticky top-0 bg-background z-10">Cantidad</TableHead>
-                        <TableHead className="sticky top-0 bg-background z-10">Total</TableHead>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Producto</TableHead>
+                        <TableHead>Cantidad</TableHead>
+                        <TableHead>Total</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -161,12 +163,12 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="sticky top-0 bg-background z-10">Fecha</TableHead>
-                        <TableHead className="sticky top-0 bg-background z-10">Producto</TableHead>
-                        <TableHead className="sticky top-0 bg-background z-10">Cantidad</TableHead>
-                        <TableHead className="sticky top-0 bg-background z-10">Desde</TableHead>
-                        <TableHead className="sticky top-0 bg-background z-10">Hacia</TableHead>
-                        <TableHead className="sticky top-0 bg-background z-10">Tipo</TableHead>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Producto</TableHead>
+                        <TableHead>Cantidad</TableHead>
+                        <TableHead>Desde</TableHead>
+                        <TableHead>Hacia</TableHead>
+                        <TableHead>Tipo</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
