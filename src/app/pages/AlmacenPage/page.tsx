@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Menu } from "lucide-react"
+import { Menu, ArrowUpDown } from "lucide-react"
 import { 
   getVendedores, 
   getCurrentUser, 
@@ -129,6 +129,8 @@ export default function AlmacenPage() {
   const [selectedProducts, setSelectedProducts] = useState<{[key: string]: number}>({})
   const [selectedVendors, setSelectedVendors] = useState<string[]>([])
   const [productSearchTerm, setProductSearchTerm] = useState("")
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
 
   const handleMassDelivery = async () => {
     try {
@@ -149,6 +151,27 @@ export default function AlmacenPage() {
       alert('Hubo un error al realizar la entrega masiva. Por favor, inténtelo de nuevo.')
     }
   }
+
+  const handleSort = (key: 'nombre' | 'cantidad') => {
+    if (sortBy === key) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(key)
+      setSortOrder('asc')
+    }
+  }
+
+  const sortedInventario = [...inventario].sort((a, b) => {
+    if (sortBy === 'nombre') {
+      return sortOrder === 'asc' 
+        ? a.nombre.localeCompare(b.nombre)
+        : b.nombre.localeCompare(a.nombre)
+    } else {
+      return sortOrder === 'asc'
+        ? a.cantidad - b.cantidad
+        : b.cantidad - a.cantidad
+    }
+  })
 
   const filteredInventarioForMassDelivery = inventario.filter((producto) =>
     producto.nombre.toLowerCase().includes(productSearchTerm.toLowerCase())
@@ -395,12 +418,34 @@ export default function AlmacenPage() {
                   className="max-w-sm"
                 />
               </div>
+              <div className="flex justify-end space-x-2 mb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSort('nombre')}
+                  className="flex items-center"
+                >
+                  Nombre
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSort('cantidad')}
+                  className="flex items-center"
+                >
+                  Cantidad
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
               <div className="space-y-2">
                 {filteredInventario.map((producto) => (
                   <Button
                     key={producto.id}
                     onClick={() => setSelectedProduct(producto)}
-                    className="w-full h-auto p-2 flex items-center text-left bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors"
+                    className={`w-full h-auto p-2 flex items-center text-left border border-gray-200 rounded-lg shadow-sm transition-colors ${
+                      producto.cantidad === 0 ? 'bg-red-100 hover:bg-red-200' : 'bg-white hover:bg-gray-100'
+                    }`}
                     variant="ghost"
                   >
                     {producto.foto ? (
@@ -422,9 +467,11 @@ export default function AlmacenPage() {
                     )}
                     <div className="flex-grow">
                       <span className="font-semibold text-gray-800">{producto.nombre}</span>
-                      <div className="text-sm  text-gray-600">
+                      <div className="text-sm text-gray-600">
                         <span className="mr-4">Precio: ${producto.precio}</span>
-                        <span>Cantidad: {producto.cantidad}</span>
+                        <span className={producto.cantidad === 0 ? 'text-red-600 font-bold' : ''}>
+                          Cantidad: {producto.cantidad}
+                        </span>
                       </div>
                     </div>
                   </Button>
@@ -489,6 +536,7 @@ export default function AlmacenPage() {
             <div className="space-y-4">
               <Input
                 placeholder="Buscar productos..."
+                
                 value={productSearchTerm}
                 onChange={(e) => setProductSearchTerm(e.target.value)}
               />
