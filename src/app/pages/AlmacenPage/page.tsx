@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Menu, ArrowUpDown } from "lucide-react"
+import { Menu, ArrowUpDown, Plus, Truck, UserPlus } from "lucide-react"
 import { 
   getVendedores, 
   getCurrentUser, 
@@ -364,7 +364,6 @@ export default function AlmacenPage() {
                 className={activeSection === 'productos' ? 'bg-accent' : ''}
                 onClick={() => {
                   setActiveSection('productos')
-                  
                   setIsMenuOpen(false)
                 }}
               >
@@ -372,6 +371,7 @@ export default function AlmacenPage() {
               </Button>
               <Button
                 variant="ghost"
+                
                 className={activeSection === 'vendedores' ? 'bg-accent' : ''}
                 onClick={() => {
                   setActiveSection('vendedores')
@@ -397,12 +397,18 @@ export default function AlmacenPage() {
 
       {activeSection === 'productos' && (
         <div>
-          <div className="flex justify-between mb-4">
-            <Button onClick={() => setShowAddProductModal(true)}>
-              Agregar Producto
+          <div className="flex justify-end mb-4 space-x-2">
+            <Button
+              onClick={() => setShowAddProductModal(true)}
+              className="bg-green-500 hover:bg-green-600 text-white"
+            >
+              <Plus className="mr-2 h-4 w-4" /> Agregar Producto
             </Button>
-            <Button onClick={() => setShowMassDeliveryDialog(true)}>
-              Entrega Masiva
+            <Button
+              onClick={() => setShowMassDeliveryDialog(true)}
+              className="bg-blue-500 hover:bg-blue-600 text-white"
+            >
+              <Truck className="mr-2 h-4 w-4" /> Entrega Masiva
             </Button>
           </div>
           <Card>
@@ -484,9 +490,14 @@ export default function AlmacenPage() {
 
       {activeSection === 'vendedores' && (
         <div>
-          <Button onClick={() => setShowRegisterModal(true)} className="mb-4">
-            Agregar Usuario
-          </Button>
+          <div className="flex justify-end mb-4">
+            <Button
+              onClick={() => setShowRegisterModal(true)}
+              className="bg-purple-500 hover:bg-purple-600 text-white"
+            >
+              <UserPlus className="mr-2 h-4 w-4" /> Agregar Usuario
+            </Button>
+          </div>
           <Card>
             <CardHeader>
               <CardTitle>Vendedores</CardTitle>
