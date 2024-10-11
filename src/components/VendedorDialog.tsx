@@ -107,22 +107,23 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     return (
       <div className="space-y-2">
         {filteredTransacciones.map(transaccion => (
-          <div key={transaccion.id} className={`flex items-center p-4 rounded-lg shadow ${
+          <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow ${
             transaccion.tipo === 'Baja'
-              ? 'bg-red-100'
+              ? 'border-l-4 border-red-500'
               : transaccion.desde === 'Almacen' && transaccion.hacia === 'Vendedor'
-              ? 'bg-green-100'
+              ? 'border-l-4 border-green-500'
               : transaccion.desde === 'Vendedor' && transaccion.hacia === 'Almacen'
-              ? 'bg-yellow-100'
-              : 'bg-white'
+              ? 'border-l-4 border-yellow-500'
+              : 'border-l-4 border-blue-500'
           }`}>
-            <ArrowLeftRight className="w-10 h-10 text-blue-500 mr-4" />
-            <div className="flex-grow">
-              <p className="font-bold">{transaccion.producto}</p>
-              <p className="text-sm">{new Date(transaccion.fecha).toLocaleDateString()}</p>
-              <p className="text-sm">Cantidad: {transaccion.cantidad}</p>
-              <p className="text-sm">De: {transaccion.desde} - A: {transaccion.hacia}</p>
-              <p className="text-sm font-bold">{transaccion.tipo || 'Normal'}</p>
+            <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
+            <div className="flex-grow overflow-hidden">
+              <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+              <div className="flex justify-between items-center text-xs text-gray-600">
+                <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
+                <span>Cant: {transaccion.cantidad}</span>
+              </div>
+              <p className="text-xs font-semibold">{transaccion.tipo || 'Normal'}</p>
             </div>
           </div>
         ))}
