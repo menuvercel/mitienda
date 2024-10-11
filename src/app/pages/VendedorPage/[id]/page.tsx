@@ -124,8 +124,8 @@ const useVendedorData = (vendedorId: string) => {
       }
 
       currentWeek.ventas.push(venta)
-      currentWeek.total += venta.total
-      currentWeek.ganancia = currentWeek.total * 0.08 // 8% de ganancia
+      currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0;
+      currentWeek.ganancia = currentWeek.total * 0.08; // Esto ya asegura que ganancia sea un número
     })
 
     if (currentWeek) {
@@ -231,8 +231,16 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
     <>
       <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
         <TableCell>{`${venta.fechaInicio} - ${venta.fechaFin}`}</TableCell>
-        <TableCell>${venta.total.toFixed(2)}</TableCell>
-        <TableCell className="text-green-600">${venta.ganancia.toFixed(2)}</TableCell>
+        <TableCell>
+          ${typeof venta.total === 'number' 
+            ? venta.total.toFixed(2) 
+            : parseFloat(venta.total).toFixed(2) || '0.00'}
+        </TableCell>
+        <TableCell className="text-green-600">
+          ${typeof venta.ganancia === 'number' 
+            ? venta.ganancia.toFixed(2) 
+            : parseFloat(venta.ganancia).toFixed(2) || '0.00'}
+        </TableCell>
         <TableCell>
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </TableCell>
