@@ -37,6 +37,7 @@ export interface Usuario {
 
 export interface Transaccion {
   id: string;
+  tipo: 'Baja' | 'Entrega';
   producto: string;
   cantidad: number;
   precio: number;

@@ -143,20 +143,28 @@ export const getTransacciones = async () => {
 };
 
 export const eliminarProducto = async (productId: string) => {
-  const response = await fetch(`/api/productos/${productId}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    console.error('Server error response:', errorData);
-    throw new Error(errorData.error || 'Error al eliminar el producto');
+  try {
+    const response = await api.delete(`/productos/${productId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    throw error;
   }
+};
 
-  return response;
+export const crearBajaTransaccion = async (productoId: string, vendedorId: string, cantidad: number) => {
+  try {
+    const response = await api.post('/transacciones', {
+      productoId,
+      vendedorId,
+      cantidad,
+      tipo: 'Baja'
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error creating Baja transaction:', error);
+    throw error;
+  }
 };
 
 export const realizarVenta = async (productoId: string, cantidad: number, fecha: string) => {

@@ -22,7 +22,8 @@ import {
   entregarProducto,
   eliminarProducto,
   getTransaccionesVendedor,
-  editarVendedor
+  editarVendedor,
+  crearBajaTransaccion
 } from '../../services/api'
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
@@ -243,26 +244,34 @@ export default function AlmacenPage() {
     }
   }
 
-  const handleDeleteProduct = async (productId: string) => {
+  const handleDeleteVendorProduct = async (productId: string, vendedorId: string, cantidad: number) => {
     try {
-      const response = await eliminarProducto(productId)
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('Server error details:', errorData)
-        throw new Error(errorData.error || 'Error desconocido al eliminar el producto')
+      // Delete the product
+      await eliminarProducto(productId);
+
+      // Create a "Baja" transaction
+      await crearBajaTransaccion(productId, vendedorId, cantidad);
+
+      // Refresh the vendor's products
+      if (vendedorSeleccionado) {
+        const updatedProducts = await getProductosVendedor(vendedorSeleccionado.id);
+        setProductosVendedor(updatedProducts);
+
+        // Refresh the vendor's transactions
+        const updatedTransactions = await getTransaccionesVendedor(vendedorSeleccionado.id);
+        setTransaccionesVendedor(updatedTransactions);
       }
-      await fetchInventario()
-      setSelectedProduct(null)
-      alert('Producto eliminado exitosamente')
+
+      // Refresh the overall inventory
+      await fetchInventario();
+
+      alert('Producto eliminado y transacción de baja creada exitosamente');
     } catch (error) {
-      console.error('Error deleting product:', error)
-      if (error instanceof Error) {
-        alert(`Error al eliminar el producto: ${error.message}`)
-      } else {
-        alert('Error desconocido al eliminar el producto')
-      }
+      console.error('Error deleting vendor product:', error);
+      alert('Error al eliminar el producto del vendedor. Por favor, inténtelo de nuevo.');
     }
-  }
+  };
+
 
   const handleEditVendedor = async (editedVendor: Vendedor) => {
     try {
@@ -496,21 +505,23 @@ export default function AlmacenPage() {
           onClose={() => setSelectedProduct(null)}
           vendedores={vendedores}
           onEdit={handleEditProduct}
-          onDelete={handleDeleteProduct}
+          onDelete={handleDeleteVendorProduct}
           onDeliver={handleProductDelivery}
         />
       )}
 
-    {vendedorSeleccionado && (
-      <VendorDialog
-        vendor={vendedorSeleccionado}
-        onClose={() => setVendedorSeleccionado(null)}
-        onEdit={handleEditVendedor}
-        productos={productosVendedor}
-        ventas={ventasVendedor}
-        transacciones={transaccionesVendedor}
-      />
-    )}
+      {vendedorSeleccionado && (
+        <VendorDialog
+          vendor={vendedorSeleccionado}
+          onClose={() => setVendedorSeleccionado(null)}
+          onEdit={handleEditVendedor}
+          productos={productosVendedor}
+          ventas={ventasVendedor}
+          transacciones={transaccionesVendedor}
+          onProductDelete={handleDeleteVendorProduct}
+        />
+      )}
+
     </div>
   )
 }

@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
 import { getVentasDia } from '@/app/services/api'
+import { X } from 'lucide-react'
 
 interface VendorDialogProps {
   vendor: Vendedor
@@ -16,26 +17,12 @@ interface VendorDialogProps {
   productos: Producto[]
   transacciones: Transaccion[]
   ventas: Venta[]
+  onProductDelete: (productId: string, vendorId: string, cantidad: number) => Promise<void>
 }
 
-export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones }: VendorDialogProps) {
+export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, onProductDelete }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
-  const [ventas, setVentas] = useState<Venta[]>([])
-
-  useEffect(() => {
-    if (mode === 'ventas') {
-      const fetchVentas = async () => {
-        try {
-          const ventasData = await getVentasDia(vendor.id)
-          setVentas(ventasData)
-        } catch (error) {
-          console.error('Error fetching ventas:', error)
-        }
-      }
-      fetchVentas()
-    }
-  }, [mode, vendor.id])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -50,8 +37,53 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     setMode('view')
   }
 
-  const productosDisponibles = productos.filter(p => p.cantidad > 0)
-  const productosAgotados = productos.filter(p => p.cantidad === 0)
+  const handleDeleteProduct = async (productId: string, cantidad: number) => {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
+      await onProductDelete(productId, vendor.id, cantidad)
+    }
+  }
+
+  const renderProductTable = (products: Producto[]) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Foto</TableHead>
+          <TableHead>Nombre</TableHead>
+          <TableHead>Precio</TableHead>
+          <TableHead>Cantidad</TableHead>
+          <TableHead>Acciones</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {products.map(producto => (
+          <TableRow key={producto.id}>
+            <TableCell>
+              <Image
+                src={producto.foto || '/placeholder.svg'}
+                alt={producto.nombre}
+                width={50}
+                height={50}
+                className="object-cover rounded"
+              />
+            </TableCell>
+            <TableCell>{producto.nombre}</TableCell>
+            <TableCell>${producto.precio}</TableCell>
+            <TableCell>{producto.cantidad}</TableCell>
+            <TableCell>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleDeleteProduct(producto.id, producto.cantidad)}
+                aria-label={`Eliminar ${producto.nombre}`}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  )
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -84,62 +116,10 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   <TabsTrigger value="agotados">Agotados</TabsTrigger>
                 </TabsList>
                 <TabsContent value="disponibles">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Foto</TableHead>
-                        <TableHead>Nombre</TableHead>
-                        <TableHead>Precio</TableHead>
-                        <TableHead>Cantidad</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {productosDisponibles.map(producto => (
-                        <TableRow key={producto.id}>
-                          <TableCell>
-                            <Image
-                              src={producto.foto || '/placeholder.svg'}
-                              alt={producto.nombre}
-                              width={50}
-                              height={50}
-                              className="object-cover rounded"
-                            />
-                          </TableCell>
-                          <TableCell>{producto.nombre}</TableCell>
-                          <TableCell>${producto.precio}</TableCell>
-                          <TableCell>{producto.cantidad}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  {renderProductTable(productos.filter(p => p.cantidad > 0))}
                 </TabsContent>
                 <TabsContent value="agotados">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Foto</TableHead>
-                        <TableHead>Nombre</TableHead>
-                        <TableHead>Precio</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {productosAgotados.map(producto => (
-                        <TableRow key={producto.id}>
-                          <TableCell>
-                            <Image
-                              src={producto.foto || '/placeholder.svg'}
-                              alt={producto.nombre}
-                              width={50}
-                              height={50}
-                              className="object-cover rounded"
-                            />
-                          </TableCell>
-                          <TableCell>{producto.nombre}</TableCell>
-                          <TableCell>${producto.precio}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  {renderProductTable(productos.filter(p => p.cantidad === 0))}
                 </TabsContent>
               </Tabs>
             ) : mode === 'ventas' ? (
@@ -172,6 +152,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                     <TableHead>Cantidad</TableHead>
                     <TableHead>Desde</TableHead>
                     <TableHead>Hacia</TableHead>
+                    <TableHead>Tipo</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -179,10 +160,12 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                     <TableRow 
                       key={transaccion.id}
                       className={
-                        transaccion.desde === 'Almacen' && transaccion.hacia === 'Vendedor'
+                          transaccion.tipo === 'Baja'
+                          ? 'bg-red-100'
+                          : transaccion.desde === 'Almacen' && transaccion.hacia === 'Vendedor'
                           ? 'bg-green-100'
                           : transaccion.desde === 'Vendedor' && transaccion.hacia === 'Almacen'
-                          ? 'bg-red-100'
+                          ? 'bg-yellow-100'
                           : ''
                       }
                     >
@@ -191,6 +174,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                       <TableCell>{transaccion.cantidad}</TableCell>
                       <TableCell>{transaccion.desde}</TableCell>
                       <TableCell>{transaccion.hacia}</TableCell>
+                      <TableCell>{transaccion.tipo || 'Normal'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

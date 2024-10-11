@@ -6,13 +6,12 @@ import { Label } from "@/components/ui/label"
 import Image from 'next/image'
 import { Producto, Vendedor } from '@/types';
 
-
 interface ProductDialogProps {
   product: Producto
   onClose: () => void
   vendedores: Vendedor[]
   onEdit: (editedProduct: Producto, foto: File | null) => Promise<void>
-  onDelete: (productId: string) => Promise<void>
+  onDelete: (productId: string, vendedorId: string, cantidad: number) => Promise<void>
   onDeliver: (productId: string, vendedorId: string, cantidad: number) => Promise<void>
 }
 
@@ -72,7 +71,7 @@ export default function ProductDialog({ product, onClose, vendedores, onEdit, on
 
   const handleDelete = async () => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
-      await onDelete(product.id)
+      await onDelete(product.id, '', product.cantidad)
       onClose()
     }
   }
