@@ -232,10 +232,10 @@ const handleApiError = (error: unknown, context: string) => {
 
 /*estas son las funciones nuevas*/
 
-export const getVentasVendedor = async (vendedorId: string): Promise<Venta[]> => {
-  console.log('Solicitando todas las ventas para vendedor:', vendedorId);
+export const getVentasVendedor = async (vendedorId: string, startDate: string, endDate: string): Promise<Venta[]> => {
+  console.log('Solicitando ventas para vendedor:', vendedorId, 'desde:', startDate, 'hasta:', endDate);
   try {
-    const response = await api.get(`/ventas?vendedorId=${vendedorId}`);
+    const response = await api.get(`/ventas?vendedorId=${vendedorId}&startDate=${startDate}&endDate=${endDate}`);
     console.log('Respuesta de ventas:', response.data);
     return response.data;
   } catch (error) {

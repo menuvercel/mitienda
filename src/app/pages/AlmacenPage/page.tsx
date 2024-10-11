@@ -139,9 +139,10 @@ export default function AlmacenPage() {
 
   const handleVerVendedor = async (vendedor: Vendedor) => {
     try {
+      const today = new Date().toISOString().split('T')[0];
       const [productos, ventas, transacciones] = await Promise.all([
         getProductosVendedor(vendedor.id),
-        getVentasVendedor(vendedor.id),
+        getVentasVendedor(vendedor.id, today, today),
         getTransaccionesVendedor(vendedor.id)
       ]);
       setProductosVendedor(productos);
@@ -154,7 +155,6 @@ export default function AlmacenPage() {
       setVendedorSeleccionado(vendedor);
     }
   };
-
 
   const handleProductInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target
@@ -495,16 +495,16 @@ export default function AlmacenPage() {
         />
       )}
 
-      {vendedorSeleccionado && (
-        <VendorDialog
-          vendor={vendedorSeleccionado}
-          onClose={() => setVendedorSeleccionado(null)}
-          onEdit={handleEditVendedor}
-          productos={productosVendedor}
-          ventas={ventasVendedor}
-          transacciones={transaccionesVendedor}
-        />
-      )}
+    {vendedorSeleccionado && (
+      <VendorDialog
+        vendor={vendedorSeleccionado}
+        onClose={() => setVendedorSeleccionado(null)}
+        onEdit={handleEditVendedor}
+        productos={productosVendedor}
+        ventas={ventasVendedor}
+        transacciones={transaccionesVendedor}
+      />
+    )}
     </div>
   )
 }
