@@ -48,15 +48,15 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }
 
   const renderProductTable = (products: Producto[]) => (
-    <div className="overflow-x-auto">
+    <div className="overflow-auto max-h-[60vh]">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[100px]">Foto</TableHead>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Precio</TableHead>
-            <TableHead>Cantidad</TableHead>
-            <TableHead>Acciones</TableHead>
+            <TableHead className="w-[100px] sticky top-0 bg-background z-10">Foto</TableHead>
+            <TableHead className="sticky top-0 bg-background z-10">Nombre</TableHead>
+            <TableHead className="sticky top-0 bg-background z-10">Precio</TableHead>
+            <TableHead className="sticky top-0 bg-background z-10">Cantidad</TableHead>
+            <TableHead className="sticky top-0 bg-background z-10">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -129,14 +129,14 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 </TabsContent>
               </Tabs>
             ) : mode === 'ventas' ? (
-              <div className="overflow-x-auto">
+              <div className="overflow-auto max-h-[60vh]">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Producto</TableHead>
-                      <TableHead>Cantidad</TableHead>
-                      <TableHead>Total</TableHead>
+                      <TableHead className="sticky top-0 bg-background z-10">Fecha</TableHead>
+                      <TableHead className="sticky top-0 bg-background z-10">Producto</TableHead>
+                      <TableHead className="sticky top-0 bg-background z-10">Cantidad</TableHead>
+                      <TableHead className="sticky top-0 bg-background z-10">Total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -152,16 +152,16 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 </Table>
               </div>
             ) : mode === 'transacciones' ? (
-              <div className="overflow-x-auto">
+              <div className="overflow-auto max-h-[60vh]">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Producto</TableHead>
-                      <TableHead>Cantidad</TableHead>
-                      <TableHead>Desde</TableHead>
-                      <TableHead>Hacia</TableHead>
-                      <TableHead>Tipo</TableHead>
+                      <TableHead className="sticky top-0 bg-background z-10">Fecha</TableHead>
+                      <TableHead className="sticky top-0 bg-background z-10">Producto</TableHead>
+                      <TableHead className="sticky top-0 bg-background z-10">Cantidad</TableHead>
+                      <TableHead className="sticky top-0 bg-background z-10">Desde</TableHead>
+                      <TableHead className="sticky top-0 bg-background z-10">Hacia</TableHead>
+                      <TableHead className="sticky top-0 bg-background z-10">Tipo</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
