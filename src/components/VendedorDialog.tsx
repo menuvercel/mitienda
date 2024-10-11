@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -7,7 +7,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
-import { getVentasDia } from '@/app/services/api'
 import { X } from 'lucide-react'
 
 interface VendorDialogProps {
@@ -44,50 +43,52 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }
 
   const renderProductTable = (products: Producto[]) => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Foto</TableHead>
-          <TableHead>Nombre</TableHead>
-          <TableHead>Precio</TableHead>
-          <TableHead>Cantidad</TableHead>
-          <TableHead>Acciones</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {products.map(producto => (
-          <TableRow key={producto.id}>
-            <TableCell>
-              <Image
-                src={producto.foto || '/placeholder.svg'}
-                alt={producto.nombre}
-                width={50}
-                height={50}
-                className="object-cover rounded"
-              />
-            </TableCell>
-            <TableCell>{producto.nombre}</TableCell>
-            <TableCell>${producto.precio}</TableCell>
-            <TableCell>{producto.cantidad}</TableCell>
-            <TableCell>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleDeleteProduct(producto.id, producto.cantidad)}
-                aria-label={`Eliminar ${producto.nombre}`}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </TableCell>
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[100px]">Foto</TableHead>
+            <TableHead>Nombre</TableHead>
+            <TableHead>Precio</TableHead>
+            <TableHead>Cantidad</TableHead>
+            <TableHead>Acciones</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {products.map(producto => (
+            <TableRow key={producto.id}>
+              <TableCell className="p-2">
+                <Image
+                  src={producto.foto || '/placeholder.svg'}
+                  alt={producto.nombre}
+                  width={50}
+                  height={50}
+                  className="object-cover rounded"
+                />
+              </TableCell>
+              <TableCell className="p-2">{producto.nombre}</TableCell>
+              <TableCell className="p-2">${producto.precio.toFixed(2)}</TableCell>
+              <TableCell className="p-2">{producto.cantidad}</TableCell>
+              <TableCell className="p-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDeleteProduct(producto.id, producto.cantidad)}
+                  aria-label={`Eliminar ${producto.nombre}`}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   )
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] max-h-[90vh] flex flex-col">
+      <DialogContent className="w-[95vw] max-w-[95vw] max-h-[90vh] flex flex-col sm:w-[90vw] sm:max-w-[90vw]">
         <DialogHeader>
           <DialogTitle>{vendor.nombre}</DialogTitle>
         </DialogHeader>
@@ -123,62 +124,66 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 </TabsContent>
               </Tabs>
             ) : mode === 'ventas' ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Producto</TableHead>
-                    <TableHead>Cantidad</TableHead>
-                    <TableHead>Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ventas.map(venta => (
-                    <TableRow key={venta._id}>
-                      <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
-                      <TableCell>{venta.producto_nombre}</TableCell>
-                      <TableCell>{venta.cantidad}</TableCell>
-                      <TableCell>${venta.total.toFixed(2)}</TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Producto</TableHead>
+                      <TableHead>Cantidad</TableHead>
+                      <TableHead>Total</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {ventas.map(venta => (
+                      <TableRow key={venta._id}>
+                        <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
+                        <TableCell>{venta.producto_nombre}</TableCell>
+                        <TableCell>{venta.cantidad}</TableCell>
+                        <TableCell>${venta.total.toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : mode === 'transacciones' ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Producto</TableHead>
-                    <TableHead>Cantidad</TableHead>
-                    <TableHead>Desde</TableHead>
-                    <TableHead>Hacia</TableHead>
-                    <TableHead>Tipo</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transacciones.map(transaccion => (
-                    <TableRow 
-                      key={transaccion.id}
-                      className={
-                          transaccion.tipo === 'Baja'
-                          ? 'bg-red-100'
-                          : transaccion.desde === 'Almacen' && transaccion.hacia === 'Vendedor'
-                          ? 'bg-green-100'
-                          : transaccion.desde === 'Vendedor' && transaccion.hacia === 'Almacen'
-                          ? 'bg-yellow-100'
-                          : ''
-                      }
-                    >
-                      <TableCell>{new Date(transaccion.fecha).toLocaleDateString()}</TableCell>
-                      <TableCell>{transaccion.producto}</TableCell>
-                      <TableCell>{transaccion.cantidad}</TableCell>
-                      <TableCell>{transaccion.desde}</TableCell>
-                      <TableCell>{transaccion.hacia}</TableCell>
-                      <TableCell>{transaccion.tipo || 'Normal'}</TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Producto</TableHead>
+                      <TableHead>Cantidad</TableHead>
+                      <TableHead>Desde</TableHead>
+                      <TableHead>Hacia</TableHead>
+                      <TableHead>Tipo</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {transacciones.map(transaccion => (
+                      <TableRow 
+                        key={transaccion.id}
+                        className={
+                          transaccion.tipo === 'Baja'
+                            ? 'bg-red-100'
+                            : transaccion.desde === 'Almacen' && transaccion.hacia === 'Vendedor'
+                            ? 'bg-green-100'
+                            : transaccion.desde === 'Vendedor' && transaccion.hacia === 'Almacen'
+                            ? 'bg-yellow-100'
+                            : ''
+                        }
+                      >
+                        <TableCell>{new Date(transaccion.fecha).toLocaleDateString()}</TableCell>
+                        <TableCell>{transaccion.producto}</TableCell>
+                        <TableCell>{transaccion.cantidad}</TableCell>
+                        <TableCell>{transaccion.desde}</TableCell>
+                        <TableCell>{transaccion.hacia}</TableCell>
+                        <TableCell>{transaccion.tipo || 'Normal'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
               <div className="flex flex-col space-y-2">
                 <Button onClick={() => setMode('edit')}>Editar</Button>
