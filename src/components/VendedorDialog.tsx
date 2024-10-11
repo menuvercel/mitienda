@@ -1,11 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
-import { X, DollarSign, ArrowLeftRight } from 'lucide-react'
+import { X, DollarSign, ArrowLeftRight, Search } from 'lucide-react'
 
 interface VendorDialogProps {
   vendor: Vendedor
@@ -20,6 +20,7 @@ interface VendorDialogProps {
 export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, onProductDelete }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
+  const [searchTerm, setSearchTerm] = useState('')
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -45,76 +46,89 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
   }
 
-  const renderProductList = (products: Producto[]) => (
-    <div className="overflow-x-auto pb-4" style={{ WebkitOverflowScrolling: 'touch' }}>
-      <div className="inline-flex space-x-4 px-4">
-        {products.map(producto => (
-          <div key={producto.id} className="flex flex-col items-center bg-white p-4 rounded-lg shadow min-w-[200px]">
+  const filterItems = useCallback((items: any[], term: string) => {
+    return items.filter(item => 
+      Object.values(item).some(value => 
+        value && value.toString().toLowerCase().includes(term.toLowerCase())
+      )
+    )
+  }, [])
+
+  const renderProductList = (products: Producto[]) => {
+    const filteredProducts = filterItems(products, searchTerm)
+    return (
+      <div className="space-y-2">
+        {filteredProducts.map(producto => (
+          <div key={producto.id} className="flex items-center bg-white p-4 rounded-lg shadow">
             <Image
               src={producto.foto || '/placeholder.svg'}
               alt={producto.nombre}
-              width={100}
-              height={100}
-              className="object-cover rounded mb-2"
+              width={50}
+              height={50}
+              className="object-cover rounded mr-4"
             />
-            <h3 className="font-bold text-sm">{producto.nombre}</h3>
-            <p className="text-sm">${formatPrice(producto.precio)}</p>
-            <p className="text-sm">Cantidad: {producto.cantidad}</p>
+            <div className="flex-grow">
+              <h3 className="font-bold">{producto.nombre}</h3>
+              <p className="text-sm">${formatPrice(producto.precio)} - Cantidad: {producto.cantidad}</p>
+            </div>
             <Button
               variant="destructive"
               size="sm"
               onClick={() => handleDeleteProduct(producto.id, producto.cantidad)}
-              className="mt-2"
             >
-              Eliminar
+              <X className="h-4 w-4" />
             </Button>
           </div>
         ))}
       </div>
-    </div>
-  )
+    )
+  }
 
-  const renderVentasList = () => (
-    <div className="overflow-x-auto pb-4" style={{ WebkitOverflowScrolling: 'touch' }}>
-      <div className="inline-flex space-x-4 px-4">
-        {ventas.map(venta => (
-          <div key={venta._id} className="flex flex-col items-center bg-white p-4 rounded-lg shadow min-w-[200px]">
-            <DollarSign className="w-10 h-10 text-green-500 mb-2" />
-            <p className="text-sm font-bold">{venta.producto_nombre}</p>
-            <p className="text-sm">{new Date(venta.fecha).toLocaleDateString()}</p>
-            <p className="text-sm">Cantidad: {venta.cantidad}</p>
-            <p className="text-sm font-bold mt-2">Total: ${formatPrice(venta.total)}</p>
+  const renderVentasList = () => {
+    const filteredVentas = filterItems(ventas, searchTerm)
+    return (
+      <div className="space-y-2">
+        {filteredVentas.map(venta => (
+          <div key={venta._id} className="flex items-center bg-white p-4 rounded-lg shadow">
+            <DollarSign className="w-10 h-10 text-green-500 mr-4" />
+            <div className="flex-grow">
+              <p className="font-bold">{venta.producto_nombre}</p>
+              <p className="text-sm">{new Date(venta.fecha).toLocaleDateString()}</p>
+              <p className="text-sm">Cantidad: {venta.cantidad} - Total: ${formatPrice(venta.total)}</p>
+            </div>
           </div>
         ))}
       </div>
-    </div>
-  )
+    )
+  }
 
-  const renderTransaccionesList = () => (
-    <div className="overflow-x-auto pb-4" style={{ WebkitOverflowScrolling: 'touch' }}>
-      <div className="inline-flex space-x-4 px-4">
-        {transacciones.map(transaccion => (
-          <div key={transaccion.id} className={`flex flex-col items-center bg-white p-4 rounded-lg shadow min-w-[200px] ${
+  const renderTransaccionesList = () => {
+    const filteredTransacciones = filterItems(transacciones, searchTerm)
+    return (
+      <div className="space-y-2">
+        {filteredTransacciones.map(transaccion => (
+          <div key={transaccion.id} className={`flex items-center p-4 rounded-lg shadow ${
             transaccion.tipo === 'Baja'
               ? 'bg-red-100'
               : transaccion.desde === 'Almacen' && transaccion.hacia === 'Vendedor'
               ? 'bg-green-100'
               : transaccion.desde === 'Vendedor' && transaccion.hacia === 'Almacen'
               ? 'bg-yellow-100'
-              : ''
+              : 'bg-white'
           }`}>
-            <ArrowLeftRight className="w-10 h-10 text-blue-500 mb-2" />
-            <p className="text-sm font-bold">{transaccion.producto}</p>
-            <p className="text-sm">{new Date(transaccion.fecha).toLocaleDateString()}</p>
-            <p className="text-sm">Cantidad: {transaccion.cantidad}</p>
-            <p className="text-sm">De: {transaccion.desde}</p>
-            <p className="text-sm">A: {transaccion.hacia}</p>
-            <p className="text-sm font-bold mt-2">{transaccion.tipo || 'Normal'}</p>
+            <ArrowLeftRight className="w-10 h-10 text-blue-500 mr-4" />
+            <div className="flex-grow">
+              <p className="font-bold">{transaccion.producto}</p>
+              <p className="text-sm">{new Date(transaccion.fecha).toLocaleDateString()}</p>
+              <p className="text-sm">Cantidad: {transaccion.cantidad}</p>
+              <p className="text-sm">De: {transaccion.desde} - A: {transaccion.hacia}</p>
+              <p className="text-sm font-bold">{transaccion.tipo || 'Normal'}</p>
+            </div>
           </div>
         ))}
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -122,9 +136,9 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
         <DialogHeader className="p-4">
           <DialogTitle>{vendor.nombre}</DialogTitle>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto">
+        <div className="flex-grow overflow-y-auto p-4">
           {mode === 'edit' ? (
-            <div className="p-4 space-y-4">
+            <div className="space-y-4">
               <Input
                 name="nombre"
                 value={editedVendor.nombre}
@@ -141,10 +155,20 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             </div>
           ) : mode === 'productos' ? (
             <Tabs defaultValue="disponibles" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
                 <TabsTrigger value="agotados">Agotados</TabsTrigger>
               </TabsList>
+              <div className="relative mb-4">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Input
+                  type="search"
+                  placeholder="Buscar productos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
               <TabsContent value="disponibles">
                 {renderProductList(productos.filter(p => p.cantidad > 0))}
               </TabsContent>
@@ -153,17 +177,37 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
               </TabsContent>
             </Tabs>
           ) : mode === 'ventas' ? (
-            <div className="p-4">
+            <div>
               <h2 className="text-lg font-bold mb-4">Ventas</h2>
+              <div className="relative mb-4">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Input
+                  type="search"
+                  placeholder="Buscar ventas..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
               {renderVentasList()}
             </div>
           ) : mode === 'transacciones' ? (
-            <div className="p-4">
+            <div>
               <h2 className="text-lg font-bold mb-4">Transacciones</h2>
+              <div className="relative mb-4">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Input
+                  type="search"
+                  placeholder="Buscar transacciones..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
               {renderTransaccionesList()}
             </div>
           ) : (
-            <div className="flex flex-col space-y-2 p-4">
+            <div className="flex flex-col space-y-2">
               <Button onClick={() => setMode('edit')}>Editar</Button>
               <Button onClick={() => setMode('productos')}>Productos</Button>
               <Button onClick={() => setMode('ventas')}>Ventas</Button>
