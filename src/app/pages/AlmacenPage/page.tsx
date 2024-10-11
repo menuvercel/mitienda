@@ -309,21 +309,30 @@ export default function AlmacenPage() {
               <Button
                 variant="ghost"
                 className={activeSection === 'productos' ? 'bg-accent' : ''}
-                onClick={() => setActiveSection('productos')}
+                onClick={() => {
+                  setActiveSection('productos')
+                  setIsMenuOpen(false)
+                }}
               >
                 Productos
               </Button>
               <Button
                 variant="ghost"
                 className={activeSection === 'vendedores' ? 'bg-accent' : ''}
-                onClick={() => setActiveSection('vendedores')}
+                onClick={() => {
+                  setActiveSection('vendedores')
+                  setIsMenuOpen(false)
+                }}
               >
                 Vendedores
               </Button>
               <Button
                 variant="ghost"
                 className={activeSection === 'ventas' ? 'bg-accent' : ''}
-                onClick={() => setActiveSection('ventas')}
+                onClick={() => {
+                  setActiveSection('ventas')
+                  setIsMenuOpen(false)
+                }}
               >
                 Ventas
               </Button>
