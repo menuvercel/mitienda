@@ -28,6 +28,12 @@ import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
 import { Producto, Vendedor, Venta, Transaccion } from '@/types'
 
+interface VendorDialogProps {
+  vendor: Vendedor
+  onClose: () => void
+  productos: Producto[]
+  transacciones: Transaccion[]
+}
 interface NewUser {
   nombre: string;
   password: string;

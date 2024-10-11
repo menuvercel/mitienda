@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
-import { getVentasVendedor } from '@/app/services/api' // Import the new function
+import { getVentasDia } from '@/app/services/api'
 
 interface VendorDialogProps {
   vendor: Vendedor
@@ -15,6 +15,7 @@ interface VendorDialogProps {
   onEdit: (editedVendor: Vendedor) => Promise<void>
   productos: Producto[]
   transacciones: Transaccion[]
+  ventas: Venta[]
 }
 
 export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones }: VendorDialogProps) {
@@ -26,9 +27,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     if (mode === 'ventas') {
       const fetchVentas = async () => {
         try {
-          const today = new Date().toISOString().split('T')[0]
-          const oneMonthAgo = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0]
-          const ventasData = await getVentasVendedor(vendor.id, oneMonthAgo, today)
+          const ventasData = await getVentasDia(vendor.id)
           setVentas(ventasData)
         } catch (error) {
           console.error('Error fetching ventas:', error)
@@ -159,7 +158,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                       <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
                       <TableCell>{venta.producto_nombre}</TableCell>
                       <TableCell>{venta.cantidad}</TableCell>
-                      <TableCell>${venta.total}</TableCell>
+                      <TableCell>${venta.total.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
