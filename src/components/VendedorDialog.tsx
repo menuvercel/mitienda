@@ -42,6 +42,11 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     }
   }
 
+  const formatPrice = (price: number | string): string => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price
+    return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
+  }
+
   const renderProductTable = (products: Producto[]) => (
     <div className="overflow-x-auto">
       <Table>
@@ -67,7 +72,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 />
               </TableCell>
               <TableCell className="p-2">{producto.nombre}</TableCell>
-              <TableCell className="p-2">${producto.precio.toFixed(2)}</TableCell>
+              <TableCell className="p-2">${formatPrice(producto.precio)}</TableCell>
               <TableCell className="p-2">{producto.cantidad}</TableCell>
               <TableCell className="p-2">
                 <Button
@@ -140,7 +145,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                         <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
                         <TableCell>{venta.producto_nombre}</TableCell>
                         <TableCell>{venta.cantidad}</TableCell>
-                        <TableCell>${venta.total.toFixed(2)}</TableCell>
+                        <TableCell>${formatPrice(venta.total)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
