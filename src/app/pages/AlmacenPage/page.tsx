@@ -177,7 +177,6 @@ export default function AlmacenPage() {
     producto.nombre.toLowerCase().includes(productSearchTerm.toLowerCase())
   )
 
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewUser({ ...newUser, [e.target.name]: e.target.value })
   }
@@ -339,7 +338,7 @@ export default function AlmacenPage() {
     }
   };
 
-  const filteredInventario = inventario.filter((producto) =>
+  const filteredInventario = sortedInventario.filter((producto) =>
     producto.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
@@ -365,6 +364,7 @@ export default function AlmacenPage() {
                 className={activeSection === 'productos' ? 'bg-accent' : ''}
                 onClick={() => {
                   setActiveSection('productos')
+                  
                   setIsMenuOpen(false)
                 }}
               >
