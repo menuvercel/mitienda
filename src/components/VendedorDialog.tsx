@@ -48,46 +48,48 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }
 
   const renderProductTable = (products: Producto[]) => (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[100px]">Foto</TableHead>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Precio</TableHead>
-            <TableHead>Cantidad</TableHead>
-            <TableHead>Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {products.map(producto => (
-            <TableRow key={producto.id}>
-              <TableCell className="p-2">
-                <Image
-                  src={producto.foto || '/placeholder.svg'}
-                  alt={producto.nombre}
-                  width={50}
-                  height={50}
-                  className="object-cover rounded"
-                />
-              </TableCell>
-              <TableCell className="p-2">{producto.nombre}</TableCell>
-              <TableCell className="p-2">${formatPrice(producto.precio)}</TableCell>
-              <TableCell className="p-2">{producto.cantidad}</TableCell>
-              <TableCell className="p-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDeleteProduct(producto.id, producto.cantidad)}
-                  aria-label={`Eliminar ${producto.nombre}`}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </TableCell>
+    <div className="overflow-x-auto w-full">
+      <div className="inline-block min-w-full">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[100px]">Foto</TableHead>
+              <TableHead>Nombre</TableHead>
+              <TableHead>Precio</TableHead>
+              <TableHead>Cantidad</TableHead>
+              <TableHead>Acciones</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {products.map(producto => (
+              <TableRow key={producto.id}>
+                <TableCell className="p-2">
+                  <Image
+                    src={producto.foto || '/placeholder.svg'}
+                    alt={producto.nombre}
+                    width={50}
+                    height={50}
+                    className="object-cover rounded"
+                  />
+                </TableCell>
+                <TableCell className="p-2">{producto.nombre}</TableCell>
+                <TableCell className="p-2">${formatPrice(producto.precio)}</TableCell>
+                <TableCell className="p-2">{producto.cantidad}</TableCell>
+                <TableCell className="p-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDeleteProduct(producto.id, producto.cantidad)}
+                    aria-label={`Eliminar ${producto.nombre}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 
@@ -97,116 +99,114 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
         <DialogHeader>
           <DialogTitle>{vendor.nombre}</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="flex-grow">
-          <div className="grid gap-4 py-4">
-            {mode === 'edit' ? (
-              <>
-                <Input
-                  name="nombre"
-                  value={editedVendor.nombre}
-                  onChange={handleInputChange}
-                  placeholder="Nombre del vendedor"
-                />
-                <Input
-                  name="telefono"
-                  value={editedVendor.telefono}
-                  onChange={handleInputChange}
-                  placeholder="Teléfono"
-                />
-                <Button onClick={handleEdit}>Guardar cambios</Button>
-              </>
-            ) : mode === 'productos' ? (
-              <Tabs defaultValue="disponibles" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
-                  <TabsTrigger value="agotados">Agotados</TabsTrigger>
-                </TabsList>
-                <TabsContent value="disponibles">
-                  <ScrollArea className="h-[60vh]">
+        <div className="flex-grow overflow-hidden">
+          <ScrollArea className="h-[calc(90vh-8rem)]">
+            <div className="grid gap-4 py-4">
+              {mode === 'edit' ? (
+                <>
+                  <Input
+                    name="nombre"
+                    value={editedVendor.nombre}
+                    onChange={handleInputChange}
+                    placeholder="Nombre del vendedor"
+                  />
+                  <Input
+                    name="telefono"
+                    value={editedVendor.telefono}
+                    onChange={handleInputChange}
+                    placeholder="Teléfono"
+                  />
+                  <Button onClick={handleEdit}>Guardar cambios</Button>
+                </>
+              ) : mode === 'productos' ? (
+                <Tabs defaultValue="disponibles" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
+                    <TabsTrigger value="agotados">Agotados</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="disponibles">
                     {renderProductTable(productos.filter(p => p.cantidad > 0))}
-                  </ScrollArea>
-                </TabsContent>
-                <TabsContent value="agotados">
-                  <ScrollArea className="h-[60vh]">
+                  </TabsContent>
+                  <TabsContent value="agotados">
                     {renderProductTable(productos.filter(p => p.cantidad === 0))}
-                  </ScrollArea>
-                </TabsContent>
-              </Tabs>
-            ) : mode === 'ventas' ? (
-              <div className="overflow-auto max-h-[60vh]">
-                <div className="min-w-[600px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Producto</TableHead>
-                        <TableHead>Cantidad</TableHead>
-                        <TableHead>Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {ventas.map(venta => (
-                        <TableRow key={venta._id}>
-                          <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
-                          <TableCell>{venta.producto_nombre}</TableCell>
-                          <TableCell>{venta.cantidad}</TableCell>
-                          <TableCell>${formatPrice(venta.total)}</TableCell>
+                  </TabsContent>
+                </Tabs>
+              ) : mode === 'ventas' ? (
+                <div className="overflow-x-auto w-full">
+                  <div className="inline-block min-w-full">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>Producto</TableHead>
+                          <TableHead>Cantidad</TableHead>
+                          <TableHead>Total</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {ventas.map(venta => (
+                          <TableRow key={venta._id}>
+                            <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
+                            <TableCell>{venta.producto_nombre}</TableCell>
+                            <TableCell>{venta.cantidad}</TableCell>
+                            <TableCell>${formatPrice(venta.total)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
-              </div>
-            ) : mode === 'transacciones' ? (
-              <div className="overflow-auto max-h-[60vh]">
-                <div className="min-w-[800px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Producto</TableHead>
-                        <TableHead>Cantidad</TableHead>
-                        <TableHead>Desde</TableHead>
-                        <TableHead>Hacia</TableHead>
-                        <TableHead>Tipo</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {transacciones.map(transaccion => (
-                        <TableRow 
-                          key={transaccion.id}
-                          className={
-                            transaccion.tipo === 'Baja'
-                              ? 'bg-red-100'
-                              : transaccion.desde === 'Almacen' && transaccion.hacia === 'Vendedor'
-                              ? 'bg-green-100'
-                              : transaccion.desde === 'Vendedor' && transaccion.hacia === 'Almacen'
-                              ? 'bg-yellow-100'
-                              : ''
-                          }
-                        >
-                          <TableCell>{new Date(transaccion.fecha).toLocaleDateString()}</TableCell>
-                          <TableCell>{transaccion.producto}</TableCell>
-                          <TableCell>{transaccion.cantidad}</TableCell>
-                          <TableCell>{transaccion.desde}</TableCell>
-                          <TableCell>{transaccion.hacia}</TableCell>
-                          <TableCell>{transaccion.tipo || 'Normal'}</TableCell>
+              ) : mode === 'transacciones' ? (
+                <div className="overflow-x-auto w-full">
+                  <div className="inline-block min-w-full">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>Producto</TableHead>
+                          <TableHead>Cantidad</TableHead>
+                          <TableHead>Desde</TableHead>
+                          <TableHead>Hacia</TableHead>
+                          <TableHead>Tipo</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {transacciones.map(transaccion => (
+                          <TableRow 
+                            key={transaccion.id}
+                            className={
+                              transaccion.tipo === 'Baja'
+                                ? 'bg-red-100'
+                                : transaccion.desde === 'Almacen' && transaccion.hacia === 'Vendedor'
+                                ? 'bg-green-100'
+                                : transaccion.desde === 'Vendedor' && transaccion.hacia === 'Almacen'
+                                ? 'bg-yellow-100'
+                                : ''
+                            }
+                          >
+                            <TableCell>{new Date(transaccion.fecha).toLocaleDateString()}</TableCell>
+                            <TableCell>{transaccion.producto}</TableCell>
+                            <TableCell>{transaccion.cantidad}</TableCell>
+                            <TableCell>{transaccion.desde}</TableCell>
+                            <TableCell>{transaccion.hacia}</TableCell>
+                            <TableCell>{transaccion.tipo || 'Normal'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex flex-col space-y-2">
-                <Button onClick={() => setMode('edit')}>Editar</Button>
-                <Button onClick={() => setMode('productos')}>Productos</Button>
-                <Button onClick={() => setMode('ventas')}>Ventas</Button>
-                <Button onClick={() => setMode('transacciones')}>Transacciones</Button>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
+              ) : (
+                <div className="flex flex-col space-y-2">
+                  <Button onClick={() => setMode('edit')}>Editar</Button>
+                  <Button onClick={() => setMode('productos')}>Productos</Button>
+                  <Button onClick={() => setMode('ventas')}>Ventas</Button>
+                  <Button onClick={() => setMode('transacciones')}>Transacciones</Button>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
         {mode !== 'view' && (
           <div className="mt-4">
             <Button onClick={() => setMode('view')}>Volver</Button>
