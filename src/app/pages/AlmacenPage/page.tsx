@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Menu } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 import { 
   getVendedores, 
   getCurrentUser, 
@@ -123,6 +124,36 @@ export default function AlmacenPage() {
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [activeSection, setActiveSection] = useState('productos')
+  const [showMassDeliveryDialog, setShowMassDeliveryDialog] = useState(false)
+  const [massDeliveryStep, setMassDeliveryStep] = useState(1)
+  const [selectedProducts, setSelectedProducts] = useState<{[key: string]: number}>({})
+  const [selectedVendors, setSelectedVendors] = useState<string[]>([])
+  const [productSearchTerm, setProductSearchTerm] = useState("")
+
+  const handleMassDelivery = async () => {
+    try {
+      for (const vendorId of selectedVendors) {
+        for (const [productId, quantity] of Object.entries(selectedProducts)) {
+          await entregarProducto(productId, vendorId, quantity)
+        }
+      }
+      
+      await fetchInventario()
+      setShowMassDeliveryDialog(false)
+      setMassDeliveryStep(1)
+      setSelectedProducts({})
+      setSelectedVendors([])
+      alert('Entrega masiva realizada con éxito')
+    } catch (error) {
+      console.error('Error en la entrega masiva:', error)
+      alert('Hubo un error al realizar la entrega masiva. Por favor, inténtelo de nuevo.')
+    }
+  }
+
+  const filteredInventarioForMassDelivery = inventario.filter((producto) =>
+    producto.nombre.toLowerCase().includes(productSearchTerm.toLowerCase())
+  )
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewUser({ ...newUser, [e.target.name]: e.target.value })
@@ -401,9 +432,14 @@ export default function AlmacenPage() {
 
       {activeSection === 'vendedores' && (
         <div>
-          <Button onClick={() => setShowRegisterModal(true)} className="mb-4">
-            Agregar Usuario
-          </Button>
+          <div className="flex justify-between mb-4">
+            <Button onClick={() => setShowRegisterModal(true)}>
+              Agregar Usuario
+            </Button>
+            <Button onClick={() => setShowMassDeliveryDialog(true)}>
+              Entrega Masiva
+            </Button>
+          </div>
           <Card>
             <CardHeader>
               <CardTitle>Vendedores</CardTitle>
@@ -443,6 +479,87 @@ export default function AlmacenPage() {
           </Card>
         </div>
       )}
+
+      <Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Entrega Masiva</DialogTitle>
+          </DialogHeader>
+          {massDeliveryStep === 1 ? (
+            <div className="space-y-4">
+              <Input
+                placeholder="Buscar productos..."
+                value={productSearchTerm}
+                onChange={(e) => setProductSearchTerm(e.target.value)}
+              />
+              <div className="max-h-[300px] overflow-y-auto space-y-2">
+                {filteredInventarioForMassDelivery.map((producto) => (
+                  <div key={producto.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`product-${producto.id}`}
+                      checked={!!selectedProducts[producto.id]}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedProducts({...selectedProducts, [producto.id]: 1})
+                        } else {
+                          const { [producto.id]: _, ...rest } = selectedProducts
+                          setSelectedProducts(rest)
+                        }
+                      }}
+                    />
+                    <label htmlFor={`product-${producto.id}`} className="flex-grow">{producto.nombre}</label>
+                    {selectedProducts[producto.id] && (
+                      <Input
+                        type="number"
+                        value={selectedProducts[producto.id]}
+                        onChange={(e) => {
+                          const quantity = Math.min(Number(e.target.value), producto.cantidad)
+                          setSelectedProducts({...selectedProducts, [producto.id]: quantity})
+                        }}
+                        className="w-20"
+                        min={1}
+                        max={producto.cantidad}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Button onClick={() => setMassDeliveryStep(2)} disabled={Object.keys(selectedProducts).length === 0}>
+                Siguiente
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="max-h-[300px] overflow-y-auto space-y-2">
+                {vendedores.map((vendedor) => (
+                  <div key={vendedor.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`vendor-${vendedor.id}`}
+                      checked={selectedVendors.includes(vendedor.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedVendors([...selectedVendors, vendedor.id])
+                        } else {
+                          setSelectedVendors(selectedVendors.filter(id => id !== vendedor.id))
+                        }
+                      }}
+                    />
+                    <label htmlFor={`vendor-${vendedor.id}`}>{vendedor.nombre}</label>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setMassDeliveryStep(1)}>
+                  Atrás
+                </Button>
+                <Button onClick={handleMassDelivery} disabled={selectedVendors.length === 0}>
+                  Entregar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showRegisterModal} onOpenChange={setShowRegisterModal}>
         <DialogContent>
