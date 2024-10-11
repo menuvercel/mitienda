@@ -62,6 +62,14 @@ interface VentaAgrupada {
   total: number;
 }
 
+interface VentaSemana {
+  fechaInicio: string;
+  fechaFin: string;
+  ventas: Venta[];
+  total: number;
+  ganancia: number;
+}
+
 const useVendedorData = (vendedorId: string) => {
   const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -73,6 +81,7 @@ const useVendedorData = (vendedorId: string) => {
   const [transacciones, setTransacciones] = useState<Transaccion[]>([])
   const [ventasDia, setVentasDia] = useState<Venta[]>([])
   const [ventasAgrupadas, setVentasAgrupadas] = useState<VentaAgrupada[]>([])
+  const [ventasSemanales, setVentasSemanales] = useState<VentaSemana[]>([])
 
   const agruparVentas = useCallback((ventas: Venta[]) => {
     const ventasAgrupadas = ventas.reduce((acc: VentaAgrupada[], venta) => {
@@ -87,6 +96,43 @@ const useVendedorData = (vendedorId: string) => {
       return acc
     }, [])
     return ventasAgrupadas.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+  }, [])
+
+  const agruparVentasPorSemana = useCallback((ventas: Venta[]) => {
+    const ventasSemanales: VentaSemana[] = []
+    ventas.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
+
+    let currentWeek: VentaSemana | null = null
+
+    ventas.forEach((venta) => {
+      const ventaDate = new Date(venta.fecha)
+      const dayOfWeek = ventaDate.getDay()
+      const weekStart = new Date(ventaDate.getFullYear(), ventaDate.getMonth(), ventaDate.getDate() - dayOfWeek)
+      const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6)
+
+      if (!currentWeek || ventaDate > weekEnd) {
+        if (currentWeek) {
+          ventasSemanales.push(currentWeek)
+        }
+        currentWeek = {
+          fechaInicio: weekStart.toISOString().split('T')[0],
+          fechaFin: weekEnd.toISOString().split('T')[0],
+          ventas: [],
+          total: 0,
+          ganancia: 0
+        }
+      }
+
+      currentWeek.ventas.push(venta)
+      currentWeek.total += venta.total
+      currentWeek.ganancia = currentWeek.total * 0.08 // 8% de ganancia
+    })
+
+    if (currentWeek) {
+      ventasSemanales.push(currentWeek)
+    }
+
+    return ventasSemanales.sort((a, b) => new Date(b.fechaInicio).getTime() - new Date(a.fechaInicio).getTime())
   }, [])
 
   const fetchProductos = useCallback(async () => {
@@ -111,6 +157,7 @@ const useVendedorData = (vendedorId: string) => {
       setVentasDia(ventasDiaData);
       setVentasRegistro(todasLasVentas);
       setVentasAgrupadas(agruparVentas(todasLasVentas));
+      setVentasSemanales(agruparVentasPorSemana(todasLasVentas));
     } catch (error) {
       console.error('Error al obtener registro de ventas:', error);
       if (error instanceof Error) {
@@ -119,7 +166,7 @@ const useVendedorData = (vendedorId: string) => {
         setError('No se pudo cargar el registro de ventas. Por favor, intenta de nuevo.');
       }
     }
-  }, [vendedorId, agruparVentas]);
+  }, [vendedorId, agruparVentas, agruparVentasPorSemana]);
 
   const fetchTransacciones = useCallback(async () => {
     try {
@@ -170,25 +217,22 @@ const useVendedorData = (vendedorId: string) => {
     transacciones,
     ventasDia,
     ventasAgrupadas,
+    ventasSemanales,
     fetchProductos, 
     fetchVentasRegistro,
     fetchTransacciones
   }
 }
 
-const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
+const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
   const [isOpen, setIsOpen] = useState(false);
-
-  // Calculate the total from the individual product totals
-  const total = venta.ventas.reduce((sum, v) => sum + (typeof v.total === 'number' ? v.total : parseFloat(v.total)), 0);
-  const totalCantidad = venta.ventas.reduce((sum, v) => sum + v.cantidad, 0);
 
   return (
     <>
       <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
-        <TableCell>{venta.fecha}</TableCell>
-        <TableCell>{totalCantidad}</TableCell>
-        <TableCell>${isNaN(total) ? '0.00' : total.toFixed(2)}</TableCell>
+        <TableCell>{`${venta.fechaInicio} - ${venta.fechaFin}`}</TableCell>
+        <TableCell>${venta.total.toFixed(2)}</TableCell>
+        <TableCell className="text-green-600">${venta.ganancia.toFixed(2)}</TableCell>
         <TableCell>
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </TableCell>
@@ -199,35 +243,30 @@ const VentaDesplegable = ({ venta }: { venta: VentaAgrupada }) => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
+                  <TableHead>Fecha</TableHead>
                   <TableHead>Producto</TableHead>
                   <TableHead>Cantidad</TableHead>
-                  <TableHead>Precio Unitario</TableHead>
                   <TableHead>Total</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {venta.ventas.map((v) => {
-                  const precioUnitario = typeof v.precio_unitario === 'number' ? v.precio_unitario : parseFloat(v.precio_unitario);
-                  const ventaTotal = typeof v.total === 'number' ? v.total : parseFloat(v.total);
-
-                  return (
-                    <TableRow key={v._id}>
-                      <TableCell className="flex items-center space-x-2">
-                        <Image
-                          src={v.producto_foto || '/placeholder.svg'}
-                          alt={v.producto_nombre}
-                          width={40}
-                          height={40}
-                          className="rounded-md"
-                        />
-                        <span>{v.producto_nombre}</span>
-                      </TableCell>
-                      <TableCell>{v.cantidad}</TableCell>
-                      <TableCell>${isNaN(precioUnitario) ? '0.00' : precioUnitario.toFixed(2)}</TableCell>
-                      <TableCell>${isNaN(ventaTotal) ? '0.00' : ventaTotal.toFixed(2)}</TableCell>
-                    </TableRow>
-                  );
-                })}
+                {venta.ventas.map((v) => (
+                  <TableRow key={v._id}>
+                    <TableCell>{new Date(v.fecha).toLocaleDateString()}</TableCell>
+                    <TableCell className="flex items-center space-x-2">
+                      <Image
+                        src={v.producto_foto || '/placeholder.svg'}
+                        alt={v.producto_nombre}
+                        width={40}
+                        height={40}
+                        className="rounded-md"
+                      />
+                      <span>{v.producto_nombre}</span>
+                    </TableCell>
+                    <TableCell>{v.cantidad}</TableCell>
+                    <TableCell>${v.total.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </TableCell>
@@ -248,6 +287,7 @@ export default function VendedorPage() {
     productosAgotados, 
     transacciones,
     ventasAgrupadas,
+    ventasSemanales,
     fetchProductos, 
     fetchVentasRegistro,
   } = useVendedorData(vendedorId)
@@ -315,10 +355,10 @@ export default function VendedorPage() {
     }
   }
 
-
-  const productosAgotadosFiltrados = productosAgotados.filter(p => 
-    p.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  )
+  const productosAgotadosFiltrados = 
+    productosAgotados.filter(p => 
+      p.nombre.toLowerCase().includes(busqueda.toLowerCase())
+    )
 
   const cambiarSeccion = (seccion: 'productos' | 'ventas' | 'registro') => {
     setSeccionActual(seccion)
@@ -590,16 +630,16 @@ export default function VendedorPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Cantidad de Productos Vendidos</TableHead>
+                      <TableHead>Semana</TableHead>
                       <TableHead>Total</TableHead>
+                      <TableHead>Ganancia</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {ventasAgrupadas.length > 0 ? (
-                      ventasAgrupadas.map((venta) => (
-                        <VentaDesplegable key={venta.fecha} venta={venta} />
+                    {ventasSemanales.length > 0 ? (
+                      ventasSemanales.map((venta) => (
+                        <VentaSemanaDesplegable key={venta.fechaInicio} venta={venta} />
                       ))
                     ) : (
                       <TableRow>
