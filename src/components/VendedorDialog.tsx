@@ -49,45 +49,47 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
 
   const renderProductTable = (products: Producto[]) => (
     <div className="overflow-auto max-h-[60vh]">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[100px] sticky top-0 bg-background z-10">Foto</TableHead>
-            <TableHead className="sticky top-0 bg-background z-10">Nombre</TableHead>
-            <TableHead className="sticky top-0 bg-background z-10">Precio</TableHead>
-            <TableHead className="sticky top-0 bg-background z-10">Cantidad</TableHead>
-            <TableHead className="sticky top-0 bg-background z-10">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {products.map(producto => (
-            <TableRow key={producto.id}>
-              <TableCell className="p-2">
-                <Image
-                  src={producto.foto || '/placeholder.svg'}
-                  alt={producto.nombre}
-                  width={50}
-                  height={50}
-                  className="object-cover rounded"
-                />
-              </TableCell>
-              <TableCell className="p-2">{producto.nombre}</TableCell>
-              <TableCell className="p-2">${formatPrice(producto.precio)}</TableCell>
-              <TableCell className="p-2">{producto.cantidad}</TableCell>
-              <TableCell className="p-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDeleteProduct(producto.id, producto.cantidad)}
-                  aria-label={`Eliminar ${producto.nombre}`}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </TableCell>
+      <div className="min-w-[600px]">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[100px] sticky left-0 bg-background z-20">Foto</TableHead>
+              <TableHead className="sticky top-0 bg-background z-10">Nombre</TableHead>
+              <TableHead className="sticky top-0 bg-background z-10">Precio</TableHead>
+              <TableHead className="sticky top-0 bg-background z-10">Cantidad</TableHead>
+              <TableHead className="sticky top-0 bg-background z-10">Acciones</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {products.map(producto => (
+              <TableRow key={producto.id}>
+                <TableCell className="p-2 sticky left-0 bg-background">
+                  <Image
+                    src={producto.foto || '/placeholder.svg'}
+                    alt={producto.nombre}
+                    width={50}
+                    height={50}
+                    className="object-cover rounded"
+                  />
+                </TableCell>
+                <TableCell className="p-2">{producto.nombre}</TableCell>
+                <TableCell className="p-2">${formatPrice(producto.precio)}</TableCell>
+                <TableCell className="p-2">{producto.cantidad}</TableCell>
+                <TableCell className="p-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDeleteProduct(producto.id, producto.cantidad)}
+                    aria-label={`Eliminar ${producto.nombre}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 
@@ -130,64 +132,68 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
               </Tabs>
             ) : mode === 'ventas' ? (
               <div className="overflow-auto max-h-[60vh]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="sticky top-0 bg-background z-10">Fecha</TableHead>
-                      <TableHead className="sticky top-0 bg-background z-10">Producto</TableHead>
-                      <TableHead className="sticky top-0 bg-background z-10">Cantidad</TableHead>
-                      <TableHead className="sticky top-0 bg-background z-10">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ventas.map(venta => (
-                      <TableRow key={venta._id}>
-                        <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
-                        <TableCell>{venta.producto_nombre}</TableCell>
-                        <TableCell>{venta.cantidad}</TableCell>
-                        <TableCell>${formatPrice(venta.total)}</TableCell>
+                <div className="min-w-[600px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="sticky top-0 bg-background z-10">Fecha</TableHead>
+                        <TableHead className="sticky top-0 bg-background z-10">Producto</TableHead>
+                        <TableHead className="sticky top-0 bg-background z-10">Cantidad</TableHead>
+                        <TableHead className="sticky top-0 bg-background z-10">Total</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {ventas.map(venta => (
+                        <TableRow key={venta._id}>
+                          <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
+                          <TableCell>{venta.producto_nombre}</TableCell>
+                          <TableCell>{venta.cantidad}</TableCell>
+                          <TableCell>${formatPrice(venta.total)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             ) : mode === 'transacciones' ? (
               <div className="overflow-auto max-h-[60vh]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="sticky top-0 bg-background z-10">Fecha</TableHead>
-                      <TableHead className="sticky top-0 bg-background z-10">Producto</TableHead>
-                      <TableHead className="sticky top-0 bg-background z-10">Cantidad</TableHead>
-                      <TableHead className="sticky top-0 bg-background z-10">Desde</TableHead>
-                      <TableHead className="sticky top-0 bg-background z-10">Hacia</TableHead>
-                      <TableHead className="sticky top-0 bg-background z-10">Tipo</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transacciones.map(transaccion => (
-                      <TableRow 
-                        key={transaccion.id}
-                        className={
-                          transaccion.tipo === 'Baja'
-                            ? 'bg-red-100'
-                            : transaccion.desde === 'Almacen' && transaccion.hacia === 'Vendedor'
-                            ? 'bg-green-100'
-                            : transaccion.desde === 'Vendedor' && transaccion.hacia === 'Almacen'
-                            ? 'bg-yellow-100'
-                            : ''
-                        }
-                      >
-                        <TableCell>{new Date(transaccion.fecha).toLocaleDateString()}</TableCell>
-                        <TableCell>{transaccion.producto}</TableCell>
-                        <TableCell>{transaccion.cantidad}</TableCell>
-                        <TableCell>{transaccion.desde}</TableCell>
-                        <TableCell>{transaccion.hacia}</TableCell>
-                        <TableCell>{transaccion.tipo || 'Normal'}</TableCell>
+                <div className="min-w-[800px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="sticky top-0 bg-background z-10">Fecha</TableHead>
+                        <TableHead className="sticky top-0 bg-background z-10">Producto</TableHead>
+                        <TableHead className="sticky top-0 bg-background z-10">Cantidad</TableHead>
+                        <TableHead className="sticky top-0 bg-background z-10">Desde</TableHead>
+                        <TableHead className="sticky top-0 bg-background z-10">Hacia</TableHead>
+                        <TableHead className="sticky top-0 bg-background z-10">Tipo</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {transacciones.map(transaccion => (
+                        <TableRow 
+                          key={transaccion.id}
+                          className={
+                            transaccion.tipo === 'Baja'
+                              ? 'bg-red-100'
+                              : transaccion.desde === 'Almacen' && transaccion.hacia === 'Vendedor'
+                              ? 'bg-green-100'
+                              : transaccion.desde === 'Vendedor' && transaccion.hacia === 'Almacen'
+                              ? 'bg-yellow-100'
+                              : ''
+                          }
+                        >
+                          <TableCell>{new Date(transaccion.fecha).toLocaleDateString()}</TableCell>
+                          <TableCell>{transaccion.producto}</TableCell>
+                          <TableCell>{transaccion.cantidad}</TableCell>
+                          <TableCell>{transaccion.desde}</TableCell>
+                          <TableCell>{transaccion.hacia}</TableCell>
+                          <TableCell>{transaccion.tipo || 'Normal'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col space-y-2">
