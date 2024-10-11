@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -7,19 +7,36 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
+import { getVentasVendedor } from '@/app/services/api' // Import the new function
 
 interface VendorDialogProps {
   vendor: Vendedor
   onClose: () => void
   onEdit: (editedVendor: Vendedor) => Promise<void>
   productos: Producto[]
-  ventas: Venta[]
   transacciones: Transaccion[]
 }
 
-export default function VendorDialog({ vendor, onClose, onEdit, productos, ventas, transacciones }: VendorDialogProps) {
+export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
+  const [ventas, setVentas] = useState<Venta[]>([])
+
+  useEffect(() => {
+    if (mode === 'ventas') {
+      const fetchVentas = async () => {
+        try {
+          const today = new Date().toISOString().split('T')[0]
+          const oneMonthAgo = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0]
+          const ventasData = await getVentasVendedor(vendor.id, oneMonthAgo, today)
+          setVentas(ventasData)
+        } catch (error) {
+          console.error('Error fetching ventas:', error)
+        }
+      }
+      fetchVentas()
+    }
+  }, [mode, vendor.id])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
