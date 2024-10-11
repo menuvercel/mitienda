@@ -51,7 +51,7 @@ interface Venta {
   producto_foto: string;
   cantidad: number;
   precio_unitario: number;
-  total: number;
+  total: number | string;
   vendedor: string;
   fecha: string;
 }
@@ -59,7 +59,7 @@ interface Venta {
 interface VentaAgrupada {
   fecha: string;
   ventas: Venta[];
-  total: number;
+  total: number | string;
 }
 
 interface VentaSemana {
@@ -89,7 +89,7 @@ const useVendedorData = (vendedorId: string) => {
       const ventaExistente = acc.find(v => v.fecha === fecha)
       if (ventaExistente) {
         ventaExistente.ventas.push(venta)
-        ventaExistente.total += venta.total
+        ventaExistente.total = (parseFloat(ventaExistente.total as string) || 0) + (parseFloat(venta.total as string) || 0)
       } else {
         acc.push({ fecha, ventas: [venta], total: venta.total })
       }
@@ -108,7 +108,7 @@ const useVendedorData = (vendedorId: string) => {
       const ventaDate = new Date(venta.fecha)
       const dayOfWeek = ventaDate.getDay()
       const weekStart = new Date(ventaDate.getFullYear(), ventaDate.getMonth(), ventaDate.getDate() - dayOfWeek)
-      const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6)
+      const weekEnd = new Date(weekStart.getFullYear(), ventaDate.getMonth(), weekStart.getDate() + 6)
 
       if (!currentWeek || ventaDate > weekEnd) {
         if (currentWeek) {
@@ -124,8 +124,8 @@ const useVendedorData = (vendedorId: string) => {
       }
 
       currentWeek.ventas.push(venta)
-      currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0;
-      currentWeek.ganancia = currentWeek.total * 0.08; // Esto ya asegura que ganancia sea un número
+      currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0
+      currentWeek.ganancia = parseFloat((currentWeek.total * 0.08).toFixed(2))
     })
 
     if (currentWeek) {
@@ -231,16 +231,8 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
     <>
       <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
         <TableCell>{`${venta.fechaInicio} - ${venta.fechaFin}`}</TableCell>
-        <TableCell>
-          ${typeof venta.total === 'number' 
-            ? venta.total.toFixed(2) 
-            : parseFloat(venta.total).toFixed(2) || '0.00'}
-        </TableCell>
-        <TableCell className="text-green-600">
-          ${typeof venta.ganancia === 'number' 
-            ? venta.ganancia.toFixed(2) 
-            : parseFloat(venta.ganancia).toFixed(2) || '0.00'}
-        </TableCell>
+        <TableCell>${venta.total.toFixed(2)}</TableCell>
+        <TableCell className="text-green-600">${venta.ganancia.toFixed(2)}</TableCell>
         <TableCell>
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </TableCell>
@@ -272,7 +264,7 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
                       <span>{v.producto_nombre}</span>
                     </TableCell>
                     <TableCell>{v.cantidad}</TableCell>
-                    <TableCell>${v.total.toFixed(2)}</TableCell>
+                    <TableCell>${typeof v.total === 'number' ? v.total.toFixed(2) : parseFloat(v.total).toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -350,6 +342,7 @@ export default function VendedorPage() {
     try {
       await Promise.all(productosSeleccionados.map(producto => {
         return realizarVenta(producto.id, producto.cantidadVendida, fecha);
+      
       }));
   
       setProductosSeleccionados([])
@@ -363,10 +356,9 @@ export default function VendedorPage() {
     }
   }
 
-  const productosAgotadosFiltrados = 
-    productosAgotados.filter(p => 
-      p.nombre.toLowerCase().includes(busqueda.toLowerCase())
-    )
+  const productosAgotadosFiltrados = productosAgotados.filter(p => 
+    p.nombre.toLowerCase().includes(busqueda.toLowerCase())
+  )
 
   const cambiarSeccion = (seccion: 'productos' | 'ventas' | 'registro') => {
     setSeccionActual(seccion)
