@@ -24,17 +24,10 @@ export async function POST(request: NextRequest) {
     await query('BEGIN');
 
     try {
-      // Obtener el precio del producto
-      const productResult = await query('SELECT precio FROM productos WHERE id = $1', [productoId]);
-      if (productResult.rows.length === 0) {
-        throw new Error('Producto no encontrado');
-      }
-      const precio = productResult.rows[0].precio;
-
       // Insertar en la tabla transacciones
       const transactionResult = await query(
-        'INSERT INTO transacciones (producto, cantidad, precio, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [productoId, cantidad, precio, decoded.id, vendedorId, new Date()]
+        'INSERT INTO transacciones (producto_id, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [productoId, cantidad, 'Entrega', decoded.id, vendedorId, new Date()]
       );
       console.log('Transacción insertada:', transactionResult.rows[0]);
 
@@ -47,13 +40,12 @@ export async function POST(request: NextRequest) {
 
       // Insertar o actualizar la tabla usuario_productos
       const upsertResult = await query(
-        `INSERT INTO usuario_productos (usuario_id, producto_id, cantidad, precio) 
-         VALUES ($1, $2, $3, $4) 
+        `INSERT INTO usuario_productos (usuario_id, producto_id, cantidad) 
+         VALUES ($1, $2, $3) 
          ON CONFLICT (usuario_id, producto_id) 
-         DO UPDATE SET cantidad = usuario_productos.cantidad + $3,
-                       precio = EXCLUDED.precio
+         DO UPDATE SET cantidad = usuario_productos.cantidad + $3
          RETURNING *`,
-        [vendedorId, productoId, cantidad, precio]
+        [vendedorId, productoId, cantidad]
       );
       console.log('usuario_productos actualizado:', upsertResult.rows[0]);
 
@@ -90,9 +82,9 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await query(
-      `SELECT t.id, p.nombre as producto, t.cantidad, t.precio, t.desde, t.hacia, t.fecha
+      `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha
        FROM transacciones t 
-       JOIN productos p ON t.producto = p.id 
+       JOIN productos p ON t.producto_id = p.id 
        WHERE t.hacia = $1 
        ORDER BY t.fecha DESC`,
       [vendedorId]
