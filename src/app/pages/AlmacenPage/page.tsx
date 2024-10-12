@@ -23,7 +23,7 @@ import {
   agregarProducto,
   editarProducto,
   entregarProducto,
-  eliminarProducto,
+  reducirProductoVendedor,
   getTransaccionesVendedor,
   editarVendedor,
   crearBajaTransaccion
@@ -301,10 +301,9 @@ export default function AlmacenPage() {
     }
   }
 
-  const handleDeleteVendorProduct = async (productId: string, vendedorId: string, cantidad: number) => {
+  const handleReduceVendorProduct = async (productId: string, vendorId: string, cantidad: number) => {
     try {
-      await eliminarProducto(productId);
-      await crearBajaTransaccion(productId, vendedorId, cantidad);
+      await reducirProductoVendedor(productId, vendorId, cantidad);
 
       if (vendedorSeleccionado) {
         const updatedProducts = await getProductosVendedor(vendedorSeleccionado.id);
@@ -315,10 +314,10 @@ export default function AlmacenPage() {
 
       await fetchInventario();
 
-      alert('Producto eliminado y transacción de baja creada exitosamente');
+      alert('Cantidad de producto reducida exitosamente');
     } catch (error) {
-      console.error('Error deleting vendor product:', error);
-      alert('Error al eliminar el producto del vendedor. Por favor, inténtelo de nuevo.');
+      console.error('Error reducing vendor product quantity:', error);
+      alert('Error al reducir la cantidad del producto. Por favor, inténtelo de nuevo.');
     }
   };
 
@@ -749,7 +748,7 @@ export default function AlmacenPage() {
           onClose={() => setSelectedProduct(null)}
           vendedores={vendedores}
           onEdit={handleEditProduct}
-          onDelete={handleDeleteVendorProduct}
+          onDelete={handleReduceVendorProduct}
           onDeliver={handleProductDelivery}
         />
       )}
@@ -762,9 +761,9 @@ export default function AlmacenPage() {
           productos={productosVendedor}
           ventas={ventasVendedor}
           transacciones={transaccionesVendedor}
-          onProductDelete={handleDeleteVendorProduct}
+          onProductReduce={handleReduceVendorProduct}
         />
       )}
     </div>
   )
-}
+} 

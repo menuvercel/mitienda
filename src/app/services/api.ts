@@ -240,6 +240,16 @@ const handleApiError = (error: unknown, context: string) => {
 
 /*estas son las funciones nuevas*/
 
+export const reducirProductoVendedor = async (productoId: string, vendedorId: string, cantidad: number) => {
+  try {
+    const response = await api.put('/api/productos/reducir', { productoId, vendedorId, cantidad });
+    return response.data;
+  } catch (error) {
+    console.error('Error al reducir la cantidad del producto:', error);
+    throw new Error('No se pudo reducir la cantidad del producto');
+  }
+};
+
 export const getVentasVendedor = async (vendedorId: string, startDate: string, endDate: string): Promise<Venta[]> => {
   console.log('Solicitando ventas para vendedor:', vendedorId, 'desde:', startDate, 'hasta:', endDate);
   try {

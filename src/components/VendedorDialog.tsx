@@ -15,16 +15,16 @@ interface VendorDialogProps {
   productos: Producto[]
   transacciones: Transaccion[]
   ventas: Venta[]
-  onProductDelete: (productId: string, vendorId: string, cantidad: number) => Promise<void>
+  onProductReduce: (productId: string, vendorId: string, cantidad: number) => Promise<void>
 }
 
-export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, onProductDelete }: VendorDialogProps) {
+export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, onProductReduce }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
   const [searchTerm, setSearchTerm] = useState('')
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [productToDelete, setProductToDelete] = useState<Producto | null>(null)
-  const [quantityToDelete, setQuantityToDelete] = useState(0)
+  const [reduceDialogOpen, setReduceDialogOpen] = useState(false)
+  const [productToReduce, setProductToReduce] = useState<Producto | null>(null)
+  const [quantityToReduce, setQuantityToReduce] = useState(0)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -39,18 +39,18 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     setMode('view')
   }
 
-  const handleDeleteProduct = async (product: Producto) => {
-    setProductToDelete(product)
-    setQuantityToDelete(0)
-    setDeleteDialogOpen(true)
+  const handleReduceProduct = (product: Producto) => {
+    setProductToReduce(product)
+    setQuantityToReduce(0)
+    setReduceDialogOpen(true)
   }
 
-  const confirmDelete = async () => {
-    if (productToDelete && quantityToDelete > 0) {
-      await onProductDelete(productToDelete.id, vendor.id, quantityToDelete)
-      setDeleteDialogOpen(false)
-      setProductToDelete(null)
-      setQuantityToDelete(0)
+  const confirmReduce = async () => {
+    if (productToReduce && quantityToReduce > 0) {
+      await onProductReduce(productToReduce.id, vendor.id, quantityToReduce)
+      setReduceDialogOpen(false)
+      setProductToReduce(null)
+      setQuantityToReduce(0)
     }
   }
 
@@ -87,7 +87,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleDeleteProduct(producto)}
+              onClick={() => handleReduceProduct(producto)}
             >
               <Minus className="h-4 w-4" />
             </Button>
@@ -277,24 +277,25 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
           </div>
         )}
       </DialogContent>
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+
+      <Dialog open={reduceDialogOpen} onOpenChange={setReduceDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reducir cantidad de producto</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p>Especifique la cantidad a reducir para {productToDelete?.nombre}</p>
+            <p>Especifique la cantidad a reducir para {productToReduce?.nombre}</p>
             <Input
               type="number"
-              value={quantityToDelete}
-              onChange={(e) => setQuantityToDelete(Math.max(0, Math.min(Number(e.target.value), productToDelete?.cantidad || 0)))}
-              max={productToDelete?.cantidad}
+              value={quantityToReduce}
+              onChange={(e) => setQuantityToReduce(Math.max(0, Math.min(Number(e.target.value), productToReduce?.cantidad || 0)))}
+              max={productToReduce?.cantidad}
               min={0}
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={confirmDelete}>Confirmar</Button>
+            <Button variant="outline" onClick={() => setReduceDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={confirmReduce}>Confirmar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
