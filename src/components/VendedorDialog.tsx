@@ -163,8 +163,10 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
       <div className="space-y-2">
         {filteredTransacciones.map(transaccion => (
           <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow ${
-            transaccion.tipo === 'Baja'
+              transaccion.tipo === 'Baja'
               ? 'border-l-4 border-red-500'
+              : transaccion.tipo === 'Entrega'
+              ? 'border-l-4 border-green-500'
               : transaccion.desde === 'Almacen' && transaccion.hacia === 'Vendedor'
               ? 'border-l-4 border-green-500'
               : transaccion.desde === 'Vendedor' && transaccion.hacia === 'Almacen'

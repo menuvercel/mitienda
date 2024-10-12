@@ -133,7 +133,12 @@ export const editarProducto = async (id: string, formData: FormData) => {
 
 
 export const entregarProducto = async (productoId: string, vendedorId: string, cantidad: number) => {
-  const response = await api.post('/transacciones', { productoId, vendedorId, cantidad });
+  const response = await api.post('/transacciones', { 
+    productoId, 
+    vendedorId, 
+    cantidad,
+    tipo: 'Entrega' // Adding the 'tipo' field
+  });
   return response.data;
 };
 

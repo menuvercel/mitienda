@@ -40,7 +40,6 @@ export interface Transaccion {
   tipo: 'Baja' | 'Entrega';
   producto: string;
   cantidad: number;
-  precio: number;
   desde: string;
   hacia: string;
   fecha: string;
