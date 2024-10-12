@@ -3,21 +3,19 @@ import { query } from '@/lib/db';
 import { verifyToken, DecodedToken } from '@/lib/auth';
 
 export async function PUT(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
-  const decoded = verifyToken(token) as DecodedToken | null;
-
-  if (!decoded || decoded.rol !== 'Almacen') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
-
-  const body = await request.json();
-  const { productoId, vendedorId, cantidad } = body;
-
-  if (!productoId || !vendedorId || !cantidad) {
-    return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 });
-  }
-
   try {
+    const token = request.cookies.get('token')?.value;
+    const decoded = verifyToken(token) as DecodedToken | null;
+    if (!decoded || decoded.rol !== 'Almacen') {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { productoId, vendedorId, cantidad } = body;
+    if (!productoId || !vendedorId || !cantidad) {
+      return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 });
+    }
+
     // Inicio de la transacción
     await query('BEGIN');
 
@@ -35,8 +33,6 @@ export async function PUT(request: NextRequest) {
     }
 
     const cantidadActual = usuarioProductoResult.rows[0].cantidad;
-
-    // Verificar que la cantidad a reducir no sea mayor que la cantidad disponible
     if (cantidad > cantidadActual) {
       await query('ROLLBACK');
       return NextResponse.json({
@@ -72,22 +68,17 @@ export async function PUT(request: NextRequest) {
     // Revertir la transacción en caso de error
     await query('ROLLBACK');
     console.error('Error al reducir la cantidad del producto:', error);
+    
+    // Log more details about the error
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+
     return NextResponse.json({
       error: 'Error interno del servidor',
-      details: (error as Error).message
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
-}
-
-// Agregar métodos para otros tipos de solicitudes
-export async function GET() {
-  return NextResponse.json({ error: 'Método no permitido' }, { status: 405 });
-}
-
-export async function POST() {
-  return NextResponse.json({ error: 'Método no permitido' }, { status: 405 });
-}
-
-export async function DELETE() {
-  return NextResponse.json({ error: 'Método no permitido' }, { status: 405 });
 }
