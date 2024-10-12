@@ -6,17 +6,15 @@ export async function POST(request: NextRequest) {
   try {
     const token = request.cookies.get('token')?.value;
     const decoded = verifyToken(token) as DecodedToken | null;
-
     if (!decoded || decoded.rol !== 'Almacen') {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     const body = await request.json();
-    const { productoId, vendedorId, cantidad } = body;
+    const { productoId, vendedorId, cantidad, tipo } = body;
+    console.log('Datos de transacción recibidos:', { productoId, vendedorId, cantidad, tipo });
 
-    console.log('Datos de transacción recibidos:', { productoId, vendedorId, cantidad });
-
-    if (!productoId || !vendedorId || !cantidad) {
+    if (!productoId || !vendedorId || !cantidad || !tipo) {
       return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 });
     }
 
@@ -27,7 +25,7 @@ export async function POST(request: NextRequest) {
       // Insertar en la tabla transacciones
       const transactionResult = await query(
         'INSERT INTO transacciones (producto_id, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [productoId, cantidad, 'Entrega', decoded.id, vendedorId, new Date()]
+        [productoId, cantidad, tipo, decoded.id, vendedorId, new Date()]
       );
       console.log('Transacción insertada:', transactionResult.rows[0]);
 
