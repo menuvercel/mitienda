@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
-import { X, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp } from 'lucide-react'
+import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 interface VendorDialogProps {
@@ -22,6 +22,9 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
   const [searchTerm, setSearchTerm] = useState('')
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [productToDelete, setProductToDelete] = useState<Producto | null>(null)
+  const [quantityToDelete, setQuantityToDelete] = useState(0)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -36,9 +39,18 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     setMode('view')
   }
 
-  const handleDeleteProduct = async (productId: string, cantidad: number) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
-      await onProductDelete(productId, vendor.id, cantidad)
+  const handleDeleteProduct = async (product: Producto) => {
+    setProductToDelete(product)
+    setQuantityToDelete(0)
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (productToDelete && quantityToDelete > 0) {
+      await onProductDelete(productToDelete.id, vendor.id, quantityToDelete)
+      setDeleteDialogOpen(false)
+      setProductToDelete(null)
+      setQuantityToDelete(0)
     }
   }
 
@@ -73,11 +85,11 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
               <p className="text-sm">${formatPrice(producto.precio)} - Cantidad: {producto.cantidad}</p>
             </div>
             <Button
-              variant="destructive"
+              variant="outline"
               size="sm"
-              onClick={() => handleDeleteProduct(producto.id, producto.cantidad)}
+              onClick={() => handleDeleteProduct(producto)}
             >
-              <X className="h-4 w-4" />
+              <Minus className="h-4 w-4" />
             </Button>
           </div>
         ))}
@@ -265,6 +277,27 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
           </div>
         )}
       </DialogContent>
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reducir cantidad de producto</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>Especifique la cantidad a reducir para {productToDelete?.nombre}</p>
+            <Input
+              type="number"
+              value={quantityToDelete}
+              onChange={(e) => setQuantityToDelete(Math.max(0, Math.min(Number(e.target.value), productToDelete?.cantidad || 0)))}
+              max={productToDelete?.cantidad}
+              min={0}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={confirmDelete}>Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }
