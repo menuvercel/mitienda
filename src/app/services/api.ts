@@ -242,7 +242,7 @@ const handleApiError = (error: unknown, context: string) => {
 
 export const reducirProductoVendedor = async (productoId: string, vendedorId: string, cantidad: number) => {
   try {
-    const response = await api.put(`/api/productos/reducir`, { productoId, vendedorId, cantidad });
+    const response = await api.put(`/productos/reducir`, { productoId, vendedorId, cantidad });
     return response.data;
   } catch (error) {
     console.error('Error al reducir la cantidad del producto:', error);
