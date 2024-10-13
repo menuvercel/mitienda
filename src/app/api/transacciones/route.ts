@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     try {
       // Insertar en la tabla transacciones
       const transactionResult = await query(
-        'INSERT INTO transacciones (producto_id, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        'INSERT INTO transacciones (id, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
         [productoId, cantidad, tipo, decoded.id, vendedorId, new Date()]
       );
       console.log('Transacción insertada:', transactionResult.rows[0]);
@@ -59,7 +59,11 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('Error al entregar producto:', error);
-    return NextResponse.json({ error: 'Error al entregar producto', details: (error as Error).message }, { status: 500 });
+    if (error instanceof Error) {
+      return NextResponse.json({ error: 'Error al entregar producto', details: error.message }, { status: 500 });
+    } else {
+      return NextResponse.json({ error: 'Error desconocido al entregar producto' }, { status: 500 });
+    }
   }
 }
 
@@ -82,7 +86,7 @@ export async function GET(request: NextRequest) {
     const result = await query(
       `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha
        FROM transacciones t 
-       JOIN productos p ON t.producto_id = p.id 
+       JOIN productos p ON t.id = p.id 
        WHERE t.hacia = $1 
        ORDER BY t.fecha DESC`,
       [vendedorId]
@@ -90,6 +94,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Error al obtener transacciones:', error);
-    return NextResponse.json({ error: 'Error al obtener transacciones', details: (error as Error).message }, { status: 500 });
+    if (error instanceof Error) {
+      return NextResponse.json({ error: 'Error al obtener transacciones', details: error.message }, { status: 500 });
+    } else {
+      return NextResponse.json({ error: 'Error desconocido al obtener transacciones' }, { status: 500 });
+    }
   }
 }

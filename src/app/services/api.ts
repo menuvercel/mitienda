@@ -131,7 +131,6 @@ export const editarProducto = async (id: string, formData: FormData) => {
   return response.data;
 };
 
-
 export const entregarProducto = async (productoId: string, vendedorId: string, cantidad: number) => {
   const response = await api.post('/transacciones', { 
     productoId, 
@@ -282,4 +281,5 @@ export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor)
     throw new Error(`No se pudo editar el vendedor: ${(error as Error).message}`);
   }
 };
+
 export default api;
