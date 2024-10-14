@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { MenuIcon, Search, X, ChevronDown, ChevronUp } from "lucide-react"
+import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { 
   getTransaccionesVendedor,
@@ -529,6 +529,72 @@ export default function VendedorPage() {
   const [cantidadSeleccionada, setCantidadSeleccionada] = useState<number>(1)
   const [productoActual, setProductoActual] = useState<Producto | null>(null)
 
+  const renderTransaccionesList = () => {
+    const filteredTransacciones = transacciones.filter(t =>
+      t.producto.toLowerCase().includes(busqueda.toLowerCase())
+    )
+    return (
+      <div className="space-y-2">
+        {filteredTransacciones.map(transaccion => {
+          const transactionType = transaccion.tipo || 'Normal'
+          const borderColor = 
+            transactionType === 'Baja' ? 'border-red-500' :
+            transactionType === 'Entrega' ? 'border-green-500' :
+            'border-blue-500'
+  
+          return (
+            <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
+              <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
+              <div className="flex-grow overflow-hidden">
+                <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+                <div className="flex justify-between items-center text-xs text-gray-600">
+                  <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
+                  <span>Cantidad: {transaccion.cantidad}</span>
+                </div>
+                <p className="text-xs font-semibold">{transactionType}</p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  const VentaDesplegable = ({ venta }: { venta: Venta }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+      <>
+        <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+          <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
+          <TableCell>${typeof venta.total === 'number' ? venta.total.toFixed(2) : parseFloat(venta.total).toFixed(2)}</TableCell>
+          <TableCell>
+            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </TableCell>
+        </TableRow>
+        {isOpen && (
+          <TableRow>
+            <TableCell colSpan={3}>
+              <div className="flex items-center space-x-2 p-2">
+                <Image
+                  src={venta.producto_foto || '/placeholder.svg'}
+                  alt={venta.producto_nombre}
+                  width={40}
+                  height={40}
+                  className="rounded-md"
+                />
+                <span>{venta.producto_nombre}</span>
+                <span>Cantidad: {venta.cantidad}</span>
+                <span>Precio unitario: ${typeof venta.precio_unitario === 'number' ? venta.precio_unitario.toFixed(2) : parseFloat(venta.precio_unitario).toFixed(2)}</span>
+              </div>
+            </TableCell>
+          </TableRow>
+        )}
+      </>
+    );
+  };
+
+
   const productosFiltrados = productosDisponibles.filter(p => 
     p.nombre.toLowerCase().includes(busqueda.toLowerCase())
   )
@@ -821,99 +887,58 @@ export default function VendedorPage() {
                 <Button onClick={handleEnviarVenta}>Enviar</Button>
               </div>
               </TabsContent>
-              <TabsContent value="registro">
-                <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">Registro de Ventas</h2>
-                  <Tabs defaultValue="diarias">
-                    <TabsList>
-                      <TabsTrigger value="diarias">Diarias</TabsTrigger>
-                      <TabsTrigger value="semanales">Semanales</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="diarias">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Total</TableHead>
-                            <TableHead></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {ventasDiarias.length > 0 ? (
-                            ventasDiarias.map((venta) => (
-                              <VentaDiaDesplegable key={venta.fecha} venta={venta} />
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={3} className="text-center">No hay ventas registradas</TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </TabsContent>
-                    <TabsContent value="semanales">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Semana</TableHead>
-                            <TableHead>Total</TableHead>
-                            <TableHead>Ganancia</TableHead>
-                            <TableHead></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {ventasSemanales.length > 0 ? (
-                            ventasSemanales.map((venta) => (
-                              <VentaSemanaDesplegable key={venta.fechaInicio} venta={venta} />
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={4} className="text-center">No hay ventas registradas</TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </TabsContent>
-                  </Tabs>
+            <TabsContent value="registro">
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold">Registro de Ventas</h2>
+                <div className="relative mb-4">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <Input
+                    placeholder="Buscar ventas..."
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
-              </TabsContent>
-            </Tabs>
-          )}
-        {seccionActual === 'registro' && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Registro de Actividades</h2>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Actividad</TableHead>
-                <TableHead>Producto</TableHead>
-                <TableHead>Cantidad</TableHead>
-                <TableHead>Precio</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transacciones && transacciones.length > 0 ? (
-                transacciones.map((transaccion) => {
-                  return (
-                    <TableRow key={transaccion.id}>
-                      <TableCell>{new Date(transaccion.fecha).toLocaleString()}</TableCell>
-                      <TableCell>Entrega de Almacén</TableCell>
-                      <TableCell>{transaccion.producto}</TableCell>
-                      <TableCell>{transaccion.cantidad}</TableCell>
-                      <TableCell>-</TableCell>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
-                  );
-                })
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center">No hay actividades registradas</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+                  </TableHeader>
+                  <TableBody>
+                    {ventasAgrupadas.length > 0 ? (
+                      ventasAgrupadas.map((venta) => (
+                        <VentaDesplegable key={venta.fecha} venta={venta.ventas[0]} />
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center">No hay ventas registradas</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+          </Tabs>
+        )}
+
+        {seccionActual === 'registro' && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Registro de Actividades</h2>
+            <div className="relative mb-4">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Buscar transacciones..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            {renderTransaccionesList()}
+          </div>
+        )}
       </main>
     </div>
   )
