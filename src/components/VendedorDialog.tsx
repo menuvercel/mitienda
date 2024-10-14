@@ -15,7 +15,7 @@ interface VendorDialogProps {
   productos: Producto[]
   transacciones: Transaccion[]
   ventas: Venta[]
-  onProductReduce: (productId: number, vendorId: string, cantidad: number) => Promise<void>
+  onProductReduce: (productId: string, vendorId: string, cantidad: number) => Promise<void>
 }
 
 export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, onProductReduce }: VendorDialogProps) {
@@ -47,7 +47,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
 
   const confirmReduce = async () => {
     if (productToReduce && quantityToReduce > 0) {
-      const productId = typeof productToReduce.id === 'string' ? parseInt(productToReduce.id, 10) : productToReduce.id;
+      const productId = productToReduce.id.toString();
       await onProductReduce(productId, vendor.id, quantityToReduce)
       setReduceDialogOpen(false)
       setProductToReduce(null)
