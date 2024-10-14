@@ -50,7 +50,7 @@ export async function PUT(request: NextRequest) {
 
       // Crear una transacción para registrar esta operación
       await query(
-        'INSERT INTO transacciones (id, cantidad, desde, hacia, fecha, tipo) VALUES ($1, $2, $3, $4, $5, $6)',
+        'INSERT INTO transacciones (producto, cantidad, desde, hacia, fecha, tipo) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
         [productoId, cantidad, vendedorId, decoded.id, new Date(), 'Baja']
       );
 
