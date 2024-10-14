@@ -3,10 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
-import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp } from 'lucide-react'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 
 interface VendorDialogProps {
   vendor: Vendedor
@@ -25,6 +26,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [reduceDialogOpen, setReduceDialogOpen] = useState(false)
   const [productToReduce, setProductToReduce] = useState<Producto | null>(null)
   const [quantityToReduce, setQuantityToReduce] = useState(0)
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -35,8 +37,24 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }
 
   const handleEdit = async () => {
-    await onEdit(editedVendor)
-    setMode('view')
+    try {
+      setIsLoading(true)
+      await onEdit(editedVendor)
+      setMode('view')
+      toast({
+        title: "Éxito",
+        description: "Los datos del vendedor se han actualizado correctamente.",
+      })
+    } catch (error) {
+      console.error('Error al editar el vendedor:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar los datos del vendedor. Por favor, inténtelo de nuevo.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleReduceProduct = (product: Producto) => {
@@ -47,11 +65,27 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
 
   const confirmReduce = async () => {
     if (productToReduce && quantityToReduce > 0) {
-      const productId = productToReduce.id.toString();
-      await onProductReduce(productId, vendor.id, quantityToReduce)
-      setReduceDialogOpen(false)
-      setProductToReduce(null)
-      setQuantityToReduce(0)
+      setIsLoading(true)
+      try {
+        const productId = productToReduce.id.toString()
+        await onProductReduce(productId, vendor.id, quantityToReduce)
+        setReduceDialogOpen(false)
+        setProductToReduce(null)
+        setQuantityToReduce(0)
+        toast({
+          title: "Éxito",
+          description: "La cantidad del producto se ha reducido correctamente.",
+        })
+      } catch (error) {
+        console.error('Error al reducir la cantidad del producto:', error)
+        toast({
+          title: "Error",
+          description: "No se pudo reducir la cantidad del producto. Por favor, inténtelo de nuevo.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
     }
   }
 
@@ -89,6 +123,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
               variant="outline"
               size="sm"
               onClick={() => handleReduceProduct(producto)}
+              disabled={isLoading}
             >
               <Minus className="h-4 w-4" />
             </Button>
@@ -210,7 +245,16 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 onChange={handleInputChange}
                 placeholder="Teléfono"
               />
-              <Button onClick={handleEdit}>Guardar cambios</Button>
+              <Button onClick={handleEdit} disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  'Guardar cambios'
+                )}
+              </Button>
             </div>
           ) : mode === 'productos' ? (
             <Tabs defaultValue="disponibles" className="w-full">
@@ -297,8 +341,18 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReduceDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={confirmReduce}>Confirmar</Button>
+            <Button variant="outline" onClick={() => setReduceDialogOpen(false)} disabled={isLoading}>Cancelar</Button>
+            <Button onClick={confirmReduce} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Procesando...
+                
+                </>
+              ) : (
+                'Confirmar'
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
