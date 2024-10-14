@@ -489,7 +489,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
                       <TableRow key={venta._id}>
                         <TableCell>{new Date(venta.fecha).toLocaleString()}</TableCell>
                         <TableCell>{venta.cantidad}</TableCell>
-                        <TableCell>${venta.precio_unitario.toFixed(2)}</TableCell>
+                        <TableCell> ${(typeof venta.precio_unitario === 'number' ? venta.precio_unitario : parseFloat(venta.precio_unitario) || 0).toFixed(2)}</TableCell>
                         <TableCell>${typeof venta.total === 'number' ? venta.total.toFixed(2) : parseFloat(venta.total).toFixed(2)}</TableCell>
                       </TableRow>
                     ))}
