@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     try {
       // Insertar en la tabla transacciones
       const transactionResult = await query(
-        'INSERT INTO transacciones (id, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
         [productoId, cantidad, tipo, decoded.id, vendedorId, new Date()]
       );
       console.log('Transacción insertada:', transactionResult.rows[0]);

@@ -203,10 +203,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
               ? 'border-l-4 border-red-500'
               : transaccion.tipo === 'Entrega'
               ? 'border-l-4 border-green-500'
-              : transaccion.desde === 'Almacen' && transaccion.hacia === 'Vendedor'
-              ? 'border-l-4 border-green-500'
-              : transaccion.desde === 'Vendedor' && transaccion.hacia === 'Almacen'
-              ? 'border-l-4 border-yellow-500'
               : 'border-l-4 border-blue-500'
           }`}>
             <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
