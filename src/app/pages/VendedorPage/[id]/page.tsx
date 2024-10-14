@@ -19,7 +19,9 @@ import {
   realizarVenta, 
   getVentasDia, 
   getVentasMes,
-  getCurrentUser
+  getCurrentUser,
+  getTransaccionesProducto,
+  getVentasProducto
 } from '../../../services/api'
 
 interface Producto {
@@ -35,13 +37,13 @@ interface ProductoVenta extends Producto {
 }
 
 interface Transaccion {
-  _id: string;
-  producto: string
+  id: string;
+  producto: string;
   cantidad: number;
-  precio: number;
   desde: string;
   hacia: string;
   fecha: string;
+  tipo: string;
 }
 
 interface Venta {
@@ -89,7 +91,6 @@ const useVendedorData = (vendedorId: string) => {
   const [ventasAgrupadas, setVentasAgrupadas] = useState<VentaAgrupada[]>([])
   const [ventasSemanales, setVentasSemanales] = useState<VentaSemana[]>([])
   const [ventasDiarias, setVentasDiarias] = useState<VentaDia[]>([]);
-
 
   const agruparVentasPorDia = useCallback((ventas: Venta[]) => {
     const ventasDiarias: VentaDia[] = [];
@@ -253,7 +254,6 @@ const useVendedorData = (vendedorId: string) => {
   }
 }
 
-
 const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -308,7 +308,7 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
 
   return (
     <>
-      <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+      <TableRow className="cursor-pointer" onClick={() =>setIsOpen(!isOpen)}>
         <TableCell>{`${venta.fechaInicio} - ${venta.fechaFin}`}</TableCell>
         <TableCell>${venta.total.toFixed(2)}</TableCell>
         <TableCell className="text-green-600">${venta.ganancia.toFixed(2)}</TableCell>
@@ -354,6 +354,116 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
     </>
   );
 };
+
+const ProductoDialog = ({ producto }: { producto: Producto }) => {
+  const [transacciones, setTransacciones] = useState<Transaccion[]>([])
+  const [ventas, setVentas] = useState<Venta[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const [transaccionesData, ventasData] = await Promise.all([
+          getTransaccionesProducto(producto.id),
+          getVentasProducto(producto.id)
+        ])
+        setTransacciones(transaccionesData.map(t => ({
+          id: t.id,
+          producto: t.producto,
+          cantidad: t.cantidad,
+          desde: t.desde,
+          hacia: t.hacia,
+          fecha: t.fecha,
+          tipo: t.tipo
+        })))
+        setVentas(ventasData)
+      } catch (error) {
+        console.error('Error al obtener datos del producto:', error)
+        setError('No se pudieron cargar los datos del producto. Por favor, intenta de nuevo.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchData()
+  }, [producto.id])
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline">Ver detalles</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[800px]">
+        <DialogHeader>
+          <DialogTitle>{producto.nombre}</DialogTitle>
+        </DialogHeader>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-48">Cargando...</div>
+        ) : error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : (
+          <Tabs defaultValue="transacciones">
+            <TabsList>
+              <TabsTrigger value="transacciones">Registro</TabsTrigger>
+              <TabsTrigger value="ventas">Ventas</TabsTrigger>
+            </TabsList>
+            <TabsContent value="transacciones">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Cantidad</TableHead>
+                    <TableHead>Desde</TableHead>
+                    <TableHead>Hacia</TableHead>
+                    <TableHead>Tipo</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transacciones.map((transaccion) => (
+                    <TableRow key={transaccion.id}>
+                      <TableCell>{new Date(transaccion.fecha).toLocaleString()}</TableCell>
+                      <TableCell>{transaccion.cantidad}</TableCell>
+                      <TableCell>{transaccion.desde}</TableCell>
+                      <TableCell>{transaccion.hacia}</TableCell>
+                      <TableCell>{transaccion.tipo}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TabsContent>
+            <TabsContent value="ventas">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Cantidad</TableHead>
+                    <TableHead>Precio Unitario</TableHead>
+                    <TableHead>Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ventas.map((venta) => (
+                    <TableRow key={venta._id}>
+                      <TableCell>{new Date(venta.fecha).toLocaleString()}</TableCell>
+                      <TableCell>{venta.cantidad}</TableCell>
+                      <TableCell>${venta.precio_unitario.toFixed(2)}</TableCell>
+                      <TableCell>${typeof venta.total === 'number' ? venta.total.toFixed(2) : parseFloat(venta.total).toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TabsContent>
+          </Tabs>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 export default function VendedorPage() {
   const params = useParams()
@@ -422,7 +532,6 @@ export default function VendedorPage() {
     try {
       await Promise.all(productosSeleccionados.map(producto => {
         return realizarVenta(producto.id, producto.cantidadVendida, fecha);
-      
       }));
   
       setProductosSeleccionados([])
@@ -511,13 +620,12 @@ export default function VendedorPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                {productosFiltrados.map((producto) => {
-                  console.log('Rendering producto:', producto);
-                  return (
-                    <div
-                      key={producto.id}
-                      className="w-full h-auto p-2 flex items-center text-left bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors"
-                    >
+                {productosFiltrados.map((producto) => (
+                  <div
+                    key={producto.id}
+                    className="w-full h-auto p-2 flex items-center justify-between text-left bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors"
+                  >
+                    <div className="flex items-center">
                       {producto.foto ? (
                         <Image
                           src={producto.foto}
@@ -535,7 +643,7 @@ export default function VendedorPage() {
                           <span className="text-gray-500 text-xs">Sin imagen</span>
                         </div>
                       )}
-                      <div className="flex-grow">
+                      <div>
                         <span className="font-semibold text-gray-800">{producto.nombre}</span>
                         <div className="text-sm text-gray-600">
                           <span className="mr-4">Precio: ${producto.precio}</span>
@@ -543,8 +651,9 @@ export default function VendedorPage() {
                         </div>
                       </div>
                     </div>
-                  );
-                })}
+                    <ProductoDialog producto={producto} />
+                  </div>
+                ))}
               </div>
             </TabsContent>
             <TabsContent value="agotados">
@@ -778,15 +887,13 @@ export default function VendedorPage() {
             <TableBody>
               {transacciones && transacciones.length > 0 ? (
                 transacciones.map((transaccion) => {
-                  const precio = typeof transaccion.precio === 'number' ? transaccion.precio : parseFloat(transaccion.precio);
-
                   return (
-                    <TableRow key={transaccion._id}>
+                    <TableRow key={transaccion.id}>
                       <TableCell>{new Date(transaccion.fecha).toLocaleString()}</TableCell>
                       <TableCell>Entrega de Almacén</TableCell>
                       <TableCell>{transaccion.producto}</TableCell>
                       <TableCell>{transaccion.cantidad}</TableCell>
-                      <TableCell>${isNaN(precio) ? '0.00' : precio.toFixed(2)}</TableCell>
+                      <TableCell>-</TableCell>
                     </TableRow>
                   );
                 })

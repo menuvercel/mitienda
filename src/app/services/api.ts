@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Venta, Vendedor, Producto, Entrega } from '@/types';
+import { Venta, Vendedor, Producto, Transaccion } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -283,3 +283,48 @@ export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor)
 };
 
 export default api;
+
+
+/*panel individual del vendedor*/
+
+// ... (existing imports and functions)
+
+export async function getTransaccionesProducto(productoId: string): Promise<Transaccion[]> {
+  try {
+    const response = await fetch(`/api/transacciones?productoId=${productoId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Error al obtener las transacciones del producto');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error en getTransaccionesProducto:', error);
+    throw error;
+  }
+}
+
+export async function getVentasProducto(productoId: string): Promise<Venta[]> {
+  try {
+    const response = await fetch(`/api/ventas?productoId=${productoId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Error al obtener las ventas del producto');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error en getVentasProducto:', error);
+    throw error;
+  }
+}
