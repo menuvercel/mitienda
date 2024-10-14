@@ -214,7 +214,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   <span>Cant: {transaccion.cantidad}</span>
                 </div>
                 <p className="text-xs font-semibold">{transactionType}</p>
-                <p className="text-xs">De: {transaccion.desde} - A: {transaccion.hacia}</p>
               </div>
             </div>
           )

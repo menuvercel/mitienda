@@ -94,8 +94,8 @@ export async function GET(request: NextRequest) {
     const result = await query(
       `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha
        FROM transacciones t 
-       JOIN productos p ON t.id = p.id 
-       WHERE t.hacia = $1 
+       JOIN productos p ON t.producto = p.id 
+       WHERE t.hacia = $1 OR t.desde = $1
        ORDER BY t.fecha DESC`,
       [vendedorId]
     );
