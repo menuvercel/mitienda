@@ -291,7 +291,7 @@ export default api;
 
 export async function getTransaccionesProducto(productoId: string): Promise<Transaccion[]> {
   try {
-    const response = await fetch(`/api/transacciones?productoId=${productoId}`, {
+    const response = await fetch(`/transacciones?productoId=${productoId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -311,7 +311,7 @@ export async function getTransaccionesProducto(productoId: string): Promise<Tran
 
 export async function getVentasProducto(productoId: string): Promise<Venta[]> {
   try {
-    const response = await fetch(`/api/ventas?productoId=${productoId}`, {
+    const response = await fetch(`/ventas?productoId=${productoId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
