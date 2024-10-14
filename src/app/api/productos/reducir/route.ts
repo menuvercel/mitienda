@@ -19,54 +19,52 @@ export async function PUT(request: NextRequest) {
     // Inicio de la transacción
     await query('BEGIN');
 
-    // Verificar que el vendedor tenga el producto y obtener la cantidad actual
-    const usuarioProductoResult = await query(
-      'SELECT cantidad FROM usuario_productos WHERE usuario_id = $1 AND producto_id = $2',
-      [vendedorId, productoId]
-    );
+    try {
+      // Verificar que el vendedor tenga el producto y obtener la cantidad actual
+      const usuarioProductoResult = await query(
+        'SELECT cantidad FROM usuario_productos WHERE usuario_id = $1 AND producto_id = $2',
+        [vendedorId, productoId]
+      );
 
-    if (usuarioProductoResult.rows.length === 0) {
-      await query('ROLLBACK');
-      return NextResponse.json({ 
-        error: 'El vendedor no tiene este producto asignado'
-      }, { status: 404 });
-    }
+      if (usuarioProductoResult.rows.length === 0) {
+        throw new Error('El vendedor no tiene este producto asignado');
+      }
 
-    const cantidadActual = usuarioProductoResult.rows[0].cantidad;
-    if (cantidad > cantidadActual) {
-      await query('ROLLBACK');
+      const cantidadActual = usuarioProductoResult.rows[0].cantidad;
+      if (cantidad > cantidadActual) {
+        throw new Error('La cantidad a reducir es mayor que la cantidad disponible');
+      }
+
+      // Reducir la cantidad del producto para el vendedor
+      await query(
+        'UPDATE usuario_productos SET cantidad = cantidad - $1 WHERE usuario_id = $2 AND producto_id = $3',
+        [cantidad, vendedorId, productoId]
+      );
+
+      // Aumentar la cantidad del producto en el almacén
+      await query(
+        'UPDATE productos SET cantidad = cantidad + $1 WHERE id = $2',
+        [cantidad, productoId]
+      );
+
+      // Crear una transacción para registrar esta operación
+      await query(
+        'INSERT INTO transacciones (id, cantidad, tipo, desde, hacia) VALUES ($1, $2, $3, $4, $5)',
+        [productoId, cantidad, 'Baja', vendedorId, decoded.id]
+      );
+
+      // Confirmar la transacción
+      await query('COMMIT');
+
       return NextResponse.json({
-        error: 'La cantidad a reducir es mayor que la cantidad disponible'
-      }, { status: 400 });
+        message: 'Cantidad de producto reducida exitosamente'
+      });
+    } catch (error) {
+      // Revertir la transacción en caso de error
+      await query('ROLLBACK');
+      throw error;
     }
-
-    // Reducir la cantidad del producto para el vendedor
-    await query(
-      'UPDATE usuario_productos SET cantidad = cantidad - $1 WHERE usuario_id = $2 AND producto_id = $3',
-      [cantidad, vendedorId, productoId]
-    );
-
-    // Aumentar la cantidad del producto en el almacén
-    await query(
-      'UPDATE productos SET cantidad = cantidad + $1 WHERE id = $2',
-      [cantidad, productoId]
-    );
-
-    // Crear una transacción para registrar esta operación
-    await query(
-      'INSERT INTO transacciones (producto_id, usuario_id, cantidad, tipo, desde, hacia) VALUES ($1, $2, $3, $4, $5, $6)',
-      [productoId, vendedorId, cantidad, 'Baja', 'Vendedor', 'Almacen']
-    );
-
-    // Confirmar la transacción
-    await query('COMMIT');
-
-    return NextResponse.json({
-      message: 'Cantidad de producto reducida exitosamente'
-    });
   } catch (error) {
-    // Revertir la transacción en caso de error
-    await query('ROLLBACK');
     console.error('Error al reducir la cantidad del producto:', error);
     
     // Log more details about the error
