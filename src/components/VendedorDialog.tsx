@@ -197,25 +197,28 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     const filteredTransacciones = filterItems(transacciones, searchTerm)
     return (
       <div className="space-y-2">
-        {filteredTransacciones.map(transaccion => (
-          <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow ${
-              transaccion.tipo === 'Baja'
-              ? 'border-l-4 border-red-500'
-              : transaccion.tipo === 'Entrega'
-              ? 'border-l-4 border-green-500'
-              : 'border-l-4 border-blue-500'
-          }`}>
-            <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
-            <div className="flex-grow overflow-hidden">
-              <p className="font-bold text-sm truncate">{transaccion.id}</p>
-              <div className="flex justify-between items-center text-xs text-gray-600">
-                <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
-                <span>Cant: {transaccion.cantidad}</span>
+        {filteredTransacciones.map(transaccion => {
+          const transactionType = transaccion.tipo || 'Normal'
+          const borderColor = 
+            transactionType === 'Baja' ? 'border-red-500' :
+            transactionType === 'Entrega' ? 'border-green-500' :
+            'border-blue-500'
+  
+          return (
+            <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
+              <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
+              <div className="flex-grow overflow-hidden">
+                <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+                <div className="flex justify-between items-center text-xs text-gray-600">
+                  <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
+                  <span>Cant: {transaccion.cantidad}</span>
+                </div>
+                <p className="text-xs font-semibold">{transactionType}</p>
+                <p className="text-xs">De: {transaccion.desde} - A: {transaccion.hacia}</p>
               </div>
-              <p className="text-xs font-semibold">{transaccion.tipo || 'Normal'}</p>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     )
   }
