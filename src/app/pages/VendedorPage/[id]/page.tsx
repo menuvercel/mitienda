@@ -366,10 +366,15 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
     setIsLoading(true)
     setError(null)
     try {
+  // Obtén la fecha actual
+      const endDate = new Date().toISOString().split('T')[0];
+      // Obtén la fecha de hace un mes
+      const startDate = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0];
+
       const [transaccionesData, ventasData] = await Promise.all([
         getTransaccionesProducto(producto.id),
-        getVentasProducto(producto.id)
-      ])
+        getVentasProducto(producto.id, startDate, endDate)
+      ]);
       setTransacciones(transaccionesData.map(t => ({
         id: t.id,
         producto: t.producto,

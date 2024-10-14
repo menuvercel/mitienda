@@ -302,10 +302,10 @@ export const getTransaccionesProducto = async (productoId: string): Promise<Tran
   }
 };
 
-export const getVentasProducto = async (productoId: string): Promise<Venta[]> => {
+export const getVentasProducto = async (productoId: string, startDate: string, endDate: string): Promise<Venta[]> => {
   try {
     const response = await api.get<Venta[]>(`/ventas`, {
-      params: { productoId }
+      params: { productoId, startDate, endDate }
     });
     return response.data;
   } catch (error) {
