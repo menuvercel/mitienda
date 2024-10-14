@@ -85,20 +85,33 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const vendedorId = searchParams.get('vendedorId');
+  const productoId = searchParams.get('productoId');
 
-  if (!vendedorId) {
-    return NextResponse.json({ error: 'Se requiere el ID del vendedor' }, { status: 400 });
+  if (!vendedorId && !productoId) {
+    return NextResponse.json({ error: 'Se requiere el ID del vendedor o el ID del producto' }, { status: 400 });
   }
 
   try {
-    const result = await query(
-      `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha
-       FROM transacciones t 
-       JOIN productos p ON t.producto = p.id 
-       WHERE t.hacia = $1 OR t.desde = $1
-       ORDER BY t.fecha DESC`,
-      [vendedorId]
-    );
+    let result;
+    if (productoId) {
+      result = await query(
+        `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha
+         FROM transacciones t 
+         JOIN productos p ON t.producto = p.id 
+         WHERE t.producto = $1
+         ORDER BY t.fecha DESC`,
+        [productoId]
+      );
+    } else {
+      result = await query(
+        `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha
+         FROM transacciones t 
+         JOIN productos p ON t.producto = p.id 
+         WHERE t.hacia = $1 OR t.desde = $1
+         ORDER BY t.fecha DESC`,
+        [vendedorId]
+      );
+    }
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Error al obtener transacciones:', error);

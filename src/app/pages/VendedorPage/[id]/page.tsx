@@ -355,113 +355,147 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
   );
 };
 
-const ProductoDialog = ({ producto }: { producto: Producto }) => {
+const ProductoCard = ({ producto }: { producto: Producto }) => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [transacciones, setTransacciones] = useState<Transaccion[]>([])
   const [ventas, setVentas] = useState<Venta[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true)
-      setError(null)
-      try {
-        const [transaccionesData, ventasData] = await Promise.all([
-          getTransaccionesProducto(producto.id),
-          getVentasProducto(producto.id)
-        ])
-        setTransacciones(transaccionesData.map(t => ({
-          id: t.id,
-          producto: t.producto,
-          cantidad: t.cantidad,
-          desde: t.desde,
-          hacia: t.hacia,
-          fecha: t.fecha,
-          tipo: t.tipo
-        })))
-        setVentas(ventasData)
-      } catch (error) {
-        console.error('Error al obtener datos del producto:', error)
-        setError('No se pudieron cargar los datos del producto. Por favor, intenta de nuevo.')
-      } finally {
-        setIsLoading(false)
-      }
+  const fetchProductData = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const [transaccionesData, ventasData] = await Promise.all([
+        getTransaccionesProducto(producto.id),
+        getVentasProducto(producto.id)
+      ])
+      setTransacciones(transaccionesData.map(t => ({
+        id: t.id,
+        producto: t.producto,
+        cantidad: t.cantidad,
+        desde: t.desde,
+        hacia: t.hacia,
+        fecha: t.fecha,
+        tipo: t.tipo
+      })))
+      setVentas(ventasData)
+    } catch (error) {
+      console.error('Error al obtener datos del producto:', error)
+      setError('No se pudieron cargar los datos del producto. Por favor, intenta de nuevo.')
+    } finally {
+      setIsLoading(false)
     }
-    fetchData()
   }, [producto.id])
 
+  const handleCardClick = () => {
+    setIsDialogOpen(true)
+    fetchProductData()
+  }
+
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline">Ver detalles</Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[800px]">
-        <DialogHeader>
-          <DialogTitle>{producto.nombre}</DialogTitle>
-        </DialogHeader>
-        {isLoading ? (
-          <div className="flex justify-center items-center h-48">Cargando...</div>
-        ) : error ? (
-          <Alert variant="destructive">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : (
-          <Tabs defaultValue="transacciones">
-            <TabsList>
-              <TabsTrigger value="transacciones">Registro</TabsTrigger>
-              <TabsTrigger value="ventas">Ventas</TabsTrigger>
-            </TabsList>
-            <TabsContent value="transacciones">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Cantidad</TableHead>
-                    <TableHead>Desde</TableHead>
-                    <TableHead>Hacia</TableHead>
-                    <TableHead>Tipo</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transacciones.map((transaccion) => (
-                    <TableRow key={transaccion.id}>
-                      <TableCell>{new Date(transaccion.fecha).toLocaleString()}</TableCell>
-                      <TableCell>{transaccion.cantidad}</TableCell>
-                      <TableCell>{transaccion.desde}</TableCell>
-                      <TableCell>{transaccion.hacia}</TableCell>
-                      <TableCell>{transaccion.tipo}</TableCell>
+    <>
+      <div
+        onClick={handleCardClick}
+        className="w-full h-auto p-2 flex items-center justify-between text-left bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors cursor-pointer"
+      >
+        <div className="flex items-center">
+          {producto.foto ? (
+            <Image
+              src={producto.foto}
+              alt={producto.nombre}
+              width={50}
+              height={50}
+              className="object-cover rounded mr-4"
+              onError={(e) => {
+                console.error(`Error loading image for ${producto.nombre}:`, e);
+                e.currentTarget.src = '/placeholder.svg';
+              }}
+            />
+          ) : (
+            <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-4">
+              <span className="text-gray-500 text-xs">Sin imagen</span>
+            </div>
+          )}
+          <div>
+            <span className="font-semibold text-gray-800">{producto.nombre}</span>
+            <div className="text-sm text-gray-600">
+              <span className="mr-4">Precio: ${producto.precio}</span>
+              <span>Cantidad: {producto.cantidad}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle>{producto.nombre}</DialogTitle>
+          </DialogHeader>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-48">Cargando...</div>
+          ) : error ? (
+            <Alert variant="destructive">
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : (
+            <Tabs defaultValue="transacciones">
+              <TabsList>
+                <TabsTrigger value="transacciones">Registro</TabsTrigger>
+                <TabsTrigger value="ventas">Ventas</TabsTrigger>
+              </TabsList>
+              <TabsContent value="transacciones">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Cantidad</TableHead>
+                      <TableHead>Desde</TableHead>
+                      <TableHead>Hacia</TableHead>
+                      <TableHead>Tipo</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-            <TabsContent value="ventas">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Cantidad</TableHead>
-                    <TableHead>Precio Unitario</TableHead>
-                    <TableHead>Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ventas.map((venta) => (
-                    <TableRow key={venta._id}>
-                      <TableCell>{new Date(venta.fecha).toLocaleString()}</TableCell>
-                      <TableCell>{venta.cantidad}</TableCell>
-                      <TableCell>${venta.precio_unitario.toFixed(2)}</TableCell>
-                      <TableCell>${typeof venta.total === 'number' ? venta.total.toFixed(2) : parseFloat(venta.total).toFixed(2)}</TableCell>
+                  </TableHeader>
+                  <TableBody>
+                    {transacciones.map((transaccion) => (
+                      <TableRow key={transaccion.id}>
+                        <TableCell>{new Date(transaccion.fecha).toLocaleString()}</TableCell>
+                        <TableCell>{transaccion.cantidad}</TableCell>
+                        <TableCell>{transaccion.desde}</TableCell>
+                        <TableCell>{transaccion.hacia}</TableCell>
+                        <TableCell>{transaccion.tipo}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+              <TabsContent value="ventas">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Cantidad</TableHead>
+                      <TableHead>Precio Unitario</TableHead>
+                      <TableHead>Total</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-          </Tabs>
-        )}
-      </DialogContent>
-    </Dialog>
+                  </TableHeader>
+                  <TableBody>
+                    {ventas.map((venta) => (
+                      <TableRow key={venta._id}>
+                        <TableCell>{new Date(venta.fecha).toLocaleString()}</TableCell>
+                        <TableCell>{venta.cantidad}</TableCell>
+                        <TableCell>${venta.precio_unitario.toFixed(2)}</TableCell>
+                        <TableCell>${typeof venta.total === 'number' ? venta.total.toFixed(2) : parseFloat(venta.total).toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+            </Tabs>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -602,60 +636,29 @@ export default function VendedorPage() {
         <h1 className="text-2xl font-bold mb-4">Panel de Vendedor</h1>
 
         {seccionActual === 'productos' && (
-          <Tabs defaultValue="disponibles">
-            <TabsList>
-              <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
-              <TabsTrigger value="agotados">Agotados</TabsTrigger>
-            </TabsList>
-            <TabsContent value="disponibles">
-              <div className="mb-4">
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <Input
-                    placeholder="Buscar productos..."
-                    value={busqueda}
-                    onChange={(e) => setBusqueda(e.target.value)}
-                    className="pl-10 max-w-sm"
-                  />
-                </div>
+        <Tabs defaultValue="disponibles">
+          <TabsList>
+            <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
+            <TabsTrigger value="agotados">Agotados</TabsTrigger>
+          </TabsList>
+          <TabsContent value="disponibles">
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="Buscar productos..."
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className="pl-10 max-w-sm"
+                />
               </div>
-              <div className="space-y-2">
-                {productosFiltrados.map((producto) => (
-                  <div
-                    key={producto.id}
-                    className="w-full h-auto p-2 flex items-center justify-between text-left bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors"
-                  >
-                    <div className="flex items-center">
-                      {producto.foto ? (
-                        <Image
-                          src={producto.foto}
-                          alt={producto.nombre}
-                          width={50}
-                          height={50}
-                          className="object-cover rounded mr-4"
-                          onError={(e) => {
-                            console.error(`Error loading image for ${producto.nombre}:`, e);
-                            e.currentTarget.src = '/placeholder.svg';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-4">
-                          <span className="text-gray-500 text-xs">Sin imagen</span>
-                        </div>
-                      )}
-                      <div>
-                        <span className="font-semibold text-gray-800">{producto.nombre}</span>
-                        <div className="text-sm text-gray-600">
-                          <span className="mr-4">Precio: ${producto.precio}</span>
-                          <span>Cantidad: {producto.cantidad}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <ProductoDialog producto={producto} />
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
+            </div>
+            <div className="space-y-2">
+              {productosFiltrados.map((producto) => (
+                <ProductoCard key={producto.id} producto={producto} />
+              ))}
+            </div>
+          </TabsContent>
             <TabsContent value="agotados">
               <div className="mb-4">
                 <div className="relative">
