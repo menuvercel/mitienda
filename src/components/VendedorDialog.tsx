@@ -207,7 +207,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
           }`}>
             <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
             <div className="flex-grow overflow-hidden">
-              <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+              <p className="font-bold text-sm truncate">{transaccion.id}</p>
               <div className="flex justify-between items-center text-xs text-gray-600">
                 <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
                 <span>Cant: {transaccion.cantidad}</span>
