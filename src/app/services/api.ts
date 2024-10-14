@@ -289,42 +289,28 @@ export default api;
 
 // ... (existing imports and functions)
 
-export async function getTransaccionesProducto(productoId: string): Promise<Transaccion[]> {
+export const getTransaccionesProducto = async (productoId: string): Promise<Transaccion[]> => {
   try {
-    const response = await fetch(`/transacciones?productoId=${productoId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    const response = await api.get<Transaccion[]>(`/transacciones`, {
+      params: { productoId }
     });
-
-    if (!response.ok) {
-      throw new Error('Error al obtener las transacciones del producto');
-    }
-
-    return await response.json();
+    return response.data;
   } catch (error) {
-    console.error('Error en getTransaccionesProducto:', error);
-    throw error;
+    console.error('Error al obtener las transacciones del producto:', error);
+    handleApiError(error, 'transacciones del producto');
+    throw new Error('No se pudieron obtener las transacciones del producto');
   }
-}
+};
 
-export async function getVentasProducto(productoId: string): Promise<Venta[]> {
+export const getVentasProducto = async (productoId: string): Promise<Venta[]> => {
   try {
-    const response = await fetch(`/ventas?productoId=${productoId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    const response = await api.get<Venta[]>(`/ventas`, {
+      params: { productoId }
     });
-
-    if (!response.ok) {
-      throw new Error('Error al obtener las ventas del producto');
-    }
-
-    return await response.json();
+    return response.data;
   } catch (error) {
-    console.error('Error en getVentasProducto:', error);
-    throw error;
+    console.error('Error al obtener las ventas del producto:', error);
+    handleApiError(error, 'ventas del producto');
+    throw new Error('No se pudieron obtener las ventas del producto');
   }
-}
+};
