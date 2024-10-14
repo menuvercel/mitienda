@@ -12,6 +12,7 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
     const { productoId, vendedorId, cantidad } = body;
+
     if (!productoId || !vendedorId || !cantidad) {
       return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 });
     }
@@ -49,8 +50,8 @@ export async function PUT(request: NextRequest) {
 
       // Crear una transacción para registrar esta operación
       await query(
-        'INSERT INTO transacciones (id, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6)',
-        [productoId, cantidad, 'Baja', vendedorId, decoded.id, new Date()]
+        'INSERT INTO transacciones (cantidad, tipo, desde, hacia, fecha, producto_id) VALUES ($1, $2, $3, $4, $5, $6)',
+        [cantidad, 'Baja', vendedorId, decoded.id, new Date(), productoId]
       );
 
       // Confirmar la transacción
