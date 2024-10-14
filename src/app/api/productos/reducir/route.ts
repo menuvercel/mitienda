@@ -48,10 +48,14 @@ export async function PUT(request: NextRequest) {
         [cantidad, productoId]
       );
 
+      // Obtener el nombre del producto
+      const productoResult = await query('SELECT nombre FROM productos WHERE id = $1', [productoId]);
+      const nombreProducto = productoResult.rows[0].nombre;
+
       // Crear una transacción para registrar esta operación
       await query(
-        'INSERT INTO transacciones (cantidad, tipo, desde, hacia, fecha, producto_id) VALUES ($1, $2, $3, $4, $5, $6)',
-        [cantidad, 'Baja', vendedorId, decoded.id, new Date(), productoId]
+        'INSERT INTO transacciones (producto, cantidad, desde, hacia, fecha, tipo) VALUES ($1, $2, $3, $4, $5, $6)',
+        [nombreProducto, cantidad, vendedorId, decoded.id, new Date(), 'Baja']
       );
 
       // Confirmar la transacción
@@ -68,7 +72,6 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('Error al reducir la cantidad del producto:', error);
     
-    // Log more details about the error
     if (error instanceof Error) {
       console.error('Error name:', error.name);
       console.error('Error message:', error.message);
