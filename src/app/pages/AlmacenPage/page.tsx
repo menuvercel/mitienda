@@ -25,8 +25,7 @@ import {
   entregarProducto,
   reducirProductoVendedor,
   getTransaccionesVendedor,
-  editarVendedor,
-  crearBajaTransaccion
+  editarVendedor
 } from '../../services/api'
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
@@ -38,6 +37,21 @@ interface VendorDialogProps {
   productos: Producto[]
   transacciones: Transaccion[]
 }
+
+interface VentaSemana {
+  fechaInicio: string
+  fechaFin: string
+  ventas: Venta[]
+  total: number
+  ganancia: number
+}
+
+interface VentaDia {
+  fecha: string
+  ventas: Venta[]
+  total: number
+}
+
 interface NewUser {
   nombre: string;
   password: string;
@@ -113,6 +127,8 @@ export default function AlmacenPage() {
   const [ventasVendedor, setVentasVendedor] = useState<Venta[]>([])
   const [transaccionesVendedor, setTransaccionesVendedor] = useState<Transaccion[]>([])
   const [vendedorSeleccionado, setVendedorSeleccionado] = useState<Vendedor | null>(null)
+  const [ventasSemanales, setVentasSemanales] = useState<VentaSemana[]>([])
+  const [ventasDiarias, setVentasDiarias] = useState<VentaDia[]>([])
   const [showAddProductModal, setShowAddProductModal] = useState(false)
   const [newProduct, setNewProduct] = useState<NewProduct>({
     nombre: '',
@@ -760,6 +776,8 @@ export default function AlmacenPage() {
           onEdit={handleEditVendedor}
           productos={productosVendedor}
           ventas={ventasVendedor}
+          ventasSemanales={ventasSemanales}
+          ventasDiarias={ventasDiarias}
           transacciones={transaccionesVendedor}
           onProductReduce={handleReduceVendorProduct}
         />

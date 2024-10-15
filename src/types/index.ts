@@ -1,5 +1,19 @@
 // src/types/index.ts
 
+interface VentaSemana {
+  fechaInicio: string
+  fechaFin: string
+  ventas: Venta[]
+  total: number
+  ganancia: number
+}
+
+interface VentaDia {
+  fecha: string
+  ventas: Venta[]
+  total: number
+}
+
 export interface Producto {
   id: string;
   nombre: string;
