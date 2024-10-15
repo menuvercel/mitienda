@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -595,6 +596,7 @@ export default function VendedorPage() {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [cantidadSeleccionada, setCantidadSeleccionada] = useState<number>(1)
   const [productoActual, setProductoActual] = useState<Producto | null>(null)
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
 
   const renderTransaccionesList = () => {
     const filteredTransacciones = transacciones.filter(t =>
@@ -625,6 +627,32 @@ export default function VendedorPage() {
         })}
       </div>
     )
+  }
+
+  const handleProductSelect = (productId: string) => {
+    setSelectedProductIds(prev => 
+      prev.includes(productId) 
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    )
+  }
+
+  const handleConfirmSelection = () => {
+    const newSelectedProducts = productosFiltrados
+      .filter(producto => selectedProductIds.includes(producto.id))
+      .map(producto => ({
+        ...producto,
+        cantidadVendida: 1
+      }))
+    
+    setProductosSeleccionados(prev => [
+      ...prev,
+      ...newSelectedProducts.filter(newProduct => 
+        !prev.some(existingProduct => existingProduct.id === newProduct.id)
+      )
+    ])
+    
+    setSelectedProductIds([])
   }
 
   const VentaDesplegable = ({ venta }: { venta: Venta }) => {
@@ -834,95 +862,73 @@ export default function VendedorPage() {
           </Tabs>
         )}
 
-        {seccionActual === 'ventas' && (
-          <Tabs defaultValue="vender">
-            <TabsList>
-              <TabsTrigger value="vender">Vender</TabsTrigger>
-              <TabsTrigger value="registro">Registro de Ventas</TabsTrigger>
-            </TabsList>
-            <TabsContent value="vender">
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold">1. Selecciona la fecha</h2>
-                <Input
-                  type="date"
-                  value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
-                />
-                <h2 className="text-xl font-semibold">2. Selecciona los productos</h2>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button>Seleccionar Productos</Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <DialogTitle>Seleccionar Productos</DialogTitle>
-                    </DialogHeader>
-                    <div className="mb-4">
-                      <div className="relative">
-                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <Input
-                          placeholder="Buscar productos..."
-                          value={busqueda}
-                          onChange={(e) => setBusqueda(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-                    <ScrollArea className="h-[300px] pr-4">
-                      {productoActual ? (
-                        <Card className="mb-4">
-                          <CardContent className="p-4">
-                            <div className="flex items-center mb-2">
-                              <Image
-                                src={productoActual.foto || '/placeholder.svg'}
-                                alt={productoActual.nombre}
-                                width={50}
-                                height={50}
-                                className="rounded-md mr-4"
-                              />
-                              <div>
-                                <h3 className="font-bold">{productoActual.nombre}</h3>
-                                <p className="text-sm text-gray-500">Stock: {productoActual.cantidad}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between mt-2">
-                              <Input
-                                type="number"
-                                min="1"
-                                max={productoActual.cantidad}
-                                value={cantidadSeleccionada}
-                                onChange={(e) => setCantidadSeleccionada(Math.min(parseInt(e.target.value), productoActual.cantidad))}
-                                className="w-20"
-                              />
-                              <div>
-                                <Button onClick={handleConfirmarSeleccion} className="mr-2">Seleccionar</Button>
-                                <Button onClick={handleCancelarSeleccion} variant="outline">Cancelar</Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ) : (
-                        productosFiltrados.map((producto) => (
-                          <Button
-                            key={producto.id}
-                            onClick={() => handleSeleccionarProducto(producto)}
-                            className="w-full justify-start mb-2 p-2"
-                            variant="outline"
-                          >
-                            <Image
-                              src={producto.foto || '/placeholder.svg'}
-                              alt={producto.nombre}
-                              width={40}
-                              height={40}
-                              className="rounded-md mr-4"
-                            />
-                            <span>{producto.nombre}</span>
-                          </Button>
-                        ))
-                      )}
-                    </ScrollArea>
-                  </DialogContent>
-                </Dialog>
+    {seccionActual === 'ventas' && (
+      <Tabs defaultValue="vender">
+        <TabsList>
+          <TabsTrigger value="vender">Vender</TabsTrigger>
+          <TabsTrigger value="registro">Registro de Ventas</TabsTrigger>
+        </TabsList>
+        <TabsContent value="vender">
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">1. Selecciona la fecha</h2>
+            <Input
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+            />
+            <h2 className="text-xl font-semibold">2. Selecciona los productos</h2>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button>Seleccionar Productos</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Seleccionar Productos</DialogTitle>
+                </DialogHeader>
+                <div className="mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <Input
+                      placeholder="Buscar productos..."
+                      value={busqueda}
+                      onChange={(e) => setBusqueda(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <ScrollArea className="h-[300px] pr-4">
+                  {productosFiltrados.map((producto) => (
+                    <Card key={producto.id} className="mb-2">
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center">
+                          <Checkbox
+                            id={`product-${producto.id}`}
+                            checked={selectedProductIds.includes(producto.id)}
+                            onCheckedChange={() => handleProductSelect(producto.id)}
+                          />
+                          <Image
+                            src={producto.foto || '/placeholder.svg'}
+                            alt={producto.nombre}
+                            width={40}
+                            height={40}
+                            className="rounded-md ml-4 mr-4"
+                          />
+                          <div>
+                            <label htmlFor={`product-${producto.id}`} className="font-medium">
+                              {producto.nombre}
+                            </label>
+                            <p className="text-sm text-gray-500">Stock: {producto.cantidad}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </ScrollArea>
+                <Button onClick={handleConfirmSelection} className="mt-4">
+                  Confirmar Selección
+                </Button>
+              </DialogContent>
+            </Dialog>
                 <div>
                   <h3 className="font-bold mb-2">Productos Seleccionados:</h3>
                   {productosSeleccionados.map((producto) => (
