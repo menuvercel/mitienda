@@ -8,9 +8,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,DialogFooter } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Checkbox } from "@/components/ui/checkbox"
 import { MenuIcon, Search, Minus, X, ChevronDown, ChevronUp, ArrowLeftRight } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { 
@@ -595,6 +596,8 @@ export default function VendedorPage() {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [cantidadSeleccionada, setCantidadSeleccionada] = useState<number>(1)
   const [productoActual, setProductoActual] = useState<Producto | null>(null)
+  const [productosChecked, setProductosChecked] = useState<{ [key: string]: boolean }>({})
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const renderTransaccionesList = () => {
     const filteredTransacciones = transacciones.filter(t =>
@@ -625,6 +628,14 @@ export default function VendedorPage() {
         })}
       </div>
     )
+  }
+
+  const productosFiltrados = productosDisponibles.filter(p => 
+    p.nombre.toLowerCase().includes(busqueda.toLowerCase())
+  )
+
+  const handleCheckboxChange = (id: string) => {
+    setProductosChecked(prev => ({ ...prev, [id]: !prev[id] }))
   }
 
   const VentaDesplegable = ({ venta }: { venta: Venta }) => {
@@ -661,11 +672,6 @@ export default function VendedorPage() {
     );
   };
 
-
-  const productosFiltrados = productosDisponibles.filter(p => 
-    p.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  )
-
   const handleAjustarCantidad = (id: string, incremento: number) => {
     setProductosSeleccionados(prev => prev.map(p => {
       if (p.id === id) {
@@ -676,15 +682,26 @@ export default function VendedorPage() {
     }).filter(p => p.cantidadVendida > 0))
   }
 
-  const handleSeleccionarProducto = (producto: Producto) => {
-    const productoExistente = productosSeleccionados.find(p => p.id === producto.id)
-    if (productoExistente) {
-      setProductosSeleccionados(prev => prev.map(p => 
-        p.id === producto.id ? { ...p, cantidadVendida: p.cantidadVendida + 1 } : p
-      ))
-    } else {
-      setProductosSeleccionados(prev => [...prev, { ...producto, cantidadVendida: 1 }])
-    }
+  const handleSeleccionarProductos = () => {
+    const nuevosProductos = productosFiltrados
+      .filter(p => productosChecked[p.id])
+      .map(p => ({ ...p, cantidadVendida: 1 }))
+
+    setProductosSeleccionados(prev => {
+      const productosActualizados = [...prev]
+      nuevosProductos.forEach(nuevoProducto => {
+        const index = productosActualizados.findIndex(p => p.id === nuevoProducto.id)
+        if (index !== -1) {
+          productosActualizados[index].cantidadVendida += 1
+        } else {
+          productosActualizados.push(nuevoProducto)
+        }
+      })
+      return productosActualizados
+    })
+
+    setProductosChecked({})
+    setIsDialogOpen(false)
   }
 
   const handleConfirmarSeleccion = () => {
@@ -789,52 +806,7 @@ export default function VendedorPage() {
       <main className="flex-1 p-6 overflow-auto">
         <h1 className="text-2xl font-bold mb-4">Panel de Vendedor</h1>
 
-          {seccionActual === 'productos' && (
-          <Tabs defaultValue="disponibles">
-            <TabsList>
-              <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
-              <TabsTrigger value="agotados">Agotados</TabsTrigger>
-            </TabsList>
-            <TabsContent value="disponibles">
-              <div className="mb-4">
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <Input
-                    placeholder="Buscar productos..."
-                    value={busqueda}
-                    onChange={(e) => setBusqueda(e.target.value)}
-                    className="pl-10 max-w-sm"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                {productosFiltrados.map((producto) => (
-                  <ProductoCard key={producto.id} producto={producto} />
-                ))}
-              </div>
-            </TabsContent>
-            <TabsContent value="agotados">
-              <div className="mb-4">
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <Input
-                    placeholder="Buscar productos agotados..."
-                    value={busqueda}
-                    onChange={(e) => setBusqueda(e.target.value)}
-                    className="pl-10 max-w-sm"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                {productosAgotadosFiltrados.map((producto) => (
-                  <ProductoCard key={producto.id} producto={producto} />
-                ))}
-              </div>
-            </TabsContent>
-          </Tabs>
-        )}
-
-{seccionActual === 'ventas' && (
+        {seccionActual === 'ventas' && (
           <Tabs defaultValue="vender">
             <TabsList>
               <TabsTrigger value="vender">Vender</TabsTrigger>
@@ -849,7 +821,7 @@ export default function VendedorPage() {
                   onChange={(e) => setFecha(e.target.value)}
                 />
                 <h2 className="text-xl font-semibold">2. Selecciona los productos</h2>
-                <Dialog>
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <Button>Seleccionar Productos</Button>
                   </DialogTrigger>
@@ -870,23 +842,31 @@ export default function VendedorPage() {
                     </div>
                     <ScrollArea className="h-[300px] pr-4">
                       {productosFiltrados.map((producto) => (
-                        <Button
-                          key={producto.id}
-                          onClick={() => handleSeleccionarProducto(producto)}
-                          className="w-full justify-start mb-2 p-2"
-                          variant="outline"
-                        >
-                          <Image
-                            src={producto.foto || '/placeholder.svg'}
-                            alt={producto.nombre}
-                            width={40}
-                            height={40}
-                            className="rounded-md mr-4"
+                        <div key={producto.id} className="flex items-center space-x-2 mb-2">
+                          <Checkbox
+                            id={`product-${producto.id}`}
+                            checked={productosChecked[producto.id] || false}
+                            onCheckedChange={() => handleCheckboxChange(producto.id)}
                           />
-                          <span>{producto.nombre}</span>
-                        </Button>
+                          <label
+                            htmlFor={`product-${producto.id}`}
+                            className="flex items-center space-x-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            <Image
+                              src={producto.foto || '/placeholder.svg'}
+                              alt={producto.nombre}
+                              width={40}
+                              height={40}
+                              className="rounded-md"
+                            />
+                            <span>{producto.nombre}</span>
+                          </label>
+                        </div>
                       ))}
                     </ScrollArea>
+                    <DialogFooter>
+                      <Button onClick={handleSeleccionarProductos}>Seleccionar</Button>
+                    </DialogFooter>
                   </DialogContent>
                 </Dialog>
                 <div>
