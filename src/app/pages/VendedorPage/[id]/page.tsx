@@ -40,8 +40,6 @@ interface Transaccion {
   id: string;
   producto: string;
   cantidad: number;
-  desde: string;
-  hacia: string;
   fecha: string;
   tipo: string;
 }
