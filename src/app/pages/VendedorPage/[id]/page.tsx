@@ -277,7 +277,7 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
       >
         <span>{formatDate(venta.fecha)}</span>
         <div className="flex items-center">
-          <span className="mr-2">${venta.total.toFixed(2)}</span>
+          <span className="mr-2">${formatPrice(venta.total)}</span>
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </div>
       </div>
@@ -297,7 +297,7 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
               </div>
               <div className="text-right">
                 <div>Cantidad: {v.cantidad}</div>
-                <div>Precio: ${v.precio_unitario.toFixed(2)}</div>
+                <div>Precio: ${formatPrice(v.precio_unitario)}</div>
               </div>
             </div>
           ))}
@@ -998,28 +998,12 @@ export default function VendedorPage() {
                     </div>
                   </TabsContent>
                   <TabsContent value="por-semana">
-                    {/* Implementar vista semanal aquí */}
                     <div className="text-center py-4">Vista semanal en desarrollo</div>
                   </TabsContent>
                 </Tabs>
               </div>
             </TabsContent>
           </Tabs>
-        )}
-        {seccionActual === 'registro' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Registro de Actividades</h2>
-            <div className="relative mb-4">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <Input
-                placeholder="Buscar transacciones..."
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            {renderTransaccionesList()}
-          </div>
         )}
       </main>
     </div>
