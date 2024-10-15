@@ -366,9 +366,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
     setIsLoading(true)
     setError(null)
     try {
-  // Obtén la fecha actual
       const endDate = new Date().toISOString().split('T')[0];
-      // Obtén la fecha de hace un mes
       const startDate = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0];
 
       const [transaccionesData, ventasData] = await Promise.all([
@@ -426,7 +424,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
             <span className="font-semibold text-gray-800">{producto.nombre}</span>
             <div className="text-sm text-gray-600">
               <span className="mr-4">Precio: ${producto.precio}</span>
-              <span>Cantidad: {producto.cantidad}</span>
+              <span>{producto.cantidad > 0 ? `Cantidad: ${producto.cantidad}` : 'Agotado'}</span>
             </div>
           </div>
         </div>
@@ -456,8 +454,6 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
                     <TableRow>
                       <TableHead>Fecha</TableHead>
                       <TableHead>Cantidad</TableHead>
-                      <TableHead>Desde</TableHead>
-                      <TableHead>Hacia</TableHead>
                       <TableHead>Tipo</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -466,8 +462,6 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
                       <TableRow key={transaccion.id}>
                         <TableCell>{new Date(transaccion.fecha).toLocaleString()}</TableCell>
                         <TableCell>{transaccion.cantidad}</TableCell>
-                        <TableCell>{transaccion.desde}</TableCell>
-                        <TableCell>{transaccion.hacia}</TableCell>
                         <TableCell>{transaccion.tipo}</TableCell>
                       </TableRow>
                     ))}
@@ -489,7 +483,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
                       <TableRow key={venta._id}>
                         <TableCell>{new Date(venta.fecha).toLocaleString()}</TableCell>
                         <TableCell>{venta.cantidad}</TableCell>
-                        <TableCell> ${(typeof venta.precio_unitario === 'number' ? venta.precio_unitario : parseFloat(venta.precio_unitario) || 0).toFixed(2)}</TableCell>
+                        <TableCell>${(typeof venta.precio_unitario === 'number' ? venta.precio_unitario : parseFloat(venta.precio_unitario) || 0).toFixed(2)}</TableCell>
                         <TableCell>${typeof venta.total === 'number' ? venta.total.toFixed(2) : parseFloat(venta.total).toFixed(2)}</TableCell>
                       </TableRow>
                     ))}
@@ -706,30 +700,30 @@ export default function VendedorPage() {
       <main className="flex-1 p-6 overflow-auto">
         <h1 className="text-2xl font-bold mb-4">Panel de Vendedor</h1>
 
-        {seccionActual === 'productos' && (
-        <Tabs defaultValue="disponibles">
-          <TabsList>
-            <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
-            <TabsTrigger value="agotados">Agotados</TabsTrigger>
-          </TabsList>
-          <TabsContent value="disponibles">
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <Input
-                  placeholder="Buscar productos..."
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  className="pl-10 max-w-sm"
-                />
+          {seccionActual === 'productos' && (
+          <Tabs defaultValue="disponibles">
+            <TabsList>
+              <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
+              <TabsTrigger value="agotados">Agotados</TabsTrigger>
+            </TabsList>
+            <TabsContent value="disponibles">
+              <div className="mb-4">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <Input
+                    placeholder="Buscar productos..."
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    className="pl-10 max-w-sm"
+                  />
+                </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              {productosFiltrados.map((producto) => (
-                <ProductoCard key={producto.id} producto={producto} />
-              ))}
-            </div>
-          </TabsContent>
+              <div className="space-y-2">
+                {productosFiltrados.map((producto) => (
+                  <ProductoCard key={producto.id} producto={producto} />
+                ))}
+              </div>
+            </TabsContent>
             <TabsContent value="agotados">
               <div className="mb-4">
                 <div className="relative">
@@ -744,40 +738,13 @@ export default function VendedorPage() {
               </div>
               <div className="space-y-2">
                 {productosAgotadosFiltrados.map((producto) => (
-                  <div
-                    key={producto.id}
-                    className="w-full h-auto p-2 flex items-center text-left bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors"
-                  >
-                    {producto.foto ? (
-                      <Image
-                        src={producto.foto}
-                        alt={producto.nombre}
-                        width={50}
-                        height={50}
-                        className="object-cover rounded mr-4"
-                        onError={(e) => {
-                          console.error(`Error loading image for ${producto.nombre}:`, e);
-                          e.currentTarget.src = '/placeholder.svg';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-4">
-                        <span className="text-gray-500 text-xs">Sin imagen</span>
-                      </div>
-                    )}
-                    <div className="flex-grow">
-                      <span className="font-semibold text-gray-800">{producto.nombre}</span>
-                      <div className="text-sm text-gray-600">
-                        <span className="mr-4">Precio: ${producto.precio}</span>
-                        <span>Agotado</span>
-                      </div>
-                    </div>
-                  </div>
+                  <ProductoCard key={producto.id} producto={producto} />
                 ))}
               </div>
             </TabsContent>
           </Tabs>
         )}
+
 
         {seccionActual === 'ventas' && (
           <Tabs defaultValue="vender">
