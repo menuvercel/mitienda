@@ -128,15 +128,15 @@ const useVendedorData = (vendedorId: string) => {
   const agruparVentasPorSemana = useCallback((ventas: Venta[]) => {
     const ventasSemanales: VentaSemana[] = []
     ventas.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
-
+  
     let currentWeek: VentaSemana | null = null
-
+  
     ventas.forEach((venta) => {
       const ventaDate = new Date(venta.fecha)
       const dayOfWeek = ventaDate.getDay()
-      const weekStart = new Date(ventaDate.getFullYear(), ventaDate.getMonth(), ventaDate.getDate() - dayOfWeek)
-      const weekEnd = new Date(weekStart.getFullYear(), ventaDate.getMonth(), weekStart.getDate() + 6)
-
+      const weekStart = new Date(ventaDate.getFullYear(), ventaDate.getMonth(), ventaDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
+      const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6)
+  
       if (!currentWeek || ventaDate > weekEnd) {
         if (currentWeek) {
           ventasSemanales.push(currentWeek)
@@ -149,16 +149,16 @@ const useVendedorData = (vendedorId: string) => {
           ganancia: 0
         }
       }
-
+  
       currentWeek.ventas.push(venta)
       currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0
       currentWeek.ganancia = parseFloat((currentWeek.total * 0.08).toFixed(2))
     })
-
+  
     if (currentWeek) {
       ventasSemanales.push(currentWeek)
     }
-
+  
     return ventasSemanales.sort((a, b) => new Date(b.fechaInicio).getTime() - new Date(a.fechaInicio).getTime())
   }, [])
 
@@ -361,16 +361,24 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
       </div>
       {isOpen && (
         <div className="p-4 bg-gray-50">
-          {Object.entries(ventasPorDia).map(([fecha, ventasDia]) => (
-            <VentaDiaDesplegable 
-              key={fecha} 
-              venta={{
-                fecha, 
-                ventas: ventasDia, 
-                total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
-              }} 
-            />
-          ))}
+          {Object.entries(ventasPorDia).map(([fecha, ventasDia]) => {
+            const fechaVenta = new Date(fecha);
+            const fechaInicio = new Date(venta.fechaInicio);
+            const fechaFin = new Date(venta.fechaFin);
+            if (fechaVenta >= fechaInicio && fechaVenta <= fechaFin) {
+              return (
+                <VentaDiaDesplegable 
+                  key={fecha} 
+                  venta={{
+                    fecha, 
+                    ventas: ventasDia, 
+                    total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
+                  }} 
+                />
+              );
+            }
+            return null;
+          })}
         </div>
       )}
     </div>
