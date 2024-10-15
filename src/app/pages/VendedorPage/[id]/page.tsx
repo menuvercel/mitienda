@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight } from "lucide-react"
+import { MenuIcon, Search, Minus, X, ChevronDown, ChevronUp, ArrowLeftRight } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { 
   getTransaccionesVendedor,
@@ -666,9 +666,25 @@ export default function VendedorPage() {
     p.nombre.toLowerCase().includes(busqueda.toLowerCase())
   )
 
+  const handleAjustarCantidad = (id: string, incremento: number) => {
+    setProductosSeleccionados(prev => prev.map(p => {
+      if (p.id === id) {
+        const nuevaCantidad = Math.max(0, Math.min(p.cantidadVendida + incremento, p.cantidad))
+        return { ...p, cantidadVendida: nuevaCantidad }
+      }
+      return p
+    }).filter(p => p.cantidadVendida > 0))
+  }
+
   const handleSeleccionarProducto = (producto: Producto) => {
-    setProductoActual(producto)
-    setCantidadSeleccionada(1)
+    const productoExistente = productosSeleccionados.find(p => p.id === producto.id)
+    if (productoExistente) {
+      setProductosSeleccionados(prev => prev.map(p => 
+        p.id === producto.id ? { ...p, cantidadVendida: p.cantidadVendida + 1 } : p
+      ))
+    } else {
+      setProductosSeleccionados(prev => [...prev, { ...producto, cantidadVendida: 1 }])
+    }
   }
 
   const handleConfirmarSeleccion = () => {
@@ -818,8 +834,7 @@ export default function VendedorPage() {
           </Tabs>
         )}
 
-
-        {seccionActual === 'ventas' && (
+{seccionActual === 'ventas' && (
           <Tabs defaultValue="vender">
             <TabsList>
               <TabsTrigger value="vender">Vender</TabsTrigger>
@@ -854,57 +869,23 @@ export default function VendedorPage() {
                       </div>
                     </div>
                     <ScrollArea className="h-[300px] pr-4">
-                      {productoActual ? (
-                        <Card className="mb-4">
-                          <CardContent className="p-4">
-                            <div className="flex items-center mb-2">
-                              <Image
-                                src={productoActual.foto || '/placeholder.svg'}
-                                alt={productoActual.nombre}
-                                width={50}
-                                height={50}
-                                className="rounded-md mr-4"
-                              />
-                              <div>
-                                <h3 className="font-bold">{productoActual.nombre}</h3>
-                                <p className="text-sm text-gray-500">Stock: {productoActual.cantidad}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between mt-2">
-                              <Input
-                                type="number"
-                                min="1"
-                                max={productoActual.cantidad}
-                                value={cantidadSeleccionada}
-                                onChange={(e) => setCantidadSeleccionada(Math.min(parseInt(e.target.value), productoActual.cantidad))}
-                                className="w-20"
-                              />
-                              <div>
-                                <Button onClick={handleConfirmarSeleccion} className="mr-2">Seleccionar</Button>
-                                <Button onClick={handleCancelarSeleccion} variant="outline">Cancelar</Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ) : (
-                        productosFiltrados.map((producto) => (
-                          <Button
-                            key={producto.id}
-                            onClick={() => handleSeleccionarProducto(producto)}
-                            className="w-full justify-start mb-2 p-2"
-                            variant="outline"
-                          >
-                            <Image
-                              src={producto.foto || '/placeholder.svg'}
-                              alt={producto.nombre}
-                              width={40}
-                              height={40}
-                              className="rounded-md mr-4"
-                            />
-                            <span>{producto.nombre}</span>
-                          </Button>
-                        ))
-                      )}
+                      {productosFiltrados.map((producto) => (
+                        <Button
+                          key={producto.id}
+                          onClick={() => handleSeleccionarProducto(producto)}
+                          className="w-full justify-start mb-2 p-2"
+                          variant="outline"
+                        >
+                          <Image
+                            src={producto.foto || '/placeholder.svg'}
+                            alt={producto.nombre}
+                            width={40}
+                            height={40}
+                            className="rounded-md mr-4"
+                          />
+                          <span>{producto.nombre}</span>
+                        </Button>
+                      ))}
                     </ScrollArea>
                   </DialogContent>
                 </Dialog>
@@ -913,20 +894,30 @@ export default function VendedorPage() {
                   {productosSeleccionados.map((producto) => (
                     <div key={producto.id} className="flex justify-between items-center mb-2 p-2 bg-gray-100 rounded">
                       <span>{producto.nombre} x{producto.cantidadVendida}</span>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleRemoverProducto(producto.id)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <div>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleAjustarCantidad(producto.id, -1)}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleAjustarCantidad(producto.id, 1)}
+                          disabled={producto.cantidadVendida >= producto.cantidad}
+                        >
+                          +
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
                 <h2 className="text-xl font-semibold">3. Enviar el formulario de ventas</h2>
                 <Button onClick={handleEnviarVenta}>Enviar</Button>
               </div>
-              </TabsContent>
+            </TabsContent>
             <TabsContent value="registro">
               <div className="space-y-4">
                 <h2 className="text-xl font-semibold">Registro de Ventas</h2>
