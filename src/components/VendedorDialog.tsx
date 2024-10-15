@@ -16,10 +16,26 @@ interface VendorDialogProps {
   productos: Producto[]
   transacciones: Transaccion[]
   ventas: Venta[]
+  ventasSemanales: VentaSemana[]
+  ventasDiarias: VentaDia[]
   onProductReduce: (productId: string, vendorId: string, cantidad: number) => Promise<void>
 }
 
-export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, onProductReduce }: VendorDialogProps) {
+interface VentaSemana {
+  fechaInicio: string
+  fechaFin: string
+  ventas: Venta[]
+  total: number
+  ganancia: number
+}
+
+interface VentaDia {
+  fecha: string
+  ventas: Venta[]
+  total: number
+}
+
+export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
   const [searchTerm, setSearchTerm] = useState('')
@@ -27,6 +43,105 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [productToReduce, setProductToReduce] = useState<Producto | null>(null)
   const [quantityToReduce, setQuantityToReduce] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
+
+  const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    const formatDate = (dateString: string) => {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('es-ES', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric',
+        timeZone: 'UTC'
+      });
+    };
+
+    return (
+      <div className="border rounded-lg mb-2">
+        <div 
+          className="flex justify-between items-center p-4 cursor-pointer"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <span>{formatDate(venta.fecha)}</span>
+          <div className="flex items-center">
+            <span className="mr-2">${formatPrice(venta.total)}</span>
+            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </div>
+        </div>
+        {isOpen && (
+          <div className="p-4 bg-gray-50">
+            {venta.ventas.map((v) => (
+              <div key={v._id} className="flex items-center justify-between py-2">
+                <div className="flex items-center">
+                  <Image
+                    src={v.producto_foto || '/placeholder.svg'}
+                    alt={v.producto_nombre}
+                    width={40}
+                    height={40}
+                    className="rounded-md mr-4"
+                  />
+                  <span>{v.producto_nombre}</span>
+                </div>
+                <div className="text-right">
+                  <div>Cantidad: {v.cantidad}</div>
+                  <div>${formatPrice(v.precio_unitario)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    const formatDate = (dateString: string) => {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
+    const ventasPorDia = venta.ventas.reduce((acc: Record<string, Venta[]>, v) => {
+      const fecha = new Date(v.fecha).toLocaleDateString();
+      if (!acc[fecha]) {
+        acc[fecha] = [];
+      }
+      acc[fecha].push(v);
+      return acc;
+    }, {});
+
+    return (
+      <div className="border rounded-lg mb-2">
+        <div 
+          className="flex justify-between items-center p-4 cursor-pointer"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <span>Semana {formatDate(venta.fechaInicio)} - {formatDate(venta.fechaFin)}</span>
+          <div className="flex items-center space-x-4">
+            <span>${formatPrice(venta.total)}</span>
+            <span className="text-green-600">Ganancia: ${formatPrice(venta.ganancia)}</span>
+            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </div>
+        </div>
+        {isOpen && (
+          <div className="p-4 bg-gray-50">
+            {Object.entries(ventasPorDia).map(([fecha, ventasDia]) => (
+              <VentaDiaDesplegable 
+                key={fecha} 
+                venta={{
+                  fecha, 
+                  ventas: ventasDia, 
+                  total: ventasDia.reduce((sum, v) => sum + parseFloat(v.total.toString()), 0)
+                }} 
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -168,28 +283,35 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   };
 
   const renderVentasList = () => {
-    const filteredVentas = filterItems(ventas, searchTerm)
     return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Fecha</TableHead>
-            <TableHead>Total</TableHead>
-            <TableHead></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredVentas.length > 0 ? (
-            filteredVentas.map(venta => (
-              <VentaDesplegable key={venta._id} venta={venta} />
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={3} className="text-center">No hay ventas registradas</TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+      <Tabs defaultValue="por-dia">
+        <TabsList>
+          <TabsTrigger value="por-dia">Por día</TabsTrigger>
+          <TabsTrigger value="por-semana">Por semana</TabsTrigger>
+        </TabsList>
+        <TabsContent value="por-dia">
+          <div className="space-y-4">
+            {ventasDiarias.length > 0 ? (
+              ventasDiarias.map((venta) => (
+                <VentaDiaDesplegable key={venta.fecha} venta={venta} />
+              ))
+            ) : (
+              <div className="text-center py-4">No hay ventas registradas</div>
+            )}
+          </div>
+        </TabsContent>
+        <TabsContent value="por-semana">
+          <div className="space-y-4">
+            {ventasSemanales.length > 0 ? (
+              ventasSemanales.map((venta) => (
+                <VentaSemanaDesplegable key={`${venta.fechaInicio}-${venta.fechaFin}`} venta={venta} />
+              ))
+            ) : (
+              <div className="text-center py-4">No hay ventas registradas</div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
     )
   }
 
