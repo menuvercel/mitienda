@@ -820,7 +820,7 @@ export default function VendedorPage() {
       <main className="flex-1 p-6 overflow-auto">
         <h1 className="text-2xl font-bold mb-4">Panel de Vendedor</h1>
 
-          {seccionActual === 'productos' && (
+        {seccionActual === 'productos' && (
           <Tabs defaultValue="disponibles">
             <TabsList>
               <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
@@ -965,11 +965,41 @@ export default function VendedorPage() {
               </div>
             </TabsContent>
             <TabsContent value="registro">
-              {/* Registro de Ventas content */}
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold">Registro de Ventas</h2>
+                <div className="relative mb-4">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <Input
+                    placeholder="Buscar ventas..."
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ventasAgrupadas.length > 0 ? (
+                      ventasAgrupadas.map((venta) => (
+                        <VentaDesplegable key={venta.fecha} venta={venta.ventas[0]} />
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center">No hay ventas registradas</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </TabsContent>
           </Tabs>
         )}
-
         {seccionActual === 'registro' && (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Registro de Actividades</h2>
