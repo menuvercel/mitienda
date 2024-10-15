@@ -261,7 +261,12 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
     if (isNaN(date.getTime())) {
       return 'Fecha inválida';
     }
-    return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return date.toLocaleDateString('es-ES', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric',
+      timeZone: 'UTC'  // Ensure consistent timezone handling
+    });
   };
 
   const formatPrice = (price: number | string): string => {
