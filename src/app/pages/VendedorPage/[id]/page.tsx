@@ -128,15 +128,20 @@ const useVendedorData = (vendedorId: string) => {
   const agruparVentasPorSemana = useCallback((ventas: Venta[]) => {
     const weekMap = new Map<string, VentaSemana>()
 
+    const getWeekKey = (date: Date) => {
+      const dayOfWeek = date.getDay()
+      const mondayOfWeek = new Date(date.getFullYear(), date.getMonth(), date.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
+      const sundayOfWeek = new Date(mondayOfWeek.getFullYear(), mondayOfWeek.getMonth(), mondayOfWeek.getDate() + 6)
+      return `${mondayOfWeek.toISOString().split('T')[0]}_${sundayOfWeek.toISOString().split('T')[0]}`
+    }
+
     ventas.forEach((venta) => {
       const ventaDate = new Date(venta.fecha)
-      const dayOfWeek = ventaDate.getDay()
-      const mondayOfWeek = new Date(ventaDate.getFullYear(), ventaDate.getMonth(), ventaDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
-      const sundayOfWeek = new Date(mondayOfWeek.getFullYear(), mondayOfWeek.getMonth(), mondayOfWeek.getDate() + 6)
-
-      const weekKey = `${mondayOfWeek.toISOString().split('T')[0]}_${sundayOfWeek.toISOString().split('T')[0]}`
+      const weekKey = getWeekKey(ventaDate)
 
       if (!weekMap.has(weekKey)) {
+        const mondayOfWeek = new Date(ventaDate.getFullYear(), ventaDate.getMonth(), ventaDate.getDate() - (ventaDate.getDay() === 0 ? 6 : ventaDate.getDay() - 1))
+        const sundayOfWeek = new Date(mondayOfWeek.getFullYear(), mondayOfWeek.getMonth(), mondayOfWeek.getDate() + 6)
         weekMap.set(weekKey, {
           fechaInicio: mondayOfWeek.toISOString().split('T')[0],
           fechaFin: sundayOfWeek.toISOString().split('T')[0],
@@ -156,6 +161,7 @@ const useVendedorData = (vendedorId: string) => {
 
     return ventasSemanales.sort((a, b) => new Date(b.fechaInicio).getTime() - new Date(a.fechaInicio).getTime())
   }, [])
+
 
   const fetchProductos = useCallback(async () => {
     try {
