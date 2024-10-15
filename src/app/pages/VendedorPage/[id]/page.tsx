@@ -257,22 +257,8 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const formatDate = (dateString: string) => {
-    // Verificar si la fecha ya está en el formato DD/MM/YYYY
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
-      return dateString; // Devolver la fecha tal cual si ya está en el formato correcto
-    }
-
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      console.error('Fecha inválida:', dateString);
-      return 'Fecha inválida';
-    }
-    return date.toLocaleDateString('es-ES', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric',
-      timeZone: 'UTC'
-    });
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   const formatPrice = (price: number | string): string => {
@@ -308,7 +294,7 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
               </div>
               <div className="text-right">
                 <div>Cantidad: {v.cantidad}</div>
-                <div>Precio: ${formatPrice(v.precio_unitario)}</div>
+                <div>${formatPrice(v.precio_unitario)}</div>
               </div>
             </div>
           ))}
@@ -321,54 +307,62 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
 const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
   const [isOpen, setIsOpen] = useState(false);
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const formatPrice = (price: number | string): string => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+    return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2);
+  };
+
+  const parsePrice = (price: number | string): number => {
+    if (typeof price === 'number') return price;
+    const parsed = parseFloat(price);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  const ventasPorDia = venta.ventas.reduce((acc: Record<string, Venta[]>, v) => {
+    const fecha = new Date(v.fecha).toLocaleDateString();
+    if (!acc[fecha]) {
+      acc[fecha] = [];
+    }
+    acc[fecha].push(v);
+    return acc;
+  }, {});
+
   return (
-    <>
-      <TableRow className="cursor-pointer" onClick={() =>setIsOpen(!isOpen)}>
-        <TableCell>{`${venta.fechaInicio} - ${venta.fechaFin}`}</TableCell>
-        <TableCell>${venta.total.toFixed(2)}</TableCell>
-        <TableCell className="text-green-600">${venta.ganancia.toFixed(2)}</TableCell>
-        <TableCell>
+    <div className="border rounded-lg mb-2">
+      <div 
+        className="flex justify-between items-center p-4 cursor-pointer"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span>Semana {formatDate(venta.fechaInicio)} - {formatDate(venta.fechaFin)}</span>
+        <div className="flex items-center space-x-4">
+          <span>${formatPrice(venta.total)}</span>
+          <span className="text-green-600">Ganancia: ${formatPrice(venta.ganancia)}</span>
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </TableCell>
-      </TableRow>
+        </div>
+      </div>
       {isOpen && (
-        <TableRow>
-          <TableCell colSpan={4}>
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Cantidad</TableHead>
-                  <TableHead>Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {venta.ventas.map((v) => (
-                  <TableRow key={v._id}>
-                    <TableCell>{new Date(v.fecha).toLocaleDateString()}</TableCell>
-                    <TableCell className="flex items-center space-x-2">
-                      <Image
-                        src={v.producto_foto || '/placeholder.svg'}
-                        alt={v.producto_nombre}
-                        width={40}
-                        height={40}
-                        className="rounded-md"
-                      />
-                      <span>{v.producto_nombre}</span>
-                    </TableCell>
-                    <TableCell>{v.cantidad}</TableCell>
-                    <TableCell>${typeof v.total === 'number' ? v.total.toFixed(2) : parseFloat(v.total).toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableCell>
-        </TableRow>
+        <div className="p-4 bg-gray-50">
+          {Object.entries(ventasPorDia).map(([fecha, ventasDia]) => (
+            <VentaDiaDesplegable 
+              key={fecha} 
+              venta={{
+                fecha, 
+                ventas: ventasDia, 
+                total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
+              }} 
+            />
+          ))}
+        </div>
       )}
-    </>
+    </div>
   );
 };
+
 
 const ProductoCard = ({ producto }: { producto: Producto }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -1009,7 +1003,24 @@ export default function VendedorPage() {
                     </div>
                   </TabsContent>
                   <TabsContent value="por-semana">
-                    <div className="text-center py-4">Vista semanal en desarrollo</div>
+                    <div className="space-y-4">
+                      <div className="relative mb-4">
+                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <Input
+                          placeholder="Buscar ventas..."
+                          value={busqueda}
+                          onChange={(e) => setBusqueda(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                      {ventasSemanales.length > 0 ? (
+                        ventasSemanales.map((venta) => (
+                          <VentaSemanaDesplegable key={`${venta.fechaInicio}-${venta.fechaFin}`} venta={venta} />
+                        ))
+                      ) : (
+                        <div className="text-center py-4">No hay ventas registradas</div>
+                      )}
+                    </div>
                   </TabsContent>
                 </Tabs>
               </div>
