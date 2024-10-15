@@ -217,16 +217,70 @@ export default function AlmacenPage() {
     }
   }
 
+  const calcularVentasDiarias = (ventas: Venta[]): VentaDia[] => {
+    const ventasPorDia: { [key: string]: Venta[] } = {};
+    ventas.forEach(venta => {
+      const fecha = venta.fecha.split('T')[0];
+      if (!ventasPorDia[fecha]) ventasPorDia[fecha] = [];
+      ventasPorDia[fecha].push(venta);
+    });
+  
+    return Object.entries(ventasPorDia).map(([fecha, ventasDelDia]) => ({
+      fecha,
+      ventas: ventasDelDia,
+      total: ventasDelDia.reduce((sum, venta) => sum + parseFloat(venta.total.toString()), 0)
+    }));
+  };
+  
+  const calcularVentasSemanales = (ventas: Venta[]): VentaSemana[] => {
+    const ventasPorSemana: { [key: string]: Venta[] } = {};
+    ventas.forEach(venta => {
+      const date = new Date(venta.fecha);
+      const weekStart = new Date(date.setDate(date.getDate() - date.getDay()));
+      const weekEnd = new Date(date.setDate(date.getDate() - date.getDay() + 6));
+      const weekKey = `${weekStart.toISOString().split('T')[0]}_${weekEnd.toISOString().split('T')[0]}`;
+      
+      if (!ventasPorSemana[weekKey]) ventasPorSemana[weekKey] = [];
+      ventasPorSemana[weekKey].push(venta);
+    });
+  
+    return Object.entries(ventasPorSemana).map(([weekKey, ventasDeLaSemana]) => {
+      const [fechaInicio, fechaFin] = weekKey.split('_');
+      const total = ventasDeLaSemana.reduce((sum, venta) => sum + parseFloat(venta.total.toString()), 0);
+      const ganancia = total * 0.08; // Calculamos la ganancia como el 8% del total
+      return {
+        fechaInicio,
+        fechaFin,
+        ventas: ventasDeLaSemana,
+        total,
+        ganancia
+      };
+    });
+  };
+
   const handleVerVendedor = async (vendedor: Vendedor) => {
     try {
       const today = new Date().toISOString().split('T')[0];
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      const oneMonthAgoString = oneMonthAgo.toISOString().split('T')[0];
+  
       const [productos, ventas, transacciones] = await Promise.all([
         getProductosVendedor(vendedor.id),
-        getVentasVendedor(vendedor.id, today, today),
+        getVentasVendedor(vendedor.id, oneMonthAgoString, today),
         getTransaccionesVendedor(vendedor.id)
       ]);
+  
+      // Calcular ventas diarias
+      const ventasDiarias = calcularVentasDiarias(ventas);
+  
+      // Calcular ventas semanales
+      const ventasSemanales = calcularVentasSemanales(ventas);
+  
       setProductosVendedor(productos);
       setVentasVendedor(ventas);
+      setVentasDiarias(ventasDiarias);
+      setVentasSemanales(ventasSemanales);
       setTransaccionesVendedor(transacciones);
       setVendedorSeleccionado(vendedor);
     } catch (error) {
@@ -769,19 +823,19 @@ export default function AlmacenPage() {
         />
       )}
 
-      {vendedorSeleccionado && (
-        <VendorDialog
-          vendor={vendedorSeleccionado}
-          onClose={() => setVendedorSeleccionado(null)}
-          onEdit={handleEditVendedor}
-          productos={productosVendedor}
-          ventas={ventasVendedor}
-          ventasSemanales={ventasSemanales}
-          ventasDiarias={ventasDiarias}
-          transacciones={transaccionesVendedor}
-          onProductReduce={handleReduceVendorProduct}
-        />
-      )}
+        {vendedorSeleccionado && (
+          <VendorDialog
+            vendor={vendedorSeleccionado}
+            onClose={() => setVendedorSeleccionado(null)}
+            onEdit={handleEditVendedor}
+            productos={productosVendedor}
+            ventas={ventasVendedor}
+            ventasSemanales={ventasSemanales}
+            ventasDiarias={ventasDiarias}
+            transacciones={transaccionesVendedor}
+            onProductReduce={handleReduceVendorProduct}
+          />
+        )}
     </div>
   )
 } 
