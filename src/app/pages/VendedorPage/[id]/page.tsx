@@ -361,6 +361,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   const [ventas, setVentas] = useState<Venta[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
 
   const fetchProductData = useCallback(async () => {
     setIsLoading(true)
@@ -377,8 +378,6 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
         id: t.id,
         producto: t.producto,
         cantidad: t.cantidad,
-        desde: t.desde,
-        hacia: t.hacia,
         fecha: t.fecha,
         tipo: t.tipo
       })))
@@ -396,39 +395,136 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
     fetchProductData()
   }
 
+  const filterItems = useCallback((items: any[], term: string) => {
+    return items.filter(item => 
+      Object.values(item).some(value => 
+        value && value.toString().toLowerCase().includes(term.toLowerCase())
+      )
+    )
+  }, [])
+
+  const VentaDesplegable = ({ venta }: { venta: Venta }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+      <>
+        <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+          <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
+          <TableCell>${typeof venta.total === 'number' ? venta.total.toFixed(2) : parseFloat(venta.total).toFixed(2)}</TableCell>
+          <TableCell>
+            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </TableCell>
+        </TableRow>
+        {isOpen && (
+          <TableRow>
+            <TableCell colSpan={3}>
+              <div className="flex items-center space-x-2 p-2">
+                <Image
+                  src={venta.producto_foto || '/placeholder.svg'}
+                  alt={venta.producto_nombre}
+                  width={40}
+                  height={40}
+                  className="rounded-md"
+                />
+                <span>{venta.producto_nombre}</span>
+                <span>Cantidad: {venta.cantidad}</span>
+                <span>Precio unitario: ${typeof venta.precio_unitario === 'number' ? venta.precio_unitario.toFixed(2) : parseFloat(venta.precio_unitario).toFixed(2)}</span>
+              </div>
+            </TableCell>
+          </TableRow>
+        )}
+      </>
+    );
+  };
+
+  const renderVentasList = () => {
+    const filteredVentas = filterItems(ventas, searchTerm)
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Fecha</TableHead>
+            <TableHead>Total</TableHead>
+            <TableHead></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredVentas.length > 0 ? (
+            filteredVentas.map(venta => (
+              <VentaDesplegable key={venta._id} venta={venta} />
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={3} className="text-center">No hay ventas registradas</TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    )
+  }
+
+  const renderTransaccionesList = () => {
+    const filteredTransacciones = filterItems(transacciones, searchTerm)
+    return (
+      <div className="space-y-2">
+        {filteredTransacciones.map(transaccion => {
+          const transactionType = transaccion.tipo || 'Normal'
+          const borderColor = 
+            transactionType === 'Baja' ? 'border-red-500' :
+            transactionType === 'Entrega' ? 'border-green-500' :
+            'border-blue-500'
+  
+          return (
+            <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
+              <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
+              <div className="flex-grow overflow-hidden">
+                <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+                <div className="flex justify-between items-center text-xs text-gray-600">
+                  <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
+                  <span>Cantidad: {transaccion.cantidad}</span>
+                </div>
+                <p className="text-xs font-semibold">{transactionType}</p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <>
-      <div
+      <Card
         onClick={handleCardClick}
-        className="w-full h-auto p-2 flex items-center justify-between text-left bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors cursor-pointer"
+        className="w-full cursor-pointer hover:bg-gray-100 transition-colors"
       >
-        <div className="flex items-center">
+        <CardContent className="p-4 flex items-center space-x-4">
           {producto.foto ? (
             <Image
               src={producto.foto}
               alt={producto.nombre}
               width={50}
               height={50}
-              className="object-cover rounded mr-4"
+              className="object-cover rounded"
               onError={(e) => {
                 console.error(`Error loading image for ${producto.nombre}:`, e);
                 e.currentTarget.src = '/placeholder.svg';
               }}
             />
           ) : (
-            <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-4">
+            <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
               <span className="text-gray-500 text-xs">Sin imagen</span>
             </div>
           )}
           <div>
-            <span className="font-semibold text-gray-800">{producto.nombre}</span>
-            <div className="text-sm text-gray-600">
-              <span className="mr-4">Precio: ${producto.precio}</span>
-              <span>{producto.cantidad > 0 ? `Cantidad: ${producto.cantidad}` : 'Agotado'}</span>
-            </div>
+            <h3 className="font-semibold">{producto.nombre}</h3>
+            <p className="text-sm text-gray-600">
+              Precio: ${producto.precio.toFixed(2)} - 
+              {producto.cantidad > 0 ? `Cantidad: ${producto.cantidad}` : 'Agotado'}
+            </p>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[800px]">
@@ -448,47 +544,21 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
                 <TabsTrigger value="transacciones">Registro</TabsTrigger>
                 <TabsTrigger value="ventas">Ventas</TabsTrigger>
               </TabsList>
+              <div className="relative mb-4 mt-4">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Input
+                  type="search"
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
               <TabsContent value="transacciones">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Cantidad</TableHead>
-                      <TableHead>Tipo</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transacciones.map((transaccion) => (
-                      <TableRow key={transaccion.id}>
-                        <TableCell>{new Date(transaccion.fecha).toLocaleString()}</TableCell>
-                        <TableCell>{transaccion.cantidad}</TableCell>
-                        <TableCell>{transaccion.tipo}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                {renderTransaccionesList()}
               </TabsContent>
               <TabsContent value="ventas">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Cantidad</TableHead>
-                      <TableHead>Precio Unitario</TableHead>
-                      <TableHead>Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ventas.map((venta) => (
-                      <TableRow key={venta._id}>
-                        <TableCell>{new Date(venta.fecha).toLocaleString()}</TableCell>
-                        <TableCell>{venta.cantidad}</TableCell>
-                        <TableCell>${(typeof venta.precio_unitario === 'number' ? venta.precio_unitario : parseFloat(venta.precio_unitario) || 0).toFixed(2)}</TableCell>
-                        <TableCell>${typeof venta.total === 'number' ? venta.total.toFixed(2) : parseFloat(venta.total).toFixed(2)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                {renderVentasList()}
               </TabsContent>
             </Tabs>
           )}
