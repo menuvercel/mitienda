@@ -1052,41 +1052,21 @@ export default function VendedorPage() {
           </TabsContent>
         </Tabs>
       )}
-      {seccionActual === 'registro' && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Registro de Actividades</h2>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Actividad</TableHead>
-                <TableHead>Producto</TableHead>
-                <TableHead>Cantidad</TableHead>
-                <TableHead>Precio</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transacciones && transacciones.length > 0 ? (
-                transacciones.map((transaccion) => {
-                  return (
-                    <TableRow key={transaccion.id}>
-                      <TableCell>{new Date(transaccion.fecha).toLocaleString()}</TableCell>
-                      <TableCell>Entrega de Almacén</TableCell>
-                      <TableCell>{transaccion.producto}</TableCell>
-                      <TableCell>{transaccion.cantidad}</TableCell>
-                      <TableCell>-</TableCell>
-                    </TableRow>
-                  );
-                })
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center">No hay actividades registradas</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+       {seccionActual === 'registro' && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Registro de Actividades</h2>
+            <div className="relative mb-4">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Buscar transacciones..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            {renderTransaccionesList()}
+          </div>
+        )}
       </main>
     </div>
   )
