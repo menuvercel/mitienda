@@ -257,8 +257,22 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const formatDate = (dateString: string) => {
+    // Verificar si la fecha ya está en el formato DD/MM/YYYY
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
+      return dateString; // Devolver la fecha tal cual si ya está en el formato correcto
+    }
+
     const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    if (isNaN(date.getTime())) {
+      console.error('Fecha inválida:', dateString);
+      return 'Fecha inválida';
+    }
+    return date.toLocaleDateString('es-ES', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric',
+      timeZone: 'UTC'
+    });
   };
 
   const formatPrice = (price: number | string): string => {
