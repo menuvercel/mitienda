@@ -126,39 +126,34 @@ const useVendedorData = (vendedorId: string) => {
   }, [])
 
   const agruparVentasPorSemana = useCallback((ventas: Venta[]) => {
-    const ventasSemanales: VentaSemana[] = []
-    ventas.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
-  
-    let currentWeek: VentaSemana | null = null
-  
+    const weekMap = new Map<string, VentaSemana>()
+
     ventas.forEach((venta) => {
       const ventaDate = new Date(venta.fecha)
       const dayOfWeek = ventaDate.getDay()
-      const weekStart = new Date(ventaDate.getFullYear(), ventaDate.getMonth(), ventaDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
-      const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6)
-  
-      if (!currentWeek || ventaDate > weekEnd) {
-        if (currentWeek) {
-          ventasSemanales.push(currentWeek)
-        }
-        currentWeek = {
-          fechaInicio: weekStart.toISOString().split('T')[0],
-          fechaFin: weekEnd.toISOString().split('T')[0],
+      const mondayOfWeek = new Date(ventaDate.getFullYear(), ventaDate.getMonth(), ventaDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
+      const sundayOfWeek = new Date(mondayOfWeek.getFullYear(), mondayOfWeek.getMonth(), mondayOfWeek.getDate() + 6)
+
+      const weekKey = `${mondayOfWeek.toISOString().split('T')[0]}_${sundayOfWeek.toISOString().split('T')[0]}`
+
+      if (!weekMap.has(weekKey)) {
+        weekMap.set(weekKey, {
+          fechaInicio: mondayOfWeek.toISOString().split('T')[0],
+          fechaFin: sundayOfWeek.toISOString().split('T')[0],
           ventas: [],
           total: 0,
           ganancia: 0
-        }
+        })
       }
-  
+
+      const currentWeek = weekMap.get(weekKey)!
       currentWeek.ventas.push(venta)
       currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0
       currentWeek.ganancia = parseFloat((currentWeek.total * 0.08).toFixed(2))
     })
-  
-    if (currentWeek) {
-      ventasSemanales.push(currentWeek)
-    }
-  
+
+    const ventasSemanales = Array.from(weekMap.values())
+
     return ventasSemanales.sort((a, b) => new Date(b.fechaInicio).getTime() - new Date(a.fechaInicio).getTime())
   }, [])
 
@@ -338,11 +333,12 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
   };
 
   const ventasPorDia = venta.ventas.reduce((acc: Record<string, Venta[]>, v) => {
-    const fecha = new Date(v.fecha).toLocaleDateString();
-    if (!acc[fecha]) {
-      acc[fecha] = [];
+    const fecha = new Date(v.fecha);
+    const fechaStr = fecha.toISOString().split('T')[0];
+    if (!acc[fechaStr]) {
+      acc[fechaStr] = [];
     }
-    acc[fecha].push(v);
+    acc[fechaStr].push(v);
     return acc;
   }, {});
 
@@ -361,24 +357,26 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
       </div>
       {isOpen && (
         <div className="p-4 bg-gray-50">
-          {Object.entries(ventasPorDia).map(([fecha, ventasDia]) => {
-            const fechaVenta = new Date(fecha);
-            const fechaInicio = new Date(venta.fechaInicio);
-            const fechaFin = new Date(venta.fechaFin);
-            if (fechaVenta >= fechaInicio && fechaVenta <= fechaFin) {
-              return (
-                <VentaDiaDesplegable 
-                  key={fecha} 
-                  venta={{
-                    fecha, 
-                    ventas: ventasDia, 
-                    total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
-                  }} 
-                />
-              );
-            }
-            return null;
-          })}
+          {Object.entries(ventasPorDia)
+            .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
+            .map(([fecha, ventasDia]) => {
+              const fechaVenta = new Date(fecha);
+              const fechaInicio = new Date(venta.fechaInicio);
+              const fechaFin = new Date(venta.fechaFin);
+              if (fechaVenta >= fechaInicio && fechaVenta <= fechaFin) {
+                return (
+                  <VentaDiaDesplegable 
+                    key={fecha} 
+                    venta={{
+                      fecha, 
+                      ventas: ventasDia, 
+                      total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
+                    }} 
+                  />
+                );
+              }
+              return null;
+            })}
         </div>
       )}
     </div>
@@ -1025,30 +1023,30 @@ export default function VendedorPage() {
                     </div>
                   </TabsContent>
                   <TabsContent value="por-semana">
-                    <div className="space-y-4">
-                      <div className="relative mb-4">
-                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <Input
-                          placeholder="Buscar ventas..."
-                          value={busqueda}
-                          onChange={(e) => setBusqueda(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                      {ventasSemanales.length > 0 ? (
-                        ventasSemanales.map((venta) => (
-                          <VentaSemanaDesplegable key={`${venta.fechaInicio}-${venta.fechaFin}`} venta={venta} />
-                        ))
-                      ) : (
-                        <div className="text-center py-4">No hay ventas registradas</div>
-                      )}
+                  <div className="space-y-4">
+                    <div className="relative mb-4">
+                      <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <Input
+                        placeholder="Buscar ventas..."
+                        value={busqueda}
+                        onChange={(e) => setBusqueda(e.target.value)}
+                        className="pl-10"
+                      />
                     </div>
-                  </TabsContent>
-                </Tabs>
-              </div>
-            </TabsContent>
-          </Tabs>
-        )}
+                    {ventasSemanales.length > 0 ? (
+                      ventasSemanales.map((venta) => (
+                        <VentaSemanaDesplegable key={`${venta.fechaInicio}-${venta.fechaFin}`} venta={venta} />
+                      ))
+                    ) : (
+                      <div className="text-center py-4">No hay ventas registradas</div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          </TabsContent>
+        </Tabs>
+      )}
       </main>
     </div>
   )
