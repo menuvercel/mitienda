@@ -401,6 +401,11 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
     )
   }, [])
 
+  const formatPrice = (price: number | string): string => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price
+    return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
+  }
+
   const VentaDesplegable = ({ venta }: { venta: Venta }) => {
     const [isOpen, setIsOpen] = useState(false);
 
@@ -408,7 +413,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
       <>
         <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
           <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
-          <TableCell>${typeof venta.total === 'number' ? venta.total.toFixed(2) : parseFloat(venta.total).toFixed(2)}</TableCell>
+          <TableCell>${formatPrice(venta.total)}</TableCell>
           <TableCell>
             {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </TableCell>
@@ -426,7 +431,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
                 />
                 <span>{venta.producto_nombre}</span>
                 <span>Cantidad: {venta.cantidad}</span>
-                <span>Precio unitario: ${typeof venta.precio_unitario === 'number' ? venta.precio_unitario.toFixed(2) : parseFloat(venta.precio_unitario).toFixed(2)}</span>
+                <span>Precio unitario: ${formatPrice(venta.precio_unitario)}</span>
               </div>
             </TableCell>
           </TableRow>
@@ -517,7 +522,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
           <div>
             <h3 className="font-semibold">{producto.nombre}</h3>
             <p className="text-sm text-gray-600">
-              Precio: ${producto.precio.toFixed(2)} - 
+              Precio: ${formatPrice(producto.precio)} - 
               {producto.cantidad > 0 ? `Cantidad: ${producto.cantidad}` : 'Agotado'}
             </p>
           </div>
