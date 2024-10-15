@@ -259,13 +259,14 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
+      console.error('Fecha inválida:', dateString);
       return 'Fecha inválida';
     }
     return date.toLocaleDateString('es-ES', { 
       day: '2-digit', 
       month: '2-digit', 
       year: 'numeric',
-      timeZone: 'UTC'  // Ensure consistent timezone handling
+      timeZone: 'UTC'
     });
   };
 
