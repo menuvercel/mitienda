@@ -638,7 +638,7 @@ export default function VendedorPage() {
   }
 
   const handleConfirmSelection = () => {
-    const newSelectedProducts = productosFiltrados
+    const newSelectedProducts = productosDisponibles
       .filter(producto => selectedProductIds.includes(producto.id))
       .map(producto => ({
         ...producto,
@@ -695,13 +695,16 @@ export default function VendedorPage() {
   )
 
   const handleAjustarCantidad = (id: string, incremento: number) => {
-    setProductosSeleccionados(prev => prev.map(p => {
+    setProductosSeleccionados(prev => prev.reduce((acc, p) => {
       if (p.id === id) {
-        const nuevaCantidad = Math.max(1, Math.min(p.cantidadVendida + incremento, p.cantidad))
-        return { ...p, cantidadVendida: nuevaCantidad }
+        const nuevaCantidad = Math.max(0, Math.min(p.cantidadVendida + incremento, p.cantidad))
+        if (nuevaCantidad === 0) {
+          return acc; // Remove the product if quantity reaches 0
+        }
+        return [...acc, { ...p, cantidadVendida: nuevaCantidad }];
       }
-      return p
-    }))
+      return [...acc, p];
+    }, [] as ProductoVenta[]))
   }
 
   const handleSeleccionarProducto = (producto: Producto) => {
@@ -862,73 +865,75 @@ export default function VendedorPage() {
           </Tabs>
         )}
 
-    {seccionActual === 'ventas' && (
-      <Tabs defaultValue="vender">
-        <TabsList>
-          <TabsTrigger value="vender">Vender</TabsTrigger>
-          <TabsTrigger value="registro">Registro de Ventas</TabsTrigger>
-        </TabsList>
-        <TabsContent value="vender">
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">1. Selecciona la fecha</h2>
-            <Input
-              type="date"
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-            />
-            <h2 className="text-xl font-semibold">2. Selecciona los productos</h2>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button>Seleccionar Productos</Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Seleccionar Productos</DialogTitle>
-                </DialogHeader>
-                <div className="mb-4">
-                  <div className="relative">
-                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <Input
-                      placeholder="Buscar productos..."
-                      value={busqueda}
-                      onChange={(e) => setBusqueda(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <ScrollArea className="h-[300px] pr-4">
-                  {productosFiltrados.map((producto) => (
-                    <Card key={producto.id} className="mb-2">
-                      <CardContent className="p-4 flex items-center justify-between">
-                        <div className="flex items-center">
-                          <Checkbox
-                            id={`product-${producto.id}`}
-                            checked={selectedProductIds.includes(producto.id)}
-                            onCheckedChange={() => handleProductSelect(producto.id)}
-                          />
-                          <Image
-                            src={producto.foto || '/placeholder.svg'}
-                            alt={producto.nombre}
-                            width={40}
-                            height={40}
-                            className="rounded-md ml-4 mr-4"
-                          />
-                          <div>
-                            <label htmlFor={`product-${producto.id}`} className="font-medium">
-                              {producto.nombre}
-                            </label>
-                            <p className="text-sm text-gray-500">Stock: {producto.cantidad}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </ScrollArea>
-                <Button onClick={handleConfirmSelection} className="mt-4">
-                  Confirmar Selección
-                </Button>
-              </DialogContent>
-            </Dialog>
+        {seccionActual === 'ventas' && (
+          <Tabs defaultValue="vender">
+            <TabsList>
+              <TabsTrigger value="vender">Vender</TabsTrigger>
+              <TabsTrigger value="registro">Registro de Ventas</TabsTrigger>
+            </TabsList>
+            <TabsContent value="vender">
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold">1. Selecciona la fecha</h2>
+                <Input
+                  type="date"
+                  value={fecha}
+                  onChange={(e) => setFecha(e.target.value)}
+                />
+                <h2 className="text-xl font-semibold">2. Selecciona los productos</h2>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button>Seleccionar Productos</Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Seleccionar Productos</DialogTitle>
+                    </DialogHeader>
+                    <div className="mb-4">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <Input
+                          placeholder="Buscar productos..."
+                          value={busqueda}
+                          onChange={(e) => setBusqueda(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                    <ScrollArea className="h-[300px] pr-4">
+                      {productosDisponibles.filter(p => 
+                        p.nombre.toLowerCase().includes(busqueda.toLowerCase())
+                      ).map((producto) => (
+                        <Card key={producto.id} className="mb-2">
+                          <CardContent className="p-4 flex items-center justify-between">
+                            <div className="flex items-center">
+                              <Checkbox
+                                id={`product-${producto.id}`}
+                                checked={selectedProductIds.includes(producto.id)}
+                                onCheckedChange={() => handleProductSelect(producto.id)}
+                              />
+                              <Image
+                                src={producto.foto || '/placeholder.svg'}
+                                alt={producto.nombre}
+                                width={40}
+                                height={40}
+                                className="rounded-md ml-4 mr-4"
+                              />
+                              <div>
+                                <label htmlFor={`product-${producto.id}`} className="font-medium">
+                                  {producto.nombre}
+                                </label>
+                                <p className="text-sm text-gray-500">Stock: {producto.cantidad}</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </ScrollArea>
+                    <Button onClick={handleConfirmSelection} className="mt-4">
+                      Confirmar Selección
+                    </Button>
+                  </DialogContent>
+                </Dialog>
                 <div>
                   <h3 className="font-bold mb-2">Productos Seleccionados:</h3>
                   {productosSeleccionados.map((producto) => (
@@ -939,7 +944,6 @@ export default function VendedorPage() {
                           variant="outline"
                           size="icon"
                           onClick={() => handleAjustarCantidad(producto.id, -1)}
-                          disabled={producto.cantidadVendida <= 1}
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
@@ -956,44 +960,12 @@ export default function VendedorPage() {
                     </div>
                   ))}
                 </div>
-                
                 <h2 className="text-xl font-semibold">3. Enviar el formulario de ventas</h2>
                 <Button onClick={handleEnviarVenta}>Enviar</Button>
               </div>
             </TabsContent>
             <TabsContent value="registro">
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold">Registro de Ventas</h2>
-                <div className="relative mb-4">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <Input
-                    placeholder="Buscar ventas..."
-                    value={busqueda}
-                    onChange={(e) => setBusqueda(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ventasAgrupadas.length > 0 ? (
-                      ventasAgrupadas.map((venta) => (
-                        <VentaDesplegable key={venta.fecha} venta={venta.ventas[0]} />
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center">No hay ventas registradas</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              {/* Registro de Ventas content */}
             </TabsContent>
           </Tabs>
         )}
