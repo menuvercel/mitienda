@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight } from "lucide-react"
+import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight, Minus, Plus } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { 
   getTransaccionesVendedor,
@@ -697,11 +697,11 @@ export default function VendedorPage() {
   const handleAjustarCantidad = (id: string, incremento: number) => {
     setProductosSeleccionados(prev => prev.map(p => {
       if (p.id === id) {
-        const nuevaCantidad = Math.max(0, Math.min(p.cantidadVendida + incremento, p.cantidad))
+        const nuevaCantidad = Math.max(1, Math.min(p.cantidadVendida + incremento, p.cantidad))
         return { ...p, cantidadVendida: nuevaCantidad }
       }
       return p
-    }).filter(p => p.cantidadVendida > 0))
+    }))
   }
 
   const handleSeleccionarProducto = (producto: Producto) => {
@@ -933,21 +933,34 @@ export default function VendedorPage() {
                   <h3 className="font-bold mb-2">Productos Seleccionados:</h3>
                   {productosSeleccionados.map((producto) => (
                     <div key={producto.id} className="flex justify-between items-center mb-2 p-2 bg-gray-100 rounded">
-                      <span>{producto.nombre} x{producto.cantidadVendida}</span>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleRemoverProducto(producto.id)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <span>{producto.nombre}</span>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleAjustarCantidad(producto.id, -1)}
+                          disabled={producto.cantidadVendida <= 1}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <span>{producto.cantidadVendida}</span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleAjustarCantidad(producto.id, 1)}
+                          disabled={producto.cantidadVendida >= producto.cantidad}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
+                
                 <h2 className="text-xl font-semibold">3. Enviar el formulario de ventas</h2>
                 <Button onClick={handleEnviarVenta}>Enviar</Button>
               </div>
-              </TabsContent>
+            </TabsContent>
             <TabsContent value="registro">
               <div className="space-y-4">
                 <h2 className="text-xl font-semibold">Registro de Ventas</h2>
