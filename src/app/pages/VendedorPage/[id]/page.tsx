@@ -504,9 +504,18 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
 
   const renderTransaccionesList = () => {
     const filteredTransacciones = filterItems(transacciones, searchTerm)
+    const uniqueTransacciones = filteredTransacciones.reduce((acc: Transaccion[], current) => {
+      const x = acc.find(item => item.id === current.id);
+      if (!x) {
+        return acc.concat([current]);
+      } else {
+        return acc;
+      }
+    }, []);
+
     return (
       <div className="space-y-2">
-        {filteredTransacciones.map(transaccion => {
+        {uniqueTransacciones.map(transaccion => {
           const transactionType = transaccion.tipo || 'Normal'
           const borderColor = 
             transactionType === 'Baja' ? 'border-red-500' :
@@ -825,7 +834,6 @@ export default function VendedorPage() {
             </TabsContent>
           </Tabs>
         )}
-
         {seccionActual === 'ventas' && (
           <Tabs defaultValue="vender">
             <TabsList>
@@ -977,7 +985,7 @@ export default function VendedorPage() {
             </div>
           </TabsContent>
         </Tabs>
-      )}
+        )}
        {seccionActual === 'registro' && (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Registro de Actividades</h2>
