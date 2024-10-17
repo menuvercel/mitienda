@@ -137,14 +137,14 @@ export const editarProducto = async (id: string, formData: FormData) => {
   return response.data;
 };
 
-export const entregarProducto = async (deliveries: DeliveryItem[]) => {
-  try {
-    const response = await api.post('/entregas/masiva', { deliveries });
-    return response.data;
-  } catch (error) {
-    console.error('Error en entrega masiva:', error);
-    throw error;
-  }
+export const entregarProducto = async (productoId: string, vendedorId: string, cantidad: number) => {
+  const response = await api.post('/transacciones', { 
+    productoId, 
+    vendedorId, 
+    cantidad,
+    tipo: 'Entrega' // Adding the 'tipo' field
+  });
+  return response.data;
 };
 
 export const getTransacciones = async () => {

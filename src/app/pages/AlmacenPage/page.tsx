@@ -162,27 +162,23 @@ export default function AlmacenPage() {
 
   const handleMassDelivery = async () => {
     try {
-      const deliveries = [];
       for (const [productId, quantity] of Object.entries(selectedProducts)) {
         for (const vendorId of selectedVendors) {
-          deliveries.push({ productId, vendorId, quantity });
+          await entregarProducto(productId, vendorId, quantity)
         }
       }
       
-      // Send all deliveries in a single API call
-      await entregarProducto(deliveries);
-      
-      await fetchInventario();
-      setShowMassDeliveryDialog(false);
-      setMassDeliveryStep(1);
-      setSelectedProducts({});
-      setSelectedVendors([]);
-      alert('Entrega masiva realizada con éxito');
+      await fetchInventario()
+      setShowMassDeliveryDialog(false)
+      setMassDeliveryStep(1)
+      setSelectedProducts({})
+      setSelectedVendors([])
+      alert('Entrega masiva realizada con éxito')
     } catch (error) {
-      console.error('Error en la entrega masiva:', error);
-      alert('Hubo un error al realizar la entrega masiva. Por favor, inténtelo de nuevo.');
+      console.error('Error en la entrega masiva:', error)
+      alert('Hubo un error al realizar la entrega masiva. Por favor, inténtelo de nuevo.')
     }
-  };
+  }
 
   const handleSort = (key: 'nombre' | 'cantidad') => {
     if (sortBy === key) {
@@ -359,15 +355,7 @@ export default function AlmacenPage() {
   const handleProductDelivery = async (productId: string, vendedorId: string, cantidad: number) => {
     try {
       console.log(`Entregando producto: ID=${productId}, VendedorID=${vendedorId}, Cantidad=${cantidad}`)
-
-      const deliveries = [];
-      for (const [productId, quantity] of Object.entries(selectedProducts)) {
-        for (const vendorId of selectedVendors) {
-          deliveries.push({ productId, vendorId, quantity });
-        }
-      }
-
-      await entregarProducto(deliveries)
+      await entregarProducto(productId, vendedorId, cantidad)
       
       await fetchInventario()
       setSelectedProduct(null)
