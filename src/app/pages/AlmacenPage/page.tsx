@@ -25,7 +25,8 @@ import {
   entregarProducto,
   reducirProductoVendedor,
   getTransaccionesVendedor,
-  editarVendedor
+  editarVendedor,
+  eliminarProducto
 } from '../../services/api'
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
@@ -147,6 +148,18 @@ export default function AlmacenPage() {
   const [productSearchTerm, setProductSearchTerm] = useState("")
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
+
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      await eliminarProducto(productId);
+      await fetchInventario();
+      setSelectedProduct(null);
+      alert('Producto eliminado exitosamente');
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      alert('Error al eliminar el producto. Por favor, inténtelo de nuevo.');
+    }
+  };
 
   const handleMassDelivery = async () => {
     try {
@@ -818,7 +831,7 @@ export default function AlmacenPage() {
           onClose={() => setSelectedProduct(null)}
           vendedores={vendedores}
           onEdit={handleEditProduct}
-          onDelete={handleReduceVendorProduct}
+          onDelete={handleDeleteProduct}
           onDeliver={handleProductDelivery}
         />
       )}
