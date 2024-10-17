@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
@@ -9,24 +9,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
-
-interface Venta {
-  _id: string;
-  producto: string;
-  producto_nombre: string;
-  producto_foto: string;
-  cantidad: number;
-  precio_unitario: number;
-  total: number;
-  vendedor: string;
-  fecha: string;
-}
+import { Vendedor, Venta } from '@/types'
 
 interface VentasPorVendedor {
   [vendedor: string]: number;
 }
 
-export default function SalesSection({ vendedores }: { vendedores: { id: string; nombre: string }[] }) {
+interface SalesSectionProps {
+  vendedores: Vendedor[];
+  obtenerVentas: (fecha: Date, vendedorId: string) => Promise<Venta[]>;
+}
+
+export default function SalesSection({ vendedores, obtenerVentas }: SalesSectionProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [ventasPorVendedor, setVentasPorVendedor] = useState<VentasPorVendedor>({})
   const [isLoading, setIsLoading] = useState(false)
@@ -38,15 +32,8 @@ export default function SalesSection({ vendedores }: { vendedores: { id: string;
     const ventasPorVendedor: VentasPorVendedor = {}
 
     try {
-      const startDate = format(fecha, 'yyyy-MM-dd')
-      const endDate = format(fecha, 'yyyy-MM-dd')
-
       for (const vendedor of vendedores) {
-        const response = await fetch(`/api/ventas?vendedorId=${vendedor.id}&startDate=${startDate}&endDate=${endDate}`)
-        if (!response.ok) {
-          throw new Error(`Error al obtener ventas para ${vendedor.nombre}`)
-        }
-        const ventas: Venta[] = await response.json()
+        const ventas = await obtenerVentas(fecha, vendedor.id)
         const totalVentas = ventas.reduce((sum, venta) => sum + venta.total, 0)
         ventasPorVendedor[vendedor.nombre] = totalVentas
       }

@@ -149,6 +149,23 @@ export default function AlmacenPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
 
+
+  const obtenerVentasDelDia = useCallback(async (fecha: Date, vendedorId: string) => {
+    try {
+      const startDate = fecha.toISOString().split('T')[0]
+      const endDate = startDate
+      const response = await fetch(`/api/ventas?vendedorId=${vendedorId}&startDate=${startDate}&endDate=${endDate}`)
+      if (!response.ok) {
+        throw new Error(`Error al obtener ventas para el vendedor ${vendedorId}`)
+      }
+      const ventas: Venta[] = await response.json()
+      return ventas
+    } catch (error) {
+      console.error('Error al obtener ventas:', error)
+      throw error
+    }
+  }, [])
+
   const handleDeleteProduct = async (productId: string) => {
     try {
       await eliminarProducto(productId);
@@ -622,7 +639,10 @@ export default function AlmacenPage() {
       )}
 
       {activeSection === 'ventas' && (
-        <SalesSection vendedores={vendedores} />
+        <SalesSection 
+        vendedores={vendedores} 
+        obtenerVentas={obtenerVentasDelDia}
+        />
       )}
 
     <Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
