@@ -164,12 +164,9 @@ export default function AlmacenPage() {
 
   const handleMassDelivery = async () => {
     try {
-      for (const vendorId of selectedVendors) {
-        for (const [productId, quantity] of Object.entries(selectedProducts)) {
-          const quantityPerVendor = Math.floor(quantity / selectedVendors.length)
-          if (quantityPerVendor > 0) {
-            await entregarProducto(productId, vendorId, quantityPerVendor)
-          }
+      for (const [productId, quantity] of Object.entries(selectedProducts)) {
+        for (const vendorId of selectedVendors) {
+          await entregarProducto(productId, vendorId, quantity)
         }
       }
       
@@ -209,6 +206,19 @@ export default function AlmacenPage() {
   const filteredInventarioForMassDelivery = inventario.filter((producto) =>
     producto.nombre.toLowerCase().includes(productSearchTerm.toLowerCase())
   )
+  
+  const handleProductQuantityChange = (productId: string, value: string) => {
+    const numValue = Number(value)
+    setSelectedProducts(prev => ({...prev, [productId]: numValue}))
+  }
+
+  const handleProductQuantityBlur = (productId: string, maxQuantity: number) => {
+    setSelectedProducts(prev => {
+      const currentValue = prev[productId] || 0
+      const adjustedValue = Math.max(1, Math.min(currentValue, Math.floor(maxQuantity / selectedVendors.length)))
+      return {...prev, [productId]: adjustedValue}
+    })
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewUser({ ...newUser, [e.target.name]: e.target.value })
@@ -624,7 +634,7 @@ export default function AlmacenPage() {
         </div>
       )}
 
-<Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
+    <Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Entrega Masiva</DialogTitle>
@@ -692,17 +702,15 @@ export default function AlmacenPage() {
                       </div>
                     </div>
                   </div>
-                  {selectedProducts[producto.id] && (
+                  {selectedProducts[producto.id] !== undefined && (
                     <Input
                       type="number"
                       value={selectedProducts[producto.id]}
-                      onChange={(e) => {
-                        const newValue = Math.max(1, Math.min(Number(e.target.value), producto.cantidad))
-                        setSelectedProducts({...selectedProducts, [producto.id]: newValue})
-                      }}
+                      onChange={(e) => handleProductQuantityChange(producto.id, e.target.value)}
+                      onBlur={() => handleProductQuantityBlur(producto.id, producto.cantidad)}
                       className="w-20"
                       min={1}
-                      max={producto.cantidad}
+                      max={Math.floor(producto.cantidad / selectedVendors.length)}
                     />
                   )}
                 </div>
