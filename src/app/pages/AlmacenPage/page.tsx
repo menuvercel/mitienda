@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -164,23 +162,27 @@ export default function AlmacenPage() {
 
   const handleMassDelivery = async () => {
     try {
+      const deliveries = [];
       for (const [productId, quantity] of Object.entries(selectedProducts)) {
         for (const vendorId of selectedVendors) {
-          await entregarProducto(productId, vendorId, quantity)
+          deliveries.push({ productId, vendorId, quantity });
         }
       }
       
-      await fetchInventario()
-      setShowMassDeliveryDialog(false)
-      setMassDeliveryStep(1)
-      setSelectedProducts({})
-      setSelectedVendors([])
-      alert('Entrega masiva realizada con éxito')
+      // Send all deliveries in a single API call
+      await entregarProducto(deliveries);
+      
+      await fetchInventario();
+      setShowMassDeliveryDialog(false);
+      setMassDeliveryStep(1);
+      setSelectedProducts({});
+      setSelectedVendors([]);
+      alert('Entrega masiva realizada con éxito');
     } catch (error) {
-      console.error('Error en la entrega masiva:', error)
-      alert('Hubo un error al realizar la entrega masiva. Por favor, inténtelo de nuevo.')
+      console.error('Error en la entrega masiva:', error);
+      alert('Hubo un error al realizar la entrega masiva. Por favor, inténtelo de nuevo.');
     }
-  }
+  };
 
   const handleSort = (key: 'nombre' | 'cantidad') => {
     if (sortBy === key) {
@@ -357,7 +359,15 @@ export default function AlmacenPage() {
   const handleProductDelivery = async (productId: string, vendedorId: string, cantidad: number) => {
     try {
       console.log(`Entregando producto: ID=${productId}, VendedorID=${vendedorId}, Cantidad=${cantidad}`)
-      await entregarProducto(productId, vendedorId, cantidad)
+
+      const deliveries = [];
+      for (const [productId, quantity] of Object.entries(selectedProducts)) {
+        for (const vendorId of selectedVendors) {
+          deliveries.push({ productId, vendorId, quantity });
+        }
+      }
+
+      await entregarProducto(deliveries)
       
       await fetchInventario()
       setSelectedProduct(null)
