@@ -442,44 +442,14 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
     return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
   }
 
-  const VentaDesplegable = ({ venta }: { venta: Venta }) => {
-    const [isOpen, setIsOpen] = useState(false);
-
+  const VentaItem = ({ venta }: { venta: Venta }) => {
     return (
-      <div className={`flex flex-col bg-white p-2 rounded-lg shadow border-l-4 border-green-500`}>
-        <div 
-          className="flex items-center justify-between cursor-pointer"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          <div className="flex items-center space-x-2">
-            <DollarSign className="w-6 h-6 text-green-500 flex-shrink-0" />
-            <div>
-              <p className="font-bold text-sm">{new Date(venta.fecha).toLocaleDateString()}</p>
-              <p className="text-xs text-gray-600">Total: ${formatPrice(venta.total)}</p>
-            </div>
-          </div>
-          {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      <div className="flex items-center justify-between bg-white p-2 rounded-lg shadow border-l-4 border-green-500">
+        <div className="flex items-center space-x-2">
+          <DollarSign className="w-5 h-5 text-green-500 flex-shrink-0" />
+          <p className="font-semibold text-sm">{new Date(venta.fecha).toLocaleDateString()}</p>
         </div>
-        {isOpen && (
-          <div className="mt-2 pl-8">
-            <div className="flex items-center space-x-2 p-2">
-              <Image
-                src={venta.producto_foto || '/placeholder.svg'}
-                alt={venta.producto_nombre}
-                width={40}
-                height={40}
-                className="rounded-md"
-              />
-              <div>
-                <span className="font-semibold">{venta.producto_nombre}</span>
-                <div className="text-xs text-gray-600">
-                  <span>Cantidad: {venta.cantidad}</span>
-                  <span className="ml-2">Precio unitario: ${formatPrice(venta.precio_unitario)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <p className="text-sm">Cantidad: {venta.cantidad}</p>
       </div>
     );
   };
@@ -490,7 +460,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
       <div className="space-y-2">
         {filteredVentas.length > 0 ? (
           filteredVentas.map(venta => (
-            <VentaDesplegable key={venta._id} venta={venta} />
+            <VentaItem key={venta._id} venta={venta} />
           ))
         ) : (
           <div className="text-center py-4">No hay ventas registradas</div>
