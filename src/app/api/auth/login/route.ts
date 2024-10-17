@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { generateToken } from '@/lib/auth';
-import bcrypt from 'bcrypt';
-
 
 export async function POST(request: NextRequest) {
   const { nombre, password }: { nombre: string; password: string } = await request.json();
@@ -10,12 +8,14 @@ export async function POST(request: NextRequest) {
   const result = await query('SELECT * FROM usuarios WHERE nombre = $1', [nombre]);
   const user = result.rows[0];
 
-  if (!user || !(await bcrypt.compare(password, user.password))) {
+  console.log('Usuario encontrado:', user); // Para depuración
+
+  if (!user || user.password !== password) {
     return NextResponse.json({ error: 'Credenciales inválidas' }, { status: 401 });
   }
 
   const userForToken = {
-    id: user.id.toString(), // Ensure ID is a string
+    id: user.id.toString(),
     nombre: user.nombre,
     rol: user.rol
   };

@@ -617,7 +617,6 @@ export default function VendedorPage() {
     productosDisponibles, 
     productosAgotados, 
     transacciones,
-    ventasAgrupadas,
     ventasSemanales,
     ventasDiarias,
     fetchProductos, 
@@ -629,9 +628,11 @@ export default function VendedorPage() {
   const [productosSeleccionados, setProductosSeleccionados] = useState<ProductoVenta[]>([])
   const [seccionActual, setSeccionActual] = useState<'productos' | 'ventas' | 'registro'>('productos')
   const [menuAbierto, setMenuAbierto] = useState(false)
-  const [cantidadSeleccionada, setCantidadSeleccionada] = useState<number>(1)
-  const [productoActual, setProductoActual] = useState<Producto | null>(null)
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
+
+  const productosFiltrados = productosDisponibles.filter(p => 
+    p.nombre.toLowerCase().includes(busqueda.toLowerCase())
+  )
 
   const renderTransaccionesList = () => {
     const filteredTransacciones = transacciones.filter(t =>
@@ -690,45 +691,6 @@ export default function VendedorPage() {
     setSelectedProductIds([])
   }
 
-  const VentaDesplegable = ({ venta }: { venta: Venta }) => {
-    const [isOpen, setIsOpen] = useState(false);
-
-    return (
-      <>
-        <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
-          <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
-          <TableCell>${typeof venta.total === 'number' ? venta.total.toFixed(2) : parseFloat(venta.total).toFixed(2)}</TableCell>
-          <TableCell>
-            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </TableCell>
-        </TableRow>
-        {isOpen && (
-          <TableRow>
-            <TableCell colSpan={3}>
-              <div className="flex items-center space-x-2 p-2">
-                <Image
-                  src={venta.producto_foto || '/placeholder.svg'}
-                  alt={venta.producto_nombre}
-                  width={40}
-                  height={40}
-                  className="rounded-md"
-                />
-                <span>{venta.producto_nombre}</span>
-                <span>Cantidad: {venta.cantidad}</span>
-                <span>Precio unitario: ${typeof venta.precio_unitario === 'number' ? venta.precio_unitario.toFixed(2) : parseFloat(venta.precio_unitario).toFixed(2)}</span>
-              </div>
-            </TableCell>
-          </TableRow>
-        )}
-      </>
-    );
-  };
-
-
-  const productosFiltrados = productosDisponibles.filter(p => 
-    p.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  )
-
   const handleAjustarCantidad = (id: string, incremento: number) => {
     setProductosSeleccionados(prev => prev.reduce((acc, p) => {
       if (p.id === id) {
@@ -740,37 +702,6 @@ export default function VendedorPage() {
       }
       return [...acc, p];
     }, [] as ProductoVenta[]))
-  }
-
-  const handleSeleccionarProducto = (producto: Producto) => {
-    const productoExistente = productosSeleccionados.find(p => p.id === producto.id)
-    if (productoExistente) {
-      setProductosSeleccionados(prev => prev.map(p => 
-        p.id === producto.id ? { ...p, cantidadVendida: p.cantidadVendida + 1 } : p
-      ))
-    } else {
-      setProductosSeleccionados(prev => [...prev, { ...producto, cantidadVendida: 1 }])
-    }
-  }
-
-  const handleConfirmarSeleccion = () => {
-    if (productoActual && cantidadSeleccionada > 0 && cantidadSeleccionada <= productoActual.cantidad) {
-      setProductosSeleccionados(prev => [
-        ...prev,
-        {
-          ...productoActual,
-          cantidadVendida: cantidadSeleccionada
-        }
-      ])
-      setProductoActual(null)
-      setCantidadSeleccionada(1)
-    } else {
-      alert('La cantidad seleccionada no es válida o excede el stock disponible.')
-    }
-  }
-
-  const handleRemoverProducto = (id: string) => {
-    setProductosSeleccionados(prev => prev.filter(p => p.id !== id))
   }
 
   const handleEnviarVenta = async () => {
@@ -806,11 +737,6 @@ export default function VendedorPage() {
   const cambiarSeccion = (seccion: 'productos' | 'ventas' | 'registro') => {
     setSeccionActual(seccion)
     setMenuAbierto(false)
-  }
-
-  const handleCancelarSeleccion = () => {
-    setProductoActual(null)
-    setCantidadSeleccionada(1)
   }
 
   if (isLoading) {
