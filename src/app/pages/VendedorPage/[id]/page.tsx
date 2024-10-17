@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight, Minus, Plus } from "lucide-react"
+import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight, Minus, Plus, DollarSign  } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { 
   getTransaccionesVendedor,
@@ -446,59 +446,56 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-      <>
-        <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
-          <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
-          <TableCell>${formatPrice(venta.total)}</TableCell>
-          <TableCell>
-            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </TableCell>
-        </TableRow>
+      <div className={`flex flex-col bg-white p-2 rounded-lg shadow border-l-4 border-green-500`}>
+        <div 
+          className="flex items-center justify-between cursor-pointer"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <div className="flex items-center space-x-2">
+            <DollarSign className="w-6 h-6 text-green-500 flex-shrink-0" />
+            <div>
+              <p className="font-bold text-sm">{new Date(venta.fecha).toLocaleDateString()}</p>
+              <p className="text-xs text-gray-600">Total: ${formatPrice(venta.total)}</p>
+            </div>
+          </div>
+          {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </div>
         {isOpen && (
-          <TableRow>
-            <TableCell colSpan={3}>
-              <div className="flex items-center space-x-2 p-2">
-                <Image
-                  src={venta.producto_foto || '/placeholder.svg'}
-                  alt={venta.producto_nombre}
-                  width={40}
-                  height={40}
-                  className="rounded-md"
-                />
-                <span>{venta.producto_nombre}</span>
-                <span>Cantidad: {venta.cantidad}</span>
-                <span>Precio unitario: ${formatPrice(venta.precio_unitario)}</span>
+          <div className="mt-2 pl-8">
+            <div className="flex items-center space-x-2 p-2">
+              <Image
+                src={venta.producto_foto || '/placeholder.svg'}
+                alt={venta.producto_nombre}
+                width={40}
+                height={40}
+                className="rounded-md"
+              />
+              <div>
+                <span className="font-semibold">{venta.producto_nombre}</span>
+                <div className="text-xs text-gray-600">
+                  <span>Cantidad: {venta.cantidad}</span>
+                  <span className="ml-2">Precio unitario: ${formatPrice(venta.precio_unitario)}</span>
+                </div>
               </div>
-            </TableCell>
-          </TableRow>
+            </div>
+          </div>
         )}
-      </>
+      </div>
     );
   };
 
   const renderVentasList = () => {
     const filteredVentas = filterItems(ventas, searchTerm)
     return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Fecha</TableHead>
-            <TableHead>Total</TableHead>
-            <TableHead></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredVentas.length > 0 ? (
-            filteredVentas.map(venta => (
-              <VentaDesplegable key={venta._id} venta={venta} />
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={3} className="text-center">No hay ventas registradas</TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+      <div className="space-y-2">
+        {filteredVentas.length > 0 ? (
+          filteredVentas.map(venta => (
+            <VentaDesplegable key={venta._id} venta={venta} />
+          ))
+        ) : (
+          <div className="text-center py-4">No hay ventas registradas</div>
+        )}
+      </div>
     )
   }
 
