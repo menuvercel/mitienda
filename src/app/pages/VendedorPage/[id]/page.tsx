@@ -389,7 +389,7 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
 };
 
 
-const ProductoCard = ({ producto }: { producto: Producto }) => {
+const ProductoCard = ({ producto }: { producto: Producto }) =>{
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [transacciones, setTransacciones] = useState<Transaccion[]>([])
   const [ventas, setVentas] = useState<Venta[]>([])
@@ -410,6 +410,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
       ])
       setTransacciones(transaccionesData)
       setVentas(ventasData)
+      console.log('Ventas obtenidas:', ventasData) // Añadir este log
     } catch (error) {
       console.error('Error al obtener datos del producto:', error)
       setError('No se pudieron cargar los datos del producto. Por favor, intenta de nuevo.')
@@ -438,6 +439,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
 
   const renderVentasList = () => {
     const filteredVentas = filterItems(ventas, searchTerm)
+    console.log('Ventas filtradas:', filteredVentas) // Añadir este log
     return (
       <Table>
         <TableHeader>
@@ -460,7 +462,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={4} className="text-center">No hay ventas registradas</TableCell>
+              <TableCell colSpan={4} className="text-center">No hay ventas registradas para este producto</TableCell>
             </TableRow>
           )}
         </TableBody>
@@ -554,7 +556,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
       </Dialog>
     </>
   )
-};
+}
 
 export default function VendedorPage() {
   const params = useParams()
