@@ -161,11 +161,15 @@ export default function AlmacenPage() {
     }
   };
 
+
   const handleMassDelivery = async () => {
     try {
       for (const vendorId of selectedVendors) {
         for (const [productId, quantity] of Object.entries(selectedProducts)) {
-          await entregarProducto(productId, vendorId, quantity)
+          const quantityPerVendor = Math.floor(quantity / selectedVendors.length)
+          if (quantityPerVendor > 0) {
+            await entregarProducto(productId, vendorId, quantityPerVendor)
+          }
         }
       }
       
@@ -620,103 +624,102 @@ export default function AlmacenPage() {
         </div>
       )}
 
-      <Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Entrega Masiva</DialogTitle>
-          </DialogHeader>
-          {massDeliveryStep === 1 ? (
-            <div className="space-y-4">
-              <Input
-                placeholder="Buscar productos..."
-                value={productSearchTerm}
-                onChange={(e) => 
-                setProductSearchTerm(e.target.value)}
-              />
-              <div className="max-h-[300px] overflow-y-auto space-y-2">
-                {filteredInventarioForMassDelivery.map((producto) => (
-                  <div key={producto.id} className="flex items-center space-x-2 p-2 border rounded">
-                    <Checkbox
-                      id={`product-${producto.id}`}
-                      checked={!!selectedProducts[producto.id]}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedProducts({...selectedProducts, [producto.id]: 1})
-                        } else {
-                          const { [producto.id]: _, ...rest } = selectedProducts
-                          setSelectedProducts(rest)
-                        }
-                      }}
+<Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Entrega Masiva</DialogTitle>
+        </DialogHeader>
+        {massDeliveryStep === 1 ? (
+          <div className="space-y-4">
+            <div className="max-h-[300px] overflow-y-auto space-y-2">
+              {vendedores.map((vendedor) => (
+                <div key={vendedor.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`vendor-${vendedor.id}`}
+                    checked={selectedVendors.includes(vendedor.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedVendors([...selectedVendors, vendedor.id])
+                      } else {
+                        setSelectedVendors(selectedVendors.filter(id => id !== vendedor.id))
+                      }
+                    }}
+                  />
+                  <label htmlFor={`vendor-${vendedor.id}`}>{vendedor.nombre}</label>
+                </div>
+              ))}
+            </div>
+            <Button onClick={() => setMassDeliveryStep(2)} 
+              disabled={selectedVendors.length === 0}>
+              Siguiente
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <Input
+              placeholder="Buscar productos..."
+              value={productSearchTerm}
+              onChange={(e) => setProductSearchTerm(e.target.value)}
+            />
+            <div className="max-h-[300px] overflow-y-auto space-y-2">
+              {filteredInventarioForMassDelivery.map((producto) => (
+                <div key={producto.id} className="flex items-center space-x-2 p-2 border rounded">
+                  <Checkbox
+                    id={`product-${producto.id}`}
+                    checked={!!selectedProducts[producto.id]}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedProducts({...selectedProducts, [producto.id]: 1})
+                      } else {
+                        const { [producto.id]: _, ...rest } = selectedProducts
+                        setSelectedProducts(rest)
+                      }
+                    }}
+                  />
+                  <div className="flex-grow flex items-center space-x-2">
+                    <Image
+                      src={producto.foto || '/placeholder.svg'}
+                      alt={producto.nombre}
+                      width={40}
+                      height={40}
+                      className="object-cover rounded"
                     />
-                    <div className="flex-grow flex items-center space-x-2">
-                      <Image
-                        src={producto.foto || '/placeholder.svg'}
-                        alt={producto.nombre}
-                        width={40}
-                        height={40}
-                        className="object-cover rounded"
-                      />
-                      <div>
-                        <label htmlFor={`product-${producto.id}`} className="font-medium">{producto.nombre}</label>
-                        <div className="text-sm text-gray-600">
-                          <span className="mr-2">Precio: ${producto.precio}</span>
-                          <span>Disponible: {producto.cantidad}</span>
-                        </div>
+                    <div>
+                      <label htmlFor={`product-${producto.id}`} className="font-medium">{producto.nombre}</label>
+                      <div className="text-sm text-gray-600">
+                        <span className="mr-2">Precio: ${producto.precio}</span>
+                        <span>Disponible: {producto.cantidad}</span>
                       </div>
                     </div>
-                    {selectedProducts[producto.id] && (
-                      <Input
-                        type="number"
-                        value={selectedProducts[producto.id]}
-                        onChange={(e) => {
-                          const quantity = Math.min(Number(e.target.value), producto.cantidad)
-                          setSelectedProducts({...selectedProducts, [producto.id]: quantity})
-                        }}
-                        className="w-20"
-                        min={1}
-                        max={producto.cantidad}
-                      />
-                    )}
                   </div>
-                ))}
-              </div>
-              <Button onClick={() => setMassDeliveryStep(2)} 
-                disabled={Object.keys(selectedProducts).length === 0}>
-                Siguiente
+                  {selectedProducts[producto.id] && (
+                    <Input
+                      type="number"
+                      value={selectedProducts[producto.id]}
+                      onChange={(e) => {
+                        const newValue = Math.max(1, Math.min(Number(e.target.value), producto.cantidad))
+                        setSelectedProducts({...selectedProducts, [producto.id]: newValue})
+                      }}
+                      className="w-20"
+                      min={1}
+                      max={producto.cantidad}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setMassDeliveryStep(1)}>
+                Atrás
+              </Button>
+              <Button onClick={handleMassDelivery} disabled={Object.keys(selectedProducts).length === 0}>
+                Entregar
               </Button>
             </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="max-h-[300px] overflow-y-auto space-y-2">
-                {vendedores.map((vendedor) => (
-                  <div key={vendedor.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`vendor-${vendedor.id}`}
-                      checked={selectedVendors.includes(vendedor.id)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedVendors([...selectedVendors, vendedor.id])
-                        } else {
-                          setSelectedVendors(selectedVendors.filter(id => id !== vendedor.id))
-                        }
-                      }}
-                    />
-                    <label htmlFor={`vendor-${vendedor.id}`}>{vendedor.nombre}</label>
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setMassDeliveryStep(1)}>
-                  Atrás
-                </Button>
-                <Button onClick={handleMassDelivery} disabled={selectedVendors.length === 0}>
-                  Entregar
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
 
       <Dialog open={showRegisterModal} onOpenChange={setShowRegisterModal}>
         <DialogContent>
