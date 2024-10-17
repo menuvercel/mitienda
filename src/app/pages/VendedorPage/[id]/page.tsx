@@ -408,7 +408,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
         getTransaccionesProducto(producto.id),
         getVentasProducto(producto.id, startDate, endDate)
       ]);
-      setTransacciones(transaccionesData.map((t: any) => ({
+      setTransacciones(transaccionesData.map(t => ({
         id: t.id,
         producto: t.producto,
         cantidad: t.cantidad,
@@ -504,18 +504,9 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
 
   const renderTransaccionesList = () => {
     const filteredTransacciones = filterItems(transacciones, searchTerm)
-    const uniqueTransacciones = filteredTransacciones.reduce((acc: Transaccion[], current) => {
-      const x = acc.find(item => item.id === current.id);
-      if (!x) {
-        return acc.concat([current]);
-      } else {
-        return acc;
-      }
-    }, []);
-
     return (
       <div className="space-y-2">
-        {uniqueTransacciones.map(transaccion => {
+        {filteredTransacciones.map(transaccion => {
           const transactionType = transaccion.tipo || 'Normal'
           const borderColor = 
             transactionType === 'Baja' ? 'border-red-500' :
@@ -556,7 +547,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
               className="object-cover rounded"
               onError={(e) => {
                 console.error(`Error loading image for ${producto.nombre}:`, e);
-                (e.target as HTMLImageElement).src = '/placeholder.svg';
+                e.currentTarget.src = '/placeholder.svg';
               }}
             />
           ) : (
