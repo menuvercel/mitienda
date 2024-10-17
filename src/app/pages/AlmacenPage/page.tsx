@@ -28,6 +28,7 @@ import {
 } from '../../services/api'
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
+import SalesSection from '@/components/SalesSection'
 import { Producto, Vendedor, Venta, Transaccion } from '@/types'
 
 interface VendorDialogProps {
@@ -124,6 +125,7 @@ export default function AlmacenPage() {
   })
   const [productosVendedor, setProductosVendedor] = useState<Producto[]>([])
   const [ventasVendedor, setVentasVendedor] = useState<Venta[]>([])
+  const [ventas, setVentas] = useState<Venta[]>([])
   const [transaccionesVendedor, setTransaccionesVendedor] = useState<Transaccion[]>([])
   const [vendedorSeleccionado, setVendedorSeleccionado] = useState<Vendedor | null>(null)
   const [ventasSemanales, setVentasSemanales] = useState<VentaSemana[]>([])
@@ -620,16 +622,7 @@ export default function AlmacenPage() {
       )}
 
       {activeSection === 'ventas' && (
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Ventas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>La lógica para las ventas se implementará más adelante.</p>
-            </CardContent>
-          </Card>
-        </div>
+        <SalesSection ventas={ventas} />
       )}
 
     <Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
