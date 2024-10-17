@@ -29,7 +29,6 @@ export default function SalesSection({ ventas = [] }: { ventas: Venta[] }) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [ventasPorDia, setVentasPorDia] = useState<VentasPorVendedor>({})
   const [ventasPorSemana, setVentasPorSemana] = useState<VentasPorVendedor>({})
-  const [mostrarPresionado, setMostrarPresionado] = useState(false)
 
   useEffect(() => {
     if (selectedDate) {
@@ -130,33 +129,22 @@ export default function SalesSection({ ventas = [] }: { ventas: Venta[] }) {
                 />
               </PopoverContent>
             </Popover>
-            <Button onClick={() => {
-              setSelectedDate(new Date(selectedDate || new Date()))
-              setMostrarPresionado(true)
-            }}>Mostrar</Button>
+            <Button onClick={() => setSelectedDate(selectedDate)}>Mostrar</Button>
           </div>
           <TabsContent value="por-dia">
             <h3 className="text-lg font-semibold mb-4">Ventas del día</h3>
-            {mostrarPresionado ? (
-              Object.keys(ventasPorDia).length > 0 ? (
-                renderVentas(ventasPorDia)
-              ) : (
-                <p className="text-center text-gray-500">No hay ventas registradas para este día.</p>
-              )
+            {Object.keys(ventasPorDia).length > 0 ? (
+              renderVentas(ventasPorDia)
             ) : (
-              <p className="text-center text-gray-500">Selecciona una fecha y presiona "Mostrar" para ver las ventas.</p>
+              <p className="text-center text-gray-500">No hay ventas registradas para este día.</p>
             )}
           </TabsContent>
           <TabsContent value="por-semana">
             <h3 className="text-lg font-semibold mb-4">Ventas de la semana</h3>
-            {mostrarPresionado ? (
-              Object.keys(ventasPorSemana).length > 0 ? (
-                renderVentas(ventasPorSemana)
-              ) : (
-                <p className="text-center text-gray-500">No hay ventas registradas para esta semana.</p>
-              )
+            {Object.keys(ventasPorSemana).length > 0 ? (
+              renderVentas(ventasPorSemana)
             ) : (
-              <p className="text-center text-gray-500">Selecciona una fecha y presiona "Mostrar" para ver las ventas de la semana.</p>
+              <p className="text-center text-gray-500">No hay ventas registradas para esta semana.</p>
             )}
           </TabsContent>
         </Tabs>
