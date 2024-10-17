@@ -43,6 +43,7 @@
     "react-dom": "^18",
     "react-router-dom": "^6.26.2",
     "shadcn-ui": "^0.2.3",
+    "sharp": "^0.33.5",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7"
   },
