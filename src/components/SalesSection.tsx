@@ -26,6 +26,12 @@ interface VentaSemanal {
   total_ventas: number | string | null;
 }
 
+interface VentasSemana {
+  week_start: string;
+  week_end: string;
+  ventas: VentaSemanal[];
+}
+
 interface SalesSectionProps {
   userRole: 'Almacen' | 'Vendedor';
 }
@@ -33,7 +39,7 @@ interface SalesSectionProps {
 export default function SalesSection({ userRole }: SalesSectionProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [ventasDiarias, setVentasDiarias] = useState<VentaDiaria[]>([])
-  const [ventasSemanales, setVentasSemanales] = useState<VentaSemanal[]>([])
+  const [ventasSemanales, setVentasSemanales] = useState<VentasSemana[]>([])
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -81,16 +87,20 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
 
         if (!acc[weekKey]) {
           acc[weekKey] = {
-            ...current,
             week_start: format(weekStart, 'yyyy-MM-dd'),
             week_end: format(weekEnd, 'yyyy-MM-dd'),
-            total_ventas: 0
+            ventas: []
           }
         }
 
-        acc[weekKey].total_ventas = (parseFloat(acc[weekKey].total_ventas as string) || 0) + (parseFloat(current.total_ventas as string) || 0)
+        acc[weekKey].ventas.push({
+          ...current,
+          week_start: format(weekStart, 'yyyy-MM-dd'),
+          week_end: format(weekEnd, 'yyyy-MM-dd'),
+        })
+
         return acc
-      }, {} as Record<string, VentaSemanal>)
+      }, {} as Record<string, VentasSemana>)
 
       const uniqueWeeksArray = Object.values(processedData)
       setVentasSemanales(uniqueWeeksArray)
@@ -128,7 +138,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
   }, 0)
 
   const ventasSemanalesFiltradas = selectedWeek
-    ? ventasSemanales.filter(venta => `${venta.week_start},${venta.week_end}` === selectedWeek)
+    ? ventasSemanales.find(semana => `${semana.week_start},${semana.week_end}` === selectedWeek)?.ventas || []
     : []
 
   const totalVentasSemanales = ventasSemanalesFiltradas.reduce((sum, venta) => {
@@ -218,9 +228,9 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
                   <SelectValue placeholder="Seleccionar semana" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ventasSemanales.map((venta, index) => (
-                    <SelectItem key={index} value={`${venta.week_start},${venta.week_end}`}>
-                      {`${format(parseISO(venta.week_start), 'dd/MM/yyyy')} - ${format(parseISO(venta.week_end), 'dd/MM/yyyy')}`}
+                  {ventasSemanales.map((semana, index) => (
+                    <SelectItem key={index} value={`${semana.week_start},${semana.week_end}`}>
+                      {`${format(parseISO(semana.week_start), 'dd/MM/yyyy')} - ${format(parseISO(semana.week_end), 'dd/MM/yyyy')}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
