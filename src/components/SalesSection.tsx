@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 
 interface VentaDiaria {
@@ -72,9 +72,23 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
       }
 
       const data: VentaSemanal[] = await response.json()
-      setVentasSemanales(data)
-      if (data.length > 0) {
-        setSelectedWeek(`${data[0].week_start},${data[0].week_end}`)
+      
+      // Remove duplicate weeks
+      const uniqueWeeks = data.reduce((acc, current) => {
+        const weekKey = `${current.week_start},${current.week_end}`
+        if (!acc[weekKey]) {
+          acc[weekKey] = current
+        } else {
+          acc[weekKey].total_ventas = (parseFloat(acc[weekKey].total_ventas as string) || 0) + (parseFloat(current.total_ventas as string) || 0)
+        }
+        return acc
+      }, {} as Record<string, VentaSemanal>)
+
+      const uniqueWeeksArray = Object.values(uniqueWeeks)
+      setVentasSemanales(uniqueWeeksArray)
+      
+      if (uniqueWeeksArray.length > 0 && !selectedWeek) {
+        setSelectedWeek(`${uniqueWeeksArray[0].week_start},${uniqueWeeksArray[0].week_end}`)
       }
     } catch (error) {
       console.error('Error al obtener ventas semanales:', error)
@@ -82,16 +96,16 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [selectedWeek])
+
+  useEffect(() => {
+    obtenerVentasSemanales()
+  }, [obtenerVentasSemanales])
 
   const handleMostrarVentasDiarias = () => {
     if (selectedDate) {
       obtenerVentasDelDia(selectedDate)
     }
-  }
-
-  const handleMostrarVentasSemanales = () => {
-    obtenerVentasSemanales()
   }
 
   const formatTotalVentas = (total: number | string | null): string => {
@@ -150,7 +164,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
                 </PopoverContent>
               </Popover>
               <Button onClick={handleMostrarVentasDiarias} disabled={isLoading}>
-                {isLoading ? 'Cargando...' : 'Mostrar'}
+                {isLoading ? 'Cargando...' : 'Cargar'}
               </Button>
             </div>
 
@@ -198,13 +212,13 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
                 <SelectContent>
                   {ventasSemanales.map((venta, index) => (
                     <SelectItem key={index} value={`${venta.week_start},${venta.week_end}`}>
-                      {`${format(new Date(venta.week_start), 'dd/MM/yyyy')} - ${format(new Date(venta.week_end), 'dd/MM/yyyy')}`}
+                      {`${format(parseISO(venta.week_start), 'dd/MM/yyyy')} - ${format(parseISO(venta.week_end), 'dd/MM/yyyy')}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Button onClick={handleMostrarVentasSemanales} disabled={isLoading}>
-                {isLoading ? 'Cargando...' : 'Mostrar'}
+              <Button onClick={obtenerVentasSemanales} disabled={isLoading}>
+                {isLoading ? 'Cargando...' : 'Cargar'}
               </Button>
             </div>
 
