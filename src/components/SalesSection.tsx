@@ -13,7 +13,7 @@ import { Calendar as CalendarIcon } from "lucide-react"
 interface VentaDiaria {
   vendedor_id: string;
   vendedor_nombre: string;
-  total_ventas: number;
+  total_ventas: number | string | null;
 }
 
 interface SalesSectionProps {
@@ -54,7 +54,16 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
     }
   }
 
-  const totalVentas = ventasDiarias.reduce((sum, venta) => sum + venta.total_ventas, 0)
+  const formatTotalVentas = (total: number | string | null): string => {
+    if (total === null) return '$0.00'
+    const numTotal = typeof total === 'string' ? parseFloat(total) : total
+    return isNaN(numTotal) ? '$0.00' : `$${numTotal.toFixed(2)}`
+  }
+
+  const totalVentas = ventasDiarias.reduce((sum, venta) => {
+    const ventaTotal = typeof venta.total_ventas === 'string' ? parseFloat(venta.total_ventas) : (venta.total_ventas || 0)
+    return sum + (isNaN(ventaTotal) ? 0 : ventaTotal)
+  }, 0)
 
   return (
     <Card className="w-full">
@@ -106,13 +115,13 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
               {ventasDiarias.map((venta) => (
                 <TableRow key={venta.vendedor_id}>
                   <TableCell>{venta.vendedor_nombre}</TableCell>
-                  <TableCell className="text-right">${venta.total_ventas.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">{formatTotalVentas(venta.total_ventas)}</TableCell>
                 </TableRow>
               ))}
               {userRole === 'Almacen' && (
                 <TableRow className="font-bold">
                   <TableCell>Total</TableCell>
-                  <TableCell className="text-right">${totalVentas.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">{formatTotalVentas(totalVentas)}</TableCell>
                 </TableRow>
               )}
             </TableBody>
