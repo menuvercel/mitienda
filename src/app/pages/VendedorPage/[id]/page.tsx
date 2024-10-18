@@ -14,6 +14,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight, Minus, Plus, DollarSign  } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { format, parseISO } from 'date-fns'
+import { es } from 'date-fns/locale'
 import { 
   getTransaccionesVendedor,
   getProductosVendedor, 
@@ -257,23 +259,9 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const formatDate = (dateString: string) => {
-    // Verificar si la fecha ya está en el formato DD/MM/YYYY
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
-      return dateString; // Devolver la fecha tal cual si ya está en el formato correcto
-    }
-
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      console.error('Fecha inválida:', dateString);
-      return 'Fecha inválida';
-    }
-    return date.toLocaleDateString('es-ES', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric',
-      timeZone: 'UTC'
-    });
-  };
+    const date = parseISO(dateString)
+    return format(date, 'dd/MM/yyyy', { locale: es })
+  }
 
   const formatPrice = (price: number | string): string => {
     const numPrice = typeof price === 'string' ? parseFloat(price) : price;
@@ -363,11 +351,11 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
       {isOpen && (
         <div className="p-4 bg-gray-50">
           {Object.entries(ventasPorDia)
-            .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
+            .sort(([dateA], [dateB]) => parseISO(dateA).getTime() - parseISO(dateB).getTime())
             .map(([fecha, ventasDia]) => {
-              const fechaVenta = new Date(fecha);
-              const fechaInicio = new Date(venta.fechaInicio);
-              const fechaFin = new Date(venta.fechaFin);
+              const fechaVenta = parseISO(fecha)
+              const fechaInicio = parseISO(venta.fechaInicio)
+              const fechaFin = parseISO(venta.fechaFin)
               if (fechaVenta >= fechaInicio && fechaVenta <= fechaFin) {
                 return (
                   <VentaDiaDesplegable 
