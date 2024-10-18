@@ -8,6 +8,8 @@ import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
 import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { format, parseISO, startOfWeek, endOfWeek, isValid } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 interface VendorDialogProps {
   vendor: Vendedor
@@ -44,18 +46,27 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [quantityToReduce, setQuantityToReduce] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
 
-  const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
-    const [isOpen, setIsOpen] = useState(false);
+  const formatDate = (dateString: string): string => {
+    try {
+      const date = parseISO(dateString)
+      if (!isValid(date)) {
+        console.error(`Invalid date string: ${dateString}`)
+        return 'Fecha inválida'
+      }
+      return format(date, 'dd/MM/yyyy', { locale: es })
+    } catch (error) {
+      console.error(`Error formatting date: ${dateString}`, error)
+      return 'Error en fecha'
+    }
+  }
 
-    const formatDate = (dateString: string) => {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('es-ES', { 
-        day: '2-digit', 
-        month: '2-digit', 
-        year: 'numeric',
-        timeZone: 'UTC'
-      });
-    };
+  const formatPrice = (price: number | string): string => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price
+    return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
+  }
+
+  const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
+    const [isOpen, setIsOpen] = useState(false)
 
     return (
       <div className="border rounded-lg mb-2">
@@ -92,25 +103,31 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
           </div>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
-    const [isOpen, setIsOpen] = useState(false);
+    const [isOpen, setIsOpen] = useState(false)
 
-    const formatDate = (dateString: string) => {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    };
+    const parsePrice = (price: number | string): number => {
+      if (typeof price === 'number') return price
+      const parsed = parseFloat(price)
+      return isNaN(parsed) ? 0 : parsed
+    }
 
     const ventasPorDia = venta.ventas.reduce((acc: Record<string, Venta[]>, v) => {
-      const fecha = new Date(v.fecha).toLocaleDateString();
-      if (!acc[fecha]) {
-        acc[fecha] = [];
+      const fecha = parseISO(v.fecha)
+      if (!isValid(fecha)) {
+        console.error(`Invalid date in venta: ${v.fecha}`)
+        return acc
       }
-      acc[fecha].push(v);
-      return acc;
-    }, {});
+      const fechaStr = format(fecha, 'yyyy-MM-dd')
+      if (!acc[fechaStr]) {
+        acc[fechaStr] = []
+      }
+      acc[fechaStr].push(v)
+      return acc
+    }, {})
 
     return (
       <div className="border rounded-lg mb-2">
@@ -127,21 +144,36 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
         </div>
         {isOpen && (
           <div className="p-4 bg-gray-50">
-            {Object.entries(ventasPorDia).map(([fecha, ventasDia]) => (
-              <VentaDiaDesplegable 
-                key={fecha} 
-                venta={{
-                  fecha, 
-                  ventas: ventasDia, 
-                  total: ventasDia.reduce((sum, v) => sum + parseFloat(v.total.toString()), 0)
-                }} 
-              />
-            ))}
+            {Object.entries(ventasPorDia)
+              .sort(([dateA], [dateB]) => {
+                const a = parseISO(dateA)
+                const b = parseISO(dateB)
+                return isValid(a) && isValid(b) ? a.getTime() - b.getTime() : 0
+              })
+              .map(([fecha, ventasDia]) => {
+                const fechaVenta = parseISO(fecha)
+                const fechaInicio = parseISO(venta.fechaInicio)
+                const fechaFin = parseISO(venta.fechaFin)
+                if (isValid(fechaVenta) && isValid(fechaInicio) && isValid(fechaFin) &&
+                    fechaVenta >= fechaInicio && fechaVenta <= fechaFin) {
+                  return (
+                    <VentaDiaDesplegable 
+                      key={fecha} 
+                      venta={{
+                        fecha, 
+                        ventas: ventasDia, 
+                        total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
+                      }} 
+                    />
+                  )
+                }
+                return null
+              })}
           </div>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -204,11 +236,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     }
   }
 
-  const formatPrice = (price: number | string): string => {
-    const numPrice = typeof price === 'string' ? parseFloat(price) : price
-    return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
-  }
-
   const filterItems = useCallback((items: any[], term: string) => {
     return items.filter(item => 
       Object.values(item).some(value => 
@@ -248,40 +275,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     )
   }
 
-  const VentaDesplegable = ({ venta }: { venta: Venta }) => {
-    const [isOpen, setIsOpen] = useState(false);
-
-    return (
-      <>
-        <TableRow className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
-          <TableCell>{new Date(venta.fecha).toLocaleDateString()}</TableCell>
-          <TableCell>${formatPrice(venta.total)}</TableCell>
-          <TableCell>
-            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </TableCell>
-        </TableRow>
-        {isOpen && (
-          <TableRow>
-            <TableCell colSpan={3}>
-              <div className="flex items-center space-x-2 p-2">
-                <Image
-                  src={venta.producto_foto || '/placeholder.svg'}
-                  alt={venta.producto_nombre}
-                  width={40}
-                  height={40}
-                  className="rounded-md"
-                />
-                <span>{venta.producto_nombre}</span>
-                <span>Cantidad: {venta.cantidad}</span>
-                <span>Precio unitario: ${formatPrice(venta.precio_unitario)}</span>
-              </div>
-            </TableCell>
-          </TableRow>
-        )}
-      </>
-    );
-  };
-
   const renderVentasList = () => {
     return (
       <Tabs defaultValue="por-dia">
@@ -291,6 +284,15 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
         </TabsList>
         <TabsContent value="por-dia">
           <div className="space-y-4">
+            <div className="relative mb-4">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Buscar ventas..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
             {ventasDiarias.length > 0 ? (
               ventasDiarias.map((venta) => (
                 <VentaDiaDesplegable key={venta.fecha} venta={venta} />
@@ -302,6 +304,15 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
         </TabsContent>
         <TabsContent value="por-semana">
           <div className="space-y-4">
+            <div className="relative mb-4">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Buscar ventas..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
             {ventasSemanales.length > 0 ? (
               ventasSemanales.map((venta) => (
                 <VentaSemanaDesplegable key={`${venta.fechaInicio}-${venta.fechaFin}`} venta={venta} />
@@ -332,7 +343,8 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
               <div className="flex-grow overflow-hidden">
                 <p className="font-bold text-sm truncate">{transaccion.producto}</p>
                 <div className="flex justify-between items-center text-xs text-gray-600">
-                  <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
+                  
+                  <span>{formatDate(transaccion.fecha)}</span>
                   <span>Cantidad: {transaccion.cantidad}</span>
                 </div>
                 <p className="text-xs font-semibold">{transactionType}</p>
@@ -402,16 +414,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
           ) : mode === 'ventas' ? (
             <div>
               <h2 className="text-lg font-bold mb-4">Ventas</h2>
-              <div className="relative mb-4">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <Input
-                  type="search"
-                  placeholder="Buscar ventas..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
               {renderVentasList()}
             </div>
           ) : mode === 'transacciones' ? (
@@ -467,7 +469,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Procesando...
-                
                 </>
               ) : (
                 'Confirmar'
