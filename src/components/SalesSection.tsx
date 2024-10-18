@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { format, parseISO, startOfWeek, endOfWeek } from "date-fns"
+import { format, parseISO, startOfWeek, endOfWeek, isSameWeek } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 
 interface VentaDiaria {
@@ -24,6 +24,7 @@ interface VentaSemanal {
   vendedor_id: string;
   vendedor_nombre: string;
   total_ventas: number | string | null;
+  fecha: string; // Add this line to include the actual sale date
 }
 
 interface VentasSemana {
@@ -81,8 +82,9 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
       
       // Process and group the data by week (Monday to Sunday)
       const processedData = data.reduce((acc, current) => {
-        const weekStart = startOfWeek(parseISO(current.week_start), { weekStartsOn: 1 })
-        const weekEnd = endOfWeek(parseISO(current.week_start), { weekStartsOn: 1 })
+        const saleDate = parseISO(current.fecha)
+        const weekStart = startOfWeek(saleDate, { weekStartsOn: 1 })
+        const weekEnd = endOfWeek(saleDate, { weekStartsOn: 1 })
         const weekKey = `${format(weekStart, 'yyyy-MM-dd')},${format(weekEnd, 'yyyy-MM-dd')}`
 
         if (!acc[weekKey]) {
@@ -93,11 +95,21 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
           }
         }
 
-        acc[weekKey].ventas.push({
-          ...current,
-          week_start: format(weekStart, 'yyyy-MM-dd'),
-          week_end: format(weekEnd, 'yyyy-MM-dd'),
-        })
+        const existingVenta = acc[weekKey].ventas.find(v => 
+          v.vendedor_id === current.vendedor_id && 
+          isSameWeek(parseISO(v.fecha), saleDate, { weekStartsOn: 1 })
+        )
+
+        if (existingVenta) {
+          existingVenta.total_ventas = (parseFloat(existingVenta.total_ventas as string) || 0) + 
+                                       (parseFloat(current.total_ventas as string) || 0)
+        } else {
+          acc[weekKey].ventas.push({
+            ...current,
+            week_start: format(weekStart, 'yyyy-MM-dd'),
+            week_end: format(weekEnd, 'yyyy-MM-dd'),
+          })
+        }
 
         return acc
       }, {} as Record<string, VentasSemana>)
