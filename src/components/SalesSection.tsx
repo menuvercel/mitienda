@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { format, parseISO } from "date-fns"
+import { format, parseISO, startOfWeek, endOfWeek } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 
 interface VentaDiaria {
@@ -73,18 +73,26 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
 
       const data: VentaSemanal[] = await response.json()
       
-      // Remove duplicate weeks
-      const uniqueWeeks = data.reduce((acc, current) => {
-        const weekKey = `${current.week_start},${current.week_end}`
+      // Process and group the data by week (Monday to Sunday)
+      const processedData = data.reduce((acc, current) => {
+        const weekStart = startOfWeek(parseISO(current.week_start), { weekStartsOn: 1 })
+        const weekEnd = endOfWeek(parseISO(current.week_start), { weekStartsOn: 1 })
+        const weekKey = `${format(weekStart, 'yyyy-MM-dd')},${format(weekEnd, 'yyyy-MM-dd')}`
+
         if (!acc[weekKey]) {
-          acc[weekKey] = current
-        } else {
-          acc[weekKey].total_ventas = (parseFloat(acc[weekKey].total_ventas as string) || 0) + (parseFloat(current.total_ventas as string) || 0)
+          acc[weekKey] = {
+            ...current,
+            week_start: format(weekStart, 'yyyy-MM-dd'),
+            week_end: format(weekEnd, 'yyyy-MM-dd'),
+            total_ventas: 0
+          }
         }
+
+        acc[weekKey].total_ventas = (parseFloat(acc[weekKey].total_ventas as string) || 0) + (parseFloat(current.total_ventas as string) || 0)
         return acc
       }, {} as Record<string, VentaSemanal>)
 
-      const uniqueWeeksArray = Object.values(uniqueWeeks)
+      const uniqueWeeksArray = Object.values(processedData)
       setVentasSemanales(uniqueWeeksArray)
       
       if (uniqueWeeksArray.length > 0 && !selectedWeek) {
