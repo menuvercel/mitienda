@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,7 +8,7 @@ import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
 import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
-import { format, parseISO, startOfWeek, endOfWeek, isValid } from 'date-fns'
+import { format, parseISO, startOfWeek, endOfWeek, isValid, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 interface VendorDialogProps {
@@ -45,6 +45,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [productToReduce, setProductToReduce] = useState<Producto | null>(null)
   const [quantityToReduce, setQuantityToReduce] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
+  const [ventasSemanalesState, setVentasSemanales] = useState<VentaSemana[]>([])
 
   const formatDate = (dateString: string): string => {
     try {
@@ -313,8 +314,8 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 className="pl-10"
               />
             </div>
-            {ventasSemanales.length > 0 ? (
-              ventasSemanales.map((venta) => (
+            {ventasSemanalesState.length > 0 ? (
+              ventasSemanalesState.map((venta) => (
                 <VentaSemanaDesplegable key={`${venta.fechaInicio}-${venta.fechaFin}`} venta={venta} />
               ))
             ) : (
@@ -355,6 +356,54 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
       </div>
     )
   }
+
+  const agruparVentasPorSemana = useCallback((ventas: Venta[]) => {
+    const weekMap = new Map<string, VentaSemana>()
+
+    const getWeekKey = (date: Date) => {
+      const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 })
+      const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 })
+      return `${format(mondayOfWeek, 'yyyy-MM-dd')}_${format(sundayOfWeek, 'yyyy-MM-dd')}`
+    }
+
+    ventas.forEach((venta) => {
+      const ventaDate = parseISO(venta.fecha)
+      if (!isValid(ventaDate)) {
+        console.error(`Invalid date in venta: ${venta.fecha}`)
+        return
+      }
+      const weekKey = getWeekKey(ventaDate)
+
+      if (!weekMap.has(weekKey)) {
+        const mondayOfWeek = startOfWeek(ventaDate, { weekStartsOn: 1 })
+        const sundayOfWeek = endOfWeek(ventaDate, { weekStartsOn: 1 })
+        weekMap.set(weekKey, {
+          fechaInicio: format(mondayOfWeek, 'yyyy-MM-dd'),
+          fechaFin: format(sundayOfWeek, 'yyyy-MM-dd'),
+          ventas: [],
+          total: 0,
+          ganancia: 0
+        })
+      }
+
+      const currentWeek = weekMap.get(weekKey)!
+      currentWeek.ventas.push(venta)
+      currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0
+      currentWeek.ganancia = parseFloat((currentWeek.total * 0.08).toFixed(2))
+    })
+
+    const ventasSemanales = Array.from(weekMap.values())
+
+    return ventasSemanales.sort((a, b) => {
+      const dateA = parseISO(a.fechaInicio)
+      const dateB = parseISO(b.fechaInicio)
+      return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0
+    })
+  }, [])
+
+  useEffect(() => {
+    setVentasSemanales(agruparVentasPorSemana(ventas))
+  }, [ventas, agruparVentasPorSemana])
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
