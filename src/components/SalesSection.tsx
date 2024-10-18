@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
@@ -9,43 +9,44 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
-import { Vendedor, Venta } from '@/types'
 
-interface VentasPorVendedor {
-  [vendedor: string]: number;
+interface VentaDiaria {
+  vendedor_id: string;
+  vendedor_nombre: string;
+  total_ventas: number;
 }
 
 interface SalesSectionProps {
-  vendedores: Vendedor[];
-  obtenerVentas: (fecha: Date, vendedorId: string) => Promise<Venta[]>;
+  userRole: 'Almacen' | 'Vendedor';
 }
 
-export default function SalesSection({ vendedores, obtenerVentas }: SalesSectionProps) {
+export default function SalesSection({ userRole }: SalesSectionProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
-  const [ventasPorVendedor, setVentasPorVendedor] = useState<VentasPorVendedor>({})
+  const [ventasDiarias, setVentasDiarias] = useState<VentaDiaria[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const obtenerVentasDelDia = async (fecha: Date) => {
+  const obtenerVentasDelDia = useCallback(async (fecha: Date) => {
     setIsLoading(true)
     setError(null)
-    const ventasPorVendedor: VentasPorVendedor = {}
 
     try {
-      for (const vendedor of vendedores) {
-        const ventas = await obtenerVentas(fecha, vendedor.id)
-        const totalVentas = ventas.reduce((sum, venta) => sum + venta.total, 0)
-        ventasPorVendedor[vendedor.nombre] = totalVentas
+      const formattedDate = format(fecha, 'yyyy-MM-dd')
+      const response = await fetch(`/api/ventas-diarias?fecha=${formattedDate}`)
+      
+      if (!response.ok) {
+        throw new Error('Error al obtener las ventas')
       }
 
-      setVentasPorVendedor(ventasPorVendedor)
+      const data: VentaDiaria[] = await response.json()
+      setVentasDiarias(data)
     } catch (error) {
       console.error('Error al obtener ventas:', error)
       setError('Error al obtener las ventas. Por favor, intenta de nuevo.')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
   const handleMostrarVentas = () => {
     if (selectedDate) {
@@ -53,12 +54,12 @@ export default function SalesSection({ vendedores, obtenerVentas }: SalesSection
     }
   }
 
-  const totalVentas = Object.values(ventasPorVendedor).reduce((sum, total) => sum + total, 0)
+  const totalVentas = ventasDiarias.reduce((sum, venta) => sum + venta.total_ventas, 0)
 
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Ventas</CardTitle>
+        <CardTitle>Ventas Diarias</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="mb-4 flex items-center gap-4">
@@ -93,7 +94,7 @@ export default function SalesSection({ vendedores, obtenerVentas }: SalesSection
           <div className="text-red-500 mb-4">{error}</div>
         )}
 
-        {!isLoading && Object.keys(ventasPorVendedor).length > 0 && (
+        {!isLoading && ventasDiarias.length > 0 && (
           <Table>
             <TableHeader>
               <TableRow>
@@ -102,21 +103,23 @@ export default function SalesSection({ vendedores, obtenerVentas }: SalesSection
               </TableRow>
             </TableHeader>
             <TableBody>
-              {Object.entries(ventasPorVendedor).map(([vendedor, total]) => (
-                <TableRow key={vendedor}>
-                  <TableCell>{vendedor}</TableCell>
-                  <TableCell className="text-right">${total.toFixed(2)}</TableCell>
+              {ventasDiarias.map((venta) => (
+                <TableRow key={venta.vendedor_id}>
+                  <TableCell>{venta.vendedor_nombre}</TableCell>
+                  <TableCell className="text-right">${venta.total_ventas.toFixed(2)}</TableCell>
                 </TableRow>
               ))}
-              <TableRow className="font-bold">
-                <TableCell>Total</TableCell>
-                <TableCell className="text-right">${totalVentas.toFixed(2)}</TableCell>
-              </TableRow>
+              {userRole === 'Almacen' && (
+                <TableRow className="font-bold">
+                  <TableCell>Total</TableCell>
+                  <TableCell className="text-right">${totalVentas.toFixed(2)}</TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         )}
 
-        {!isLoading && Object.keys(ventasPorVendedor).length === 0 && (
+        {!isLoading && ventasDiarias.length === 0 && (
           <div className="text-center text-gray-500">
             No hay ventas registradas para la fecha seleccionada.
           </div>

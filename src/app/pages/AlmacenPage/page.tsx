@@ -639,10 +639,7 @@ export default function AlmacenPage() {
       )}
 
       {activeSection === 'ventas' && (
-        <SalesSection 
-        vendedores={vendedores} 
-        obtenerVentas={obtenerVentasDelDia}
-        />
+        <SalesSection userRole="Almacen" />
       )}
 
     <Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
