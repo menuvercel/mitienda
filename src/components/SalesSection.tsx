@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { format, parseISO, startOfWeek, endOfWeek, isSameWeek } from "date-fns"
+import { format, parseISO, startOfWeek, endOfWeek, isValid } from "date-fns"
+import { es } from 'date-fns/locale'
 import { Calendar as CalendarIcon } from "lucide-react"
 
 interface VentaDiaria {
@@ -80,24 +81,42 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
       const data: VentaSemanal[] = await response.json()
       
       // Process and group the data by week (Monday to Sunday)
-      const processedData = data.reduce((acc, current) => {
-        const weekStart = startOfWeek(parseISO(current.week_start), { weekStartsOn: 1 })
-        const weekEnd = endOfWeek(parseISO(current.week_start), { weekStartsOn: 1 })
-        const weekKey = `${format(weekStart, 'yyyy-MM-dd')},${format(weekEnd, 'yyyy-MM-dd')}`
+      const weekMap = new Map<string, VentasSemana>()
 
-        if (!acc[weekKey]) {
-          acc[weekKey] = {
-            week_start: format(weekStart, 'yyyy-MM-dd'),
-            week_end: format(weekEnd, 'yyyy-MM-dd'),
+      const getWeekKey = (date: Date) => {
+        const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 })
+        const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 })
+        return `${format(mondayOfWeek, 'yyyy-MM-dd')}_${format(sundayOfWeek, 'yyyy-MM-dd')}`
+      }
+
+      data.forEach((venta) => {
+        const ventaDate = parseISO(venta.week_start)
+        if (!isValid(ventaDate)) {
+          console.error(`Invalid date in venta: ${venta.week_start}`)
+          return
+        }
+        const weekKey = getWeekKey(ventaDate)
+
+        if (!weekMap.has(weekKey)) {
+          const mondayOfWeek = startOfWeek(ventaDate, { weekStartsOn: 1 })
+          const sundayOfWeek = endOfWeek(ventaDate, { weekStartsOn: 1 })
+          weekMap.set(weekKey, {
+            week_start: format(mondayOfWeek, 'yyyy-MM-dd'),
+            week_end: format(sundayOfWeek, 'yyyy-MM-dd'),
             ventas: []
-          }
+          })
         }
 
-        acc[weekKey].ventas.push(current)
-        return acc
-      }, {} as Record<string, VentasSemana>)
+        const currentWeek = weekMap.get(weekKey)!
+        currentWeek.ventas.push(venta)
+      })
 
-      const uniqueWeeksArray = Object.values(processedData)
+      const uniqueWeeksArray = Array.from(weekMap.values()).sort((a, b) => {
+        const dateA = parseISO(a.week_start)
+        const dateB = parseISO(b.week_start)
+        return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0
+      })
+
       setVentasSemanales(uniqueWeeksArray)
       
       if (uniqueWeeksArray.length > 0 && !selectedWeek) {
@@ -164,7 +183,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "PPP") : <span>Seleccionar fecha</span>}
+                    {selectedDate ? format(selectedDate, "PPP", { locale: es }) : <span>Seleccionar fecha</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
@@ -225,7 +244,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
                 <SelectContent>
                   {ventasSemanales.map((semana, index) => (
                     <SelectItem key={index} value={`${semana.week_start},${semana.week_end}`}>
-                      {`${format(parseISO(semana.week_start), 'dd/MM/yyyy')} - ${format(parseISO(semana.week_end), 'dd/MM/yyyy')}`}
+                      {`${format(parseISO(semana.week_start), 'dd/MM/yyyy', { locale: es })} - ${format(parseISO(semana.week_end), 'dd/MM/yyyy', { locale: es })}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
