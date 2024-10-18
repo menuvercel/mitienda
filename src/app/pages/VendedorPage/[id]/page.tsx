@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight, Minus, Plus, DollarSign  } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { format, parseISO, isValid  } from 'date-fns'
+import { format, parseISO, isValid, startOfWeek, endOfWeek, addDays   } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { 
   getTransaccionesVendedor,
@@ -140,9 +140,8 @@ const useVendedorData = (vendedorId: string) => {
     const weekMap = new Map<string, VentaSemana>()
 
     const getWeekKey = (date: Date) => {
-      const dayOfWeek = date.getDay()
-      const mondayOfWeek = new Date(date.getFullYear(), date.getMonth(), date.getDate() - ((dayOfWeek + 6) % 7))
-      const sundayOfWeek = new Date(mondayOfWeek.getFullYear(), mondayOfWeek.getMonth(), mondayOfWeek.getDate() + 6)
+      const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 })
+      const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 })
       return `${format(mondayOfWeek, 'yyyy-MM-dd')}_${format(sundayOfWeek, 'yyyy-MM-dd')}`
     }
 
@@ -155,8 +154,8 @@ const useVendedorData = (vendedorId: string) => {
       const weekKey = getWeekKey(ventaDate)
 
       if (!weekMap.has(weekKey)) {
-        const mondayOfWeek = new Date(ventaDate.getFullYear(), ventaDate.getMonth(), ventaDate.getDate() - ((ventaDate.getDay() + 6) % 7))
-        const sundayOfWeek = new Date(mondayOfWeek.getFullYear(), mondayOfWeek.getMonth(), mondayOfWeek.getDate() + 6)
+        const mondayOfWeek = startOfWeek(ventaDate, { weekStartsOn: 1 })
+        const sundayOfWeek = endOfWeek(ventaDate, { weekStartsOn: 1 })
         weekMap.set(weekKey, {
           fechaInicio: format(mondayOfWeek, 'yyyy-MM-dd'),
           fechaFin: format(sundayOfWeek, 'yyyy-MM-dd'),
@@ -272,27 +271,27 @@ const useVendedorData = (vendedorId: string) => {
   }
 }
 
+const formatDate = (dateString: string): string => {
+  try {
+    const date = parseISO(dateString)
+    if (!isValid(date)) {
+      console.error(`Invalid date string: ${dateString}`)
+      return 'Fecha inválida'
+    }
+    return format(date, 'dd/MM/yyyy', { locale: es })
+  } catch (error) {
+    console.error(`Error formatting date: ${dateString}`, error)
+    return 'Error en fecha'
+  }
+}
+
+const formatPrice = (price: number | string): string => {
+const numPrice = typeof price === 'string' ? parseFloat(price) : price
+return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
+}
+
 const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
   const [isOpen, setIsOpen] = useState(false);
-
-  const formatDate = (dateString: string): string => {
-    try {
-      const date = parseISO(dateString)
-      if (!isValid(date)) {
-        console.error(`Invalid date string: ${dateString}`)
-        return 'Fecha inválida'
-      }
-      return format(date, 'dd/MM/yyyy', { locale: es })
-    } catch (error) {
-      console.error(`Error formatting date: ${dateString}`, error)
-      return 'Error en fecha'
-    }
-  }
-  
-  const formatPrice = (price: number | string): string => {
-    const numPrice = typeof price === 'string' ? parseFloat(price) : price
-    return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
-  }
 
   return (
     <div className="border rounded-lg mb-2">
@@ -333,17 +332,7 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
 };
 
 const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  };
-
-  const formatPrice = (price: number | string): string => {
-    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
-    return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2);
-  };
+  const [isOpen, setIsOpen] = useState(false)
 
   const parsePrice = (price: number | string): number => {
     if (typeof price === 'number') return price
@@ -410,7 +399,6 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
     </div>
   );
 };
-
 
 const ProductoCard = ({ producto }: { producto: Producto }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -920,7 +908,6 @@ export default function VendedorPage() {
                 <Tabs defaultValue="por-dia">
                   <TabsList>
                     <TabsTrigger value="por-dia">Por día</TabsTrigger>
-                    
                     <TabsTrigger value="por-semana">Por semana</TabsTrigger>
                   </TabsList>
                   <TabsContent value="por-dia">
