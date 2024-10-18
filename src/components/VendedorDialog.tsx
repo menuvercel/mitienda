@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
@@ -37,7 +36,7 @@ interface VentaDia {
   total: number
 }
 
-export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce }: VendorDialogProps) {
+export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas: initialVentas, ventasSemanales, onProductReduce }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
   const [searchTerm, setSearchTerm] = useState('')
@@ -45,7 +44,9 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [productToReduce, setProductToReduce] = useState<Producto | null>(null)
   const [quantityToReduce, setQuantityToReduce] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
-  const [ventasSemanalesState, setVentasSemanales] = useState<VentaSemana[]>([])
+  const [ventas, setVentas] = useState<Venta[]>([]);
+  const [ventasDiarias, setVentasDiarias] = useState<VentaDia[]>([]);
+  const [ventasSemanalesState, setVentasSemanales] = useState<VentaSemana[]>([]);
 
   const formatDate = (dateString: string): string => {
     try {
@@ -314,8 +315,8 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 className="pl-10"
               />
             </div>
-            {ventasSemanalesState.length > 0 ? (
-              ventasSemanalesState.map((venta) => (
+            {ventasSemanales.length > 0 ? (
+              ventasSemanales.map((venta) => (
                 <VentaSemanaDesplegable key={`${venta.fechaInicio}-${venta.fechaFin}`} venta={venta} />
               ))
             ) : (
@@ -324,8 +325,8 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
           </div>
         </TabsContent>
       </Tabs>
-    )
-  }
+    );
+  };
 
   const renderTransaccionesList = () => {
     const filteredTransacciones = filterItems(transacciones, searchTerm)
@@ -401,9 +402,62 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     })
   }, [])
 
+  const agruparVentasPorDia = useCallback((ventas: Venta[]) => {
+    const ventasDiarias = ventas.reduce((acc: VentaDia[], venta) => {
+      const fecha = format(parseISO(venta.fecha), 'yyyy-MM-dd');
+      const existingDay = acc.find(day => day.fecha === fecha);
+      if (existingDay) {
+        existingDay.ventas.push(venta);
+        existingDay.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0;
+      } else {
+        acc.push({
+          fecha,
+          ventas: [venta],
+          total: typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0
+        });
+      }
+      return acc;
+    }, []);
+
+    return ventasDiarias.sort((a, b) => {
+      const dateA = parseISO(a.fecha);
+      const dateB = parseISO(b.fecha);
+      return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0;
+    });
+  }, []);
+
   useEffect(() => {
-    setVentasSemanales(agruparVentasPorSemana(ventas))
-  }, [ventas, agruparVentasPorSemana])
+    const fetchVentas = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/ventas/${vendor.id}`);
+        if (!response.ok) {
+          throw new Error('Error al obtener las ventas');
+        }
+        const data = await response.json();
+        setVentas(data);
+      } catch (error) {
+        console.error('Error fetching ventas:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las ventas. Por favor, intente de nuevo.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchVentas();
+  }, [vendor.id]);
+
+  useEffect(() => {
+    const ventasAgrupadas = agruparVentasPorSemana(ventas);
+    setVentasSemanales(ventasAgrupadas);
+    
+    const ventasDiariasAgrupadas = agruparVentasPorDia(ventas);
+    setVentasDiarias(ventasDiariasAgrupadas);
+  }, [ventas, agruparVentasPorSemana, agruparVentasPorDia]);
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
