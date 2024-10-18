@@ -24,7 +24,6 @@ interface VentaSemanal {
   vendedor_id: string;
   vendedor_nombre: string;
   total_ventas: number | string | null;
-  fecha: string; // Add this line to include the actual sale date
 }
 
 interface VentasSemana {
@@ -82,9 +81,8 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
       
       // Process and group the data by week (Monday to Sunday)
       const processedData = data.reduce((acc, current) => {
-        const saleDate = parseISO(current.fecha)
-        const weekStart = startOfWeek(saleDate, { weekStartsOn: 1 })
-        const weekEnd = endOfWeek(saleDate, { weekStartsOn: 1 })
+        const weekStart = startOfWeek(parseISO(current.week_start), { weekStartsOn: 1 })
+        const weekEnd = endOfWeek(parseISO(current.week_start), { weekStartsOn: 1 })
         const weekKey = `${format(weekStart, 'yyyy-MM-dd')},${format(weekEnd, 'yyyy-MM-dd')}`
 
         if (!acc[weekKey]) {
@@ -95,22 +93,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
           }
         }
 
-        const existingVenta = acc[weekKey].ventas.find(v => 
-          v.vendedor_id === current.vendedor_id && 
-          isSameWeek(parseISO(v.fecha), saleDate, { weekStartsOn: 1 })
-        )
-
-        if (existingVenta) {
-          existingVenta.total_ventas = (parseFloat(existingVenta.total_ventas as string) || 0) + 
-                                       (parseFloat(current.total_ventas as string) || 0)
-        } else {
-          acc[weekKey].ventas.push({
-            ...current,
-            week_start: format(weekStart, 'yyyy-MM-dd'),
-            week_end: format(weekEnd, 'yyyy-MM-dd'),
-          })
-        }
-
+        acc[weekKey].ventas.push(current)
         return acc
       }, {} as Record<string, VentasSemana>)
 
