@@ -564,14 +564,21 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
               </TabsList>
               <TabsContent value="informacion">
                 <div className="flex flex-col items-center space-y-4">
-                  <Image
-                    src={producto.foto || '/placeholder.svg'}
-                    alt={producto.nombre}
-                    width={300}
-                    height={300}
-                    className="object-cover rounded-lg"
-                  />
-                  <div className="text-center">
+                  <div className="w-full h-[300px] flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
+                    <div className="relative w-full h-full">
+                      <Image
+                        src={producto.foto || '/placeholder.svg'}
+                        alt={producto.nombre}
+                        fill
+                        className="object-contain"
+                        onError={(e) => {
+                          console.error(`Error loading image for ${producto.nombre}:`, e);
+                          e.currentTarget.src = '/placeholder.svg';
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="text-center w-full p-4 bg-white rounded-lg">
                     <h3 className="text-xl font-semibold">{producto.nombre}</h3>
                     <p className="text-gray-600">Precio: ${formatPrice(producto.precio)}</p>
                     <p className="text-gray-600">Cantidad disponible: {producto.cantidad}</p>
