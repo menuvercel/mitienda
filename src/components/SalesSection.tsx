@@ -28,8 +28,8 @@ interface VentaSemanal {
 }
 
 interface VentasSemana {
-  week_start: string;
-  week_end: string;
+  fechaInicio: string;
+  fechaFin: string;
   ventas: VentaSemanal[];
 }
 
@@ -67,6 +67,45 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
     }
   }, [])
 
+  const agruparVentasPorSemana = useCallback((ventas: VentaSemanal[]) => {
+    const weekMap = new Map<string, VentasSemana>()
+    
+    const getWeekKey = (date: Date) => {
+      const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 })
+      const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 })
+      return `${format(mondayOfWeek, 'yyyy-MM-dd')}_${format(sundayOfWeek, 'yyyy-MM-dd')}`
+    }
+
+    ventas.forEach((venta) => {
+      const ventaDate = parseISO(venta.week_start)
+      if (!isValid(ventaDate)) {
+        console.error(`Invalid date in venta: ${venta.week_start}`)
+        return
+      }
+
+      const weekKey = getWeekKey(ventaDate)
+      
+      if (!weekMap.has(weekKey)) {
+        const mondayOfWeek = startOfWeek(ventaDate, { weekStartsOn: 1 })
+        const sundayOfWeek = endOfWeek(ventaDate, { weekStartsOn: 1 })
+        weekMap.set(weekKey, {
+          fechaInicio: format(mondayOfWeek, 'yyyy-MM-dd'),
+          fechaFin: format(sundayOfWeek, 'yyyy-MM-dd'),
+          ventas: []
+        })
+      }
+
+      const currentWeek = weekMap.get(weekKey)!
+      currentWeek.ventas.push(venta)
+    })
+
+    return Array.from(weekMap.values()).sort((a, b) => {
+      const dateA = parseISO(a.fechaInicio)
+      const dateB = parseISO(b.fechaInicio)
+      return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0
+    })
+  }, [])
+
   const obtenerVentasSemanales = useCallback(async () => {
     setIsLoading(true)
     setError(null)
@@ -79,51 +118,12 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
       }
 
       const data: VentaSemanal[] = await response.json()
+      const ventasAgrupadasPorSemana = agruparVentasPorSemana(data)
       
-      // Process and group the data by week (Monday to Sunday)
-      const weekMap = new Map<string, VentasSemana>()
-
-      const getWeekKey = (date: Date) => {
-        const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 })
-        const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 })
-        return `${format(mondayOfWeek, 'yyyy-MM-dd')}_${format(sundayOfWeek, 'yyyy-MM-dd')}`
-      }
-
-      data.forEach((venta) => {
-        const ventaDate = parseISO(venta.week_start)
-        if (!isValid(ventaDate)) {
-          console.error(`Invalid date in venta: ${venta.week_start}`)
-          return
-        }
-        const weekKey = getWeekKey(ventaDate)
-
-        if (!weekMap.has(weekKey)) {
-          const mondayOfWeek = startOfWeek(ventaDate, { weekStartsOn: 1 })
-          const sundayOfWeek = endOfWeek(ventaDate, { weekStartsOn: 1 })
-          weekMap.set(weekKey, {
-            week_start: format(mondayOfWeek, 'yyyy-MM-dd'),
-            week_end: format(sundayOfWeek, 'yyyy-MM-dd'),
-            ventas: []
-          })
-        }
-
-        const currentWeek = weekMap.get(weekKey)!
-        currentWeek.ventas.push(venta)
-      })
-
-      const uniqueWeeksArray = Array.from(weekMap.values()).sort((a, b) => {
-        const dateA = parseISO(a.week_start)
-        const dateB = parseISO(b.week_start)
-        return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0
-      })
-
-      // Filter out weeks with no sales
-      const weeksWithSales = uniqueWeeksArray.filter(week => week.ventas.length > 0)
-
-      setVentasSemanales(weeksWithSales)
+      setVentasSemanales(ventasAgrupadasPorSemana)
       
-      if (weeksWithSales.length > 0 && !selectedWeek) {
-        setSelectedWeek(`${weeksWithSales[0].week_start},${weeksWithSales[0].week_end}`)
+      if (ventasAgrupadasPorSemana.length > 0 && !selectedWeek) {
+        setSelectedWeek(`${ventasAgrupadasPorSemana[0].fechaInicio},${ventasAgrupadasPorSemana[0].fechaFin}`)
       }
     } catch (error) {
       console.error('Error al obtener ventas semanales:', error)
@@ -131,7 +131,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [selectedWeek])
+  }, [selectedWeek, agruparVentasPorSemana])
 
   useEffect(() => {
     obtenerVentasSemanales()
@@ -155,7 +155,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
   }, 0)
 
   const ventasSemanalesFiltradas = selectedWeek
-    ? ventasSemanales.find(semana => `${semana.week_start},${semana.week_end}` === selectedWeek)?.ventas || []
+    ? ventasSemanales.find(semana => `${semana.fechaInicio},${semana.fechaFin}` === selectedWeek)?.ventas || []
     : []
 
   const totalVentasSemanales = ventasSemanalesFiltradas.reduce((sum, venta) => {
@@ -246,8 +246,11 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
                 </SelectTrigger>
                 <SelectContent>
                   {ventasSemanales.map((semana, index) => (
-                    <SelectItem key={index} value={`${semana.week_start},${semana.week_end}`}>
-                      {`${format(parseISO(semana.week_start), 'dd/MM/yyyy', { locale: es })} - ${format(parseISO(semana.week_end), 'dd/MM/yyyy', { locale: es })}`}
+                    <SelectItem 
+                      key={index} 
+                      value={`${semana.fechaInicio},${semana.fechaFin}`}
+                    >
+                      {`${format(parseISO(semana.fechaInicio), 'dd/MM/yyyy', { locale: es })} - ${format(parseISO(semana.fechaFin), 'dd/MM/yyyy', { locale: es })}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -270,7 +273,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {selectedWeek && ventasSemanales.find(semana => `${semana.week_start},${semana.week_end}` === selectedWeek)?.ventas.map((venta) => (
+                  {selectedWeek && ventasSemanalesFiltradas.map((venta) => (
                     <TableRow key={venta.vendedor_id}>
                       <TableCell>{venta.vendedor_nombre}</TableCell>
                       <TableCell className="text-right">{formatTotalVentas(venta.total_ventas)}</TableCell>
@@ -280,12 +283,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
                     <TableRow className="font-bold">
                       <TableCell>Total</TableCell>
                       <TableCell className="text-right">
-                        {formatTotalVentas(
-                          ventasSemanales.find(semana => `${semana.week_start},${semana.week_end}` === selectedWeek)?.ventas.reduce((sum, venta) => {
-                            const ventaTotal = typeof venta.total_ventas === 'string' ? parseFloat(venta.total_ventas) : (venta.total_ventas || 0)
-                            return sum + (isNaN(ventaTotal) ? 0 : ventaTotal)
-                          }, 0) || 0
-                        )}
+                        {formatTotalVentas(totalVentasSemanales)}
                       </TableCell>
                     </TableRow>
                   )}
