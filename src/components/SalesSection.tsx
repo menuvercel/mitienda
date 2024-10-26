@@ -117,10 +117,13 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
         return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0
       })
 
-      setVentasSemanales(uniqueWeeksArray)
+      // Filter out weeks with no sales
+      const weeksWithSales = uniqueWeeksArray.filter(week => week.ventas.length > 0)
+
+      setVentasSemanales(weeksWithSales)
       
-      if (uniqueWeeksArray.length > 0 && !selectedWeek) {
-        setSelectedWeek(`${uniqueWeeksArray[0].week_start},${uniqueWeeksArray[0].week_end}`)
+      if (weeksWithSales.length > 0 && !selectedWeek) {
+        setSelectedWeek(`${weeksWithSales[0].week_start},${weeksWithSales[0].week_end}`)
       }
     } catch (error) {
       console.error('Error al obtener ventas semanales:', error)
@@ -258,7 +261,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
               <div className="text-red-500 mb-4">{error}</div>
             )}
 
-            {!isLoading && ventasSemanalesFiltradas.length > 0 && (
+            {!isLoading && ventasSemanales.length > 0 && (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -267,23 +270,30 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ventasSemanalesFiltradas.map((venta) => (
+                  {selectedWeek && ventasSemanales.find(semana => `${semana.week_start},${semana.week_end}` === selectedWeek)?.ventas.map((venta) => (
                     <TableRow key={venta.vendedor_id}>
                       <TableCell>{venta.vendedor_nombre}</TableCell>
                       <TableCell className="text-right">{formatTotalVentas(venta.total_ventas)}</TableCell>
                     </TableRow>
                   ))}
-                  {userRole === 'Almacen' && (
+                  {userRole === 'Almacen' && selectedWeek && (
                     <TableRow className="font-bold">
                       <TableCell>Total</TableCell>
-                      <TableCell className="text-right">{formatTotalVentas(totalVentasSemanales)}</TableCell>
+                      <TableCell className="text-right">
+                        {formatTotalVentas(
+                          ventasSemanales.find(semana => `${semana.week_start},${semana.week_end}` === selectedWeek)?.ventas.reduce((sum, venta) => {
+                            const ventaTotal = typeof venta.total_ventas === 'string' ? parseFloat(venta.total_ventas) : (venta.total_ventas || 0)
+                            return sum + (isNaN(ventaTotal) ? 0 : ventaTotal)
+                          }, 0) || 0
+                        )}
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
             )}
 
-            {!isLoading && ventasSemanalesFiltradas.length === 0 && (
+            {!isLoading && ventasSemanales.length === 0 && (
               <div className="text-center text-gray-500">
                 No hay ventas registradas para la semana seleccionada.
               </div>
