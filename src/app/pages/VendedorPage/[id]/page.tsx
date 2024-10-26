@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight, Minus, Plus, DollarSign  } from "lucide-react"
@@ -407,7 +407,6 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [imageError, setImageError] = useState(false)
 
   const fetchProductData = useCallback(async () => {
     setIsLoading(true)
@@ -517,14 +516,17 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
         className="w-full cursor-pointer hover:bg-gray-100 transition-colors"
       >
         <CardContent className="p-4 flex items-center space-x-4">
-          {producto.foto && !imageError ? (
+          {producto.foto ? (
             <Image
               src={producto.foto}
               alt={producto.nombre}
               width={50}
               height={50}
               className="object-cover rounded"
-              onError={() => setImageError(true)}
+              onError={(e) => {
+                console.error(`Error loading image for ${producto.nombre}:`, e);
+                e.currentTarget.src = '/placeholder.svg';
+              }}
             />
           ) : (
             <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
@@ -542,16 +544,9 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="sticky top-0 bg-white z-10 pb-4">
-            <div className="flex justify-between items-center">
-              <DialogTitle>{producto.nombre}</DialogTitle>
-              <DialogClose asChild>
-                <Button variant="ghost" size="icon">
-                  <X className="h-4 w-4" />
-                </Button>
-              </DialogClose>
-            </div>
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle>{producto.nombre}</DialogTitle>
           </DialogHeader>
           {isLoading ? (
             <div className="flex justify-center items-center h-48">Cargando...</div>
@@ -562,33 +557,25 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
             </Alert>
           ) : (
             <Tabs defaultValue="informacion">
-              <TabsList className="sticky top-16 bg-white z-10">
+              <TabsList>
                 <TabsTrigger value="informacion">Información</TabsTrigger>
                 <TabsTrigger value="transacciones">Registro</TabsTrigger>
                 <TabsTrigger value="ventas">Ventas</TabsTrigger>
               </TabsList>
               <TabsContent value="informacion">
                 <div className="flex flex-col items-center space-y-4">
-                  <div className="w-64 h-64 relative">
-                    {producto.foto && !imageError ? (
-                      <Image
-                        src={producto.foto}
-                        alt={producto.nombre}
-                        layout="fill"
-                        objectFit="cover"
-                        className="rounded-lg"
-                        onError={() => setImageError(true)}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
-                        <span className="text-gray-500">Sin imagen</span>
-                      </div>
-                    )}
-                  </div>
+                  <Image
+                    src={producto.foto || '/placeholder.svg'}
+                    alt={producto.nombre}
+                    width={300}
+                    height={300}
+                    className="object-cover rounded-lg"
+                  />
                   <div className="text-center">
                     <h3 className="text-xl font-semibold">{producto.nombre}</h3>
                     <p className="text-gray-600">Precio: ${formatPrice(producto.precio)}</p>
                     <p className="text-gray-600">Cantidad disponible: {producto.cantidad}</p>
+                    {/* Add any additional product information here */}
                   </div>
                 </div>
               </TabsContent>
