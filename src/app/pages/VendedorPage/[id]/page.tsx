@@ -556,25 +556,53 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : (
-            <Tabs defaultValue="transacciones">
+            <Tabs defaultValue="informacion">
               <TabsList>
+                <TabsTrigger value="informacion">Información</TabsTrigger>
                 <TabsTrigger value="transacciones">Registro</TabsTrigger>
                 <TabsTrigger value="ventas">Ventas</TabsTrigger>
               </TabsList>
-              <div className="relative mb-4 mt-4">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <Input
-                  type="search"
-                  placeholder="Buscar..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+              <TabsContent value="informacion">
+                <div className="flex flex-col items-center space-y-4">
+                  <Image
+                    src={producto.foto || '/placeholder.svg'}
+                    alt={producto.nombre}
+                    width={300}
+                    height={300}
+                    className="object-cover rounded-lg"
+                  />
+                  <div className="text-center">
+                    <h3 className="text-xl font-semibold">{producto.nombre}</h3>
+                    <p className="text-gray-600">Precio: ${formatPrice(producto.precio)}</p>
+                    <p className="text-gray-600">Cantidad disponible: {producto.cantidad}</p>
+                    {/* Add any additional product information here */}
+                  </div>
+                </div>
+              </TabsContent>
               <TabsContent value="transacciones">
+                <div className="relative mb-4 mt-4">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <Input
+                    type="search"
+                    placeholder="Buscar..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
                 {renderTransaccionesList()}
               </TabsContent>
               <TabsContent value="ventas">
+                <div className="relative mb-4 mt-4">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <Input
+                    type="search"
+                    placeholder="Buscar..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
                 {renderVentasList()}
               </TabsContent>
             </Tabs>
