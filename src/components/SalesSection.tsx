@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { format, parseISO, startOfWeek, endOfWeek, isValid } from "date-fns"
+import { es } from 'date-fns/locale'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
@@ -9,28 +11,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { format, parseISO, startOfWeek, endOfWeek, isValid } from "date-fns"
-import { es } from 'date-fns/locale'
 import { Calendar as CalendarIcon } from "lucide-react"
 
-interface VentaDiaria {
+interface Venta {
+  _id: string;
   vendedor_id: string;
   vendedor_nombre: string;
-  total_ventas: number | string | null;
+  total: number;
+  fecha: string;
 }
 
-interface VentaSemanal {
+interface VentaSemana {
   week_start: string;
   week_end: string;
-  vendedor_id: string;
-  vendedor_nombre: string;
-  total_ventas: number | string | null;
-}
-
-interface VentasSemana {
-  week_start: string;
-  week_end: string;
-  ventas: VentaSemanal[];
+  ventas: Venta[];
+  total_ventas: number;
 }
 
 interface SalesSectionProps {
@@ -39,8 +34,8 @@ interface SalesSectionProps {
 
 export default function SalesSection({ userRole }: SalesSectionProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
-  const [ventasDiarias, setVentasDiarias] = useState<VentaDiaria[]>([])
-  const [ventasSemanales, setVentasSemanales] = useState<VentasSemana[]>([])
+  const [ventasDiarias, setVentasDiarias] = useState<Venta[]>([])
+  const [ventasSemanales, setVentasSemanales] = useState<VentaSemana[]>([])
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -57,7 +52,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
         throw new Error('Error al obtener las ventas diarias')
       }
 
-      const data: VentaDiaria[] = await response.json()
+      const data: Venta[] = await response.json()
       setVentasDiarias(data)
     } catch (error) {
       console.error('Error al obtener ventas diarias:', error)
@@ -78,10 +73,9 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
         throw new Error('Error al obtener las ventas semanales')
       }
 
-      const data: VentaSemanal[] = await response.json()
+      const data: Venta[] = await response.json()
       
-      // Process and group the data by week (Monday to Sunday)
-      const weekMap = new Map<string, VentasSemana>()
+      const weekMap = new Map<string, VentaSemana>()
 
       const getWeekKey = (date: Date) => {
         const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 })
@@ -90,9 +84,9 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
       }
 
       data.forEach((venta) => {
-        const ventaDate = parseISO(venta.week_start)
+        const ventaDate = parseISO(venta.fecha)
         if (!isValid(ventaDate)) {
-          console.error(`Invalid date in venta: ${venta.week_start}`)
+          console.error(`Invalid date in venta: ${venta.fecha}`)
           return
         }
         const weekKey = getWeekKey(ventaDate)
@@ -103,12 +97,14 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
           weekMap.set(weekKey, {
             week_start: format(mondayOfWeek, 'yyyy-MM-dd'),
             week_end: format(sundayOfWeek, 'yyyy-MM-dd'),
-            ventas: []
+            ventas: [],
+            total_ventas: 0
           })
         }
 
         const currentWeek = weekMap.get(weekKey)!
         currentWeek.ventas.push(venta)
+        currentWeek.total_ventas += venta.total
       })
 
       const uniqueWeeksArray = Array.from(weekMap.values()).sort((a, b) => {
@@ -117,13 +113,10 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
         return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0
       })
 
-      // Filter out weeks with no sales
-      const weeksWithSales = uniqueWeeksArray.filter(week => week.ventas.length > 0)
-
-      setVentasSemanales(weeksWithSales)
+      setVentasSemanales(uniqueWeeksArray)
       
-      if (weeksWithSales.length > 0 && !selectedWeek) {
-        setSelectedWeek(`${weeksWithSales[0].week_start},${weeksWithSales[0].week_end}`)
+      if (uniqueWeeksArray.length > 0 && !selectedWeek) {
+        setSelectedWeek(`${uniqueWeeksArray[0].week_start},${uniqueWeeksArray[0].week_end}`)
       }
     } catch (error) {
       console.error('Error al obtener ventas semanales:', error)
@@ -148,20 +141,6 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
     const numTotal = typeof total === 'string' ? parseFloat(total) : total
     return isNaN(numTotal) ? '$0.00' : `$${numTotal.toFixed(2)}`
   }
-
-  const totalVentasDiarias = ventasDiarias.reduce((sum, venta) => {
-    const ventaTotal = typeof venta.total_ventas === 'string' ? parseFloat(venta.total_ventas) : (venta.total_ventas || 0)
-    return sum + (isNaN(ventaTotal) ? 0 : ventaTotal)
-  }, 0)
-
-  const ventasSemanalesFiltradas = selectedWeek
-    ? ventasSemanales.find(semana => `${semana.week_start},${semana.week_end}` === selectedWeek)?.ventas || []
-    : []
-
-  const totalVentasSemanales = ventasSemanalesFiltradas.reduce((sum, venta) => {
-    const ventaTotal = typeof venta.total_ventas === 'string' ? parseFloat(venta.total_ventas) : (venta.total_ventas || 0)
-    return sum + (isNaN(ventaTotal) ? 0 : ventaTotal)
-  }, 0)
 
   return (
     <Card className="w-full">
@@ -217,15 +196,17 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
                 </TableHeader>
                 <TableBody>
                   {ventasDiarias.map((venta) => (
-                    <TableRow key={venta.vendedor_id}>
+                    <TableRow key={venta._id}>
                       <TableCell>{venta.vendedor_nombre}</TableCell>
-                      <TableCell className="text-right">{formatTotalVentas(venta.total_ventas)}</TableCell>
+                      <TableCell className="text-right">{formatTotalVentas(venta.total)}</TableCell>
                     </TableRow>
                   ))}
                   {userRole === 'Almacen' && (
                     <TableRow className="font-bold">
                       <TableCell>Total</TableCell>
-                      <TableCell className="text-right">{formatTotalVentas(totalVentasDiarias)}</TableCell>
+                      <TableCell className="text-right">
+                        {formatTotalVentas(ventasDiarias.reduce((sum, venta) => sum + venta.total, 0))}
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -261,7 +242,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
               <div className="text-red-500 mb-4">{error}</div>
             )}
 
-            {!isLoading && ventasSemanales.length > 0 && (
+            {!isLoading && ventasSemanales.length > 0 && selectedWeek && (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -270,21 +251,18 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {selectedWeek && ventasSemanales.find(semana => `${semana.week_start},${semana.week_end}` === selectedWeek)?.ventas.map((venta) => (
-                    <TableRow key={venta.vendedor_id}>
+                  {ventasSemanales.find(semana => `${semana.week_start},${semana.week_end}` === selectedWeek)?.ventas.map((venta) => (
+                    <TableRow key={venta._id}>
                       <TableCell>{venta.vendedor_nombre}</TableCell>
-                      <TableCell className="text-right">{formatTotalVentas(venta.total_ventas)}</TableCell>
+                      <TableCell className="text-right">{formatTotalVentas(venta.total)}</TableCell>
                     </TableRow>
                   ))}
-                  {userRole === 'Almacen' && selectedWeek && (
+                  {userRole === 'Almacen' && (
                     <TableRow className="font-bold">
                       <TableCell>Total</TableCell>
                       <TableCell className="text-right">
                         {formatTotalVentas(
-                          ventasSemanales.find(semana => `${semana.week_start},${semana.week_end}` === selectedWeek)?.ventas.reduce((sum, venta) => {
-                            const ventaTotal = typeof venta.total_ventas === 'string' ? parseFloat(venta.total_ventas) : (venta.total_ventas || 0)
-                            return sum + (isNaN(ventaTotal) ? 0 : ventaTotal)
-                          }, 0) || 0
+                          ventasSemanales.find(semana => `${semana.week_start},${semana.week_end}` === selectedWeek)?.total_ventas || 0
                         )}
                       </TableCell>
                     </TableRow>
