@@ -70,35 +70,29 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
   const agruparVentasPorSemana = useCallback((ventas: VentaSemanal[]) => {
     const weekMap = new Map<string, VentasSemana>()
     
-    const getWeekKey = (date: Date) => {
-      const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 })
-      const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 })
-      return `${format(mondayOfWeek, 'yyyy-MM-dd')}_${format(sundayOfWeek, 'yyyy-MM-dd')}`
-    }
-
     ventas.forEach((venta) => {
-      const ventaDate = parseISO(venta.week_start)
-      if (!isValid(ventaDate)) {
-        console.error(`Invalid date in venta: ${venta.week_start}`)
+      const weekStart = parseISO(venta.week_start)
+      const weekEnd = parseISO(venta.week_end)
+      
+      if (!isValid(weekStart) || !isValid(weekEnd)) {
+        console.error(`Invalid date in venta: ${venta.week_start} - ${venta.week_end}`)
         return
       }
-
-      const weekKey = getWeekKey(ventaDate)
+  
+      const weekKey = `${format(weekStart, 'yyyy-MM-dd')}_${format(weekEnd, 'yyyy-MM-dd')}`
       
       if (!weekMap.has(weekKey)) {
-        const mondayOfWeek = startOfWeek(ventaDate, { weekStartsOn: 1 })
-        const sundayOfWeek = endOfWeek(ventaDate, { weekStartsOn: 1 })
         weekMap.set(weekKey, {
-          fechaInicio: format(mondayOfWeek, 'yyyy-MM-dd'),
-          fechaFin: format(sundayOfWeek, 'yyyy-MM-dd'),
+          fechaInicio: format(weekStart, 'yyyy-MM-dd'),
+          fechaFin: format(weekEnd, 'yyyy-MM-dd'),
           ventas: []
         })
       }
-
+  
       const currentWeek = weekMap.get(weekKey)!
       currentWeek.ventas.push(venta)
     })
-
+  
     return Array.from(weekMap.values()).sort((a, b) => {
       const dateA = parseISO(a.fechaInicio)
       const dateB = parseISO(b.fechaInicio)

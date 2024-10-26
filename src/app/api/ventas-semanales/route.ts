@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
       result = await query(
         `WITH weeks AS (
            SELECT 
-             DATE_TRUNC('week', fecha)::date as week_start,
-             (DATE_TRUNC('week', fecha) + INTERVAL '6 days')::date as week_end
+             (DATE_TRUNC('week', fecha) + INTERVAL '1 day')::date as week_start,
+             (DATE_TRUNC('week', fecha) + INTERVAL '7 days')::date as week_end
            FROM ventas
            GROUP BY DATE_TRUNC('week', fecha)
          )
@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
       result = await query(
         `WITH weeks AS (
            SELECT 
-             DATE_TRUNC('week', fecha)::date as week_start,
-             (DATE_TRUNC('week', fecha) + INTERVAL '6 days')::date as week_end
+             (DATE_TRUNC('week', fecha) + INTERVAL '1 day')::date as week_start,
+             (DATE_TRUNC('week', fecha) + INTERVAL '7 days')::date as week_end
            FROM ventas
            WHERE vendedor = $1
            GROUP BY DATE_TRUNC('week', fecha)
