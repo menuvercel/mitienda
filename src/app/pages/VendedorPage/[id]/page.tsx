@@ -20,7 +20,6 @@ import {
   getTransaccionesVendedor,
   getProductosVendedor, 
   realizarVenta, 
-  getVentasDia, 
   getVentasMes,
   getCurrentUser,
   getTransaccionesProducto,
@@ -196,14 +195,12 @@ const useVendedorData = (vendedorId: string) => {
 
   const fetchVentasRegistro = useCallback(async () => {
     try {
-      const ventasDiaData: Venta[] = await getVentasDia(vendedorId);
+      // Llamar solo a getVentasMes para obtener todas las ventas
       const ventasMesData: Venta[] = await getVentasMes(vendedorId);
-      const todasLasVentas = [...ventasDiaData, ...ventasMesData];
-      setVentasDia(ventasDiaData);
-      setVentasRegistro(todasLasVentas);
-      setVentasAgrupadas(agruparVentas(todasLasVentas));
-      setVentasSemanales(agruparVentasPorSemana(todasLasVentas));
-      setVentasDiarias(agruparVentasPorDia(todasLasVentas));
+      setVentasRegistro(ventasMesData);
+      setVentasAgrupadas(agruparVentas(ventasMesData));
+      setVentasSemanales(agruparVentasPorSemana(ventasMesData));
+      setVentasDiarias(agruparVentasPorDia(ventasMesData));
     } catch (error) {
       console.error('Error al obtener registro de ventas:', error);
       if (error instanceof Error) {
@@ -213,6 +210,7 @@ const useVendedorData = (vendedorId: string) => {
       }
     }
   }, [vendedorId, agruparVentas, agruparVentasPorSemana, agruparVentasPorDia]);
+  
 
   const fetchTransacciones = useCallback(async () => {
     try {

@@ -191,23 +191,6 @@ export const realizarVenta = async (productoId: string, cantidad: number, fecha:
   }
 };
 
-export const getVentasDia = async (vendedorId: string): Promise<Venta[]> => {
-  console.log('Solicitando todas las ventas para el vendedor:', vendedorId);
-  try {
-    // Eliminamos los parámetros de fecha en la solicitud
-    const response = await api.get(`/ventas?vendedorId=${vendedorId}`);
-    console.log('Respuesta de todas las ventas:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener todas las ventas:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('Respuesta del servidor:', error.response.data);
-    }
-    throw new Error(`No se pudieron obtener las ventas: ${(error as Error).message}`);
-  }
-};
-
-
 export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
   console.log('Solicitando todas las ventas para vendedor:', vendedorId);
 
