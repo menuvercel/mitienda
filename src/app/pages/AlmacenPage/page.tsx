@@ -661,7 +661,7 @@ export default function AlmacenPage() {
       )}
 
       {activeSection === 'ventas' && (
-        <SalesSection/>
+        <SalesSection userRole="Almacen" />
       )}
 
     <Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
