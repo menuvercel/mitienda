@@ -1,6 +1,6 @@
 // src/types/index.ts
 
-interface VentaSemana {
+export interface VentaSemana {
   fechaInicio: string
   fechaFin: string
   ventas: Venta[]
