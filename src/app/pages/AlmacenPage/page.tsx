@@ -278,12 +278,14 @@ export default function AlmacenPage() {
   };
   
   const calcularVentasSemanales = (ventas: Venta[]): VentaSemana[] => {
-    const weekMap = new Map<string, VentaSemana>();
+    const weekMap = new Map();
   
     const getWeekKey = (date: Date) => {
       // Asegúrate de que la semana empiece en lunes
-      const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 });  // Asegura que la semana empieza el lunes
-      const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 });    // Y termina el domingo
+      const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 });
+      // Asegura que la semana empieza el lunes
+      const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 });
+      // Y termina el domingo
       return `${format(mondayOfWeek, 'yyyy-MM-dd')}_${format(sundayOfWeek, 'yyyy-MM-dd')}`;
     };
   
@@ -311,9 +313,9 @@ export default function AlmacenPage() {
         });
       }
   
-      // Obtener la semana y agregar la venta
+      // Obtener la semana y agregar una copia de la venta
       const currentWeek = weekMap.get(weekKey)!;
-      currentWeek.ventas.push(venta);
+      currentWeek.ventas.push({ ...venta });
   
       // Acumulación del total
       currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0;
