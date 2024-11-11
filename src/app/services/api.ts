@@ -192,26 +192,29 @@ export const realizarVenta = async (productoId: string, cantidad: number, fecha:
 };
 
 export const getVentasDia = async (vendedorId: string): Promise<Venta[]> => {
-  console.log('Solicitando ventas del día para vendedor:', vendedorId);
+  console.log('Solicitando todas las ventas para el vendedor:', vendedorId);
   try {
-    const response = await api.get(`/ventas?vendedorId=${vendedorId}&startDate=${new Date().toISOString().split('T')[0]}&endDate=${new Date().toISOString().split('T')[0]}`);
-    console.log('Respuesta de ventas del día:', response.data);
+    // Eliminamos los parámetros de fecha en la solicitud
+    const response = await api.get(`/ventas?vendedorId=${vendedorId}`);
+    console.log('Respuesta de todas las ventas:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error al obtener ventas del día:', error);
+    console.error('Error al obtener todas las ventas:', error);
     if (axios.isAxiosError(error) && error.response) {
       console.error('Respuesta del servidor:', error.response.data);
     }
-    throw new Error(`No se pudieron obtener las ventas del día: ${(error as Error).message}`);
+    throw new Error(`No se pudieron obtener las ventas: ${(error as Error).message}`);
   }
 };
 
+
 export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
-  console.log('Solicitando ventas del mes para vendedor:', vendedorId);
-  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-  const lastDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0];
-  const response = await api.get(`/ventas?vendedorId=${vendedorId}&startDate=${firstDayOfMonth}&endDate=${lastDayOfMonth}`);
-  console.log('Respuesta de ventas del mes:', response.data);
+  console.log('Solicitando todas las ventas para vendedor:', vendedorId);
+
+  // Eliminamos el cálculo de fechas y los parámetros de fecha en la solicitud
+  const response = await api.get(`/ventas?vendedorId=${vendedorId}`);
+  
+  console.log('Respuesta de todas las ventas:', response.data);
   return response.data;
 };
 

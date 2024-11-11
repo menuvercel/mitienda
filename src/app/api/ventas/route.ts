@@ -77,11 +77,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const vendedorId = searchParams.get('vendedorId');
   const productoId = searchParams.get('productoId');
-  const startDate = searchParams.get('startDate');
-  const endDate = searchParams.get('endDate');
 
-  if ((!vendedorId && !productoId) || !startDate || !endDate) {
-    return NextResponse.json({ error: 'Se requieren vendedorId o productoId, startDate y endDate' }, { status: 400 });
+  if (!vendedorId && !productoId) {
+    return NextResponse.json({ error: 'Se requiere vendedorId o productoId' }, { status: 400 });
   }
 
   try {
@@ -91,18 +89,18 @@ export async function GET(request: NextRequest) {
         `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario
          FROM ventas v
          JOIN productos p ON v.producto = p.id
-         WHERE v.producto = $1 AND v.fecha BETWEEN $2 AND $3
+         WHERE v.producto = $1
          ORDER BY v.fecha DESC`,
-        [productoId, startDate, endDate]
+        [productoId]
       );
     } else {
       result = await query(
         `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario
          FROM ventas v
          JOIN productos p ON v.producto = p.id
-         WHERE v.vendedor = $1 AND v.fecha BETWEEN $2 AND $3
+         WHERE v.vendedor = $1
          ORDER BY v.fecha DESC`,
-        [vendedorId, startDate, endDate]
+        [vendedorId]
       );
     }
     return NextResponse.json(result.rows);
