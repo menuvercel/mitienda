@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { format, parseISO, startOfWeek, endOfWeek, isValid } from "date-fns"
+import { format, parseISO, startOfWeek, addDays, isValid } from "date-fns"
 import { es } from 'date-fns/locale'
 import { Calendar as CalendarIcon } from "lucide-react"
 
@@ -80,9 +80,11 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
         return
       }
   
-      // Ajustamos las fechas para que la semana comience el lunes y termine el domingo
+      // Ajustamos las fechas para que la semana comience el lunes
       const adjustedWeekStart = startOfWeek(weekStart, { weekStartsOn: 1 }) // 1 es lunes
-      const adjustedWeekEnd = endOfWeek(weekEnd, { weekStartsOn: 1 }) // 0 es domingo
+  
+      // Calculamos manualmente el domingo de la misma semana (fin de semana)
+      const adjustedWeekEnd = addDays(adjustedWeekStart, 6) // El domingo es 6 días después del lunes
   
       const weekKey = `${format(adjustedWeekStart, 'yyyy-MM-dd')}_${format(adjustedWeekEnd, 'yyyy-MM-dd')}`
   
@@ -107,6 +109,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
       return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0
     })
   }, [])
+  
   
 
   const obtenerVentasSemanales = useCallback(async () => {
