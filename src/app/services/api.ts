@@ -206,13 +206,36 @@ export const getVentasDia = async (vendedorId: string): Promise<Venta[]> => {
   }
 };
 
-export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
+export const getVentasMes = async (vendedorId: string, startDate?: string, endDate?: string): Promise<Venta[]> => {
   console.log('Solicitando ventas del mes para vendedor:', vendedorId);
-  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-  const lastDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0];
-  const response = await api.get(`/ventas?vendedorId=${vendedorId}&startDate=${firstDayOfMonth}&endDate=${lastDayOfMonth}`);
-  console.log('Respuesta de ventas del mes:', response.data);
-  return response.data;
+  
+  // If no dates are provided, default to the current month
+  if (!startDate || !endDate) {
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    startDate = firstDayOfMonth.toISOString().split('T')[0];
+    endDate = lastDayOfMonth.toISOString().split('T')[0];
+  }
+
+  try {
+    const response = await axios.get(`/ventas`, {
+      params: {
+        vendedorId,
+        startDate,
+        endDate
+      }
+    });
+    console.log('Respuesta de ventas del mes:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener ventas del mes:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Respuesta del servidor:', error.response.data);
+    }
+    throw new Error(`No se pudieron obtener las ventas del mes: ${(error as Error).message}`);
+  }
 };
 
 export const getTransaccionesVendedor = async (vendedorId: string) => {
