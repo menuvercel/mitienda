@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight, Minus, Plus, DollarSign  } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { format, parseISO, isValid, startOfWeek, endOfWeek, addDays   } from 'date-fns'
+import { format, parseISO, isValid, startOfWeek, endOfWeek, subMonths  } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { 
   getTransaccionesVendedor,
@@ -196,8 +196,16 @@ const useVendedorData = (vendedorId: string) => {
 
   const fetchVentasRegistro = useCallback(async () => {
     try {
+      const today = new Date();
+      const oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+      
       const ventasDiaData: Venta[] = await getVentasDia(vendedorId);
-      const ventasMesData: Venta[] = await getVentasMes(vendedorId);
+      const ventasMesData: Venta[] = await getVentasMes(
+        vendedorId, 
+        oneMonthAgo.toISOString().split('T')[0], 
+        today.toISOString().split('T')[0]
+      );
+      
       const todasLasVentas = [...ventasDiaData, ...ventasMesData];
       setVentasDia(ventasDiaData);
       setVentasRegistro(todasLasVentas);
