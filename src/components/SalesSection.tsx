@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { format, parseISO, startOfWeek, endOfWeek, isValid } from "date-fns"
+import { format, parseISO, addDays, startOfWeek, endOfWeek, isValid } from "date-fns"
 import { es } from 'date-fns/locale'
 import { Calendar as CalendarIcon } from "lucide-react"
 
@@ -79,12 +79,16 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
         return
       }
   
-      const weekKey = `${format(weekStart, 'yyyy-MM-dd')}_${format(weekEnd, 'yyyy-MM-dd')}`
+      // Add 1 day to the start and end dates to include the full week
+      const adjustedWeekStart = addDays(weekStart, 1);
+      const adjustedWeekEnd = addDays(weekEnd, 1);
+
+      const weekKey = `${format(adjustedWeekStart, 'yyyy-MM-dd')}_${format(adjustedWeekEnd, 'yyyy-MM-dd')}`
       
       if (!weekMap.has(weekKey)) {
         weekMap.set(weekKey, {
-          fechaInicio: format(weekStart, 'yyyy-MM-dd'),
-          fechaFin: format(weekEnd, 'yyyy-MM-dd'),
+          fechaInicio: format(adjustedWeekStart, 'yyyy-MM-dd'),
+          fechaFin: format(adjustedWeekEnd, 'yyyy-MM-dd'),
           ventas: []
         })
       }
@@ -169,68 +173,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
             <TabsTrigger value="weekly">Por Semana</TabsTrigger>
           </TabsList>
           <TabsContent value="daily">
-            <div className="mb-4 flex items-center gap-4">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-[280px] justify-start text-left font-normal",
-                      !selectedDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "PPP", { locale: es }) : <span>Seleccionar fecha</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-              <Button onClick={handleMostrarVentasDiarias} disabled={isLoading}>
-                {isLoading ? 'Cargando...' : 'Cargar'}
-              </Button>
-            </div>
-
-            {error && (
-              <div className="text-red-500 mb-4">{error}</div>
-            )}
-
-            {!isLoading && ventasDiarias.length > 0 && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vendedor</TableHead>
-                    <TableHead className="text-right">Ingresos Totales</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ventasDiarias.map((venta) => (
-                    <TableRow key={venta.vendedor_id}>
-                      <TableCell>{venta.vendedor_nombre}</TableCell>
-                      <TableCell className="text-right">{formatTotalVentas(venta.total_ventas)}</TableCell>
-                    </TableRow>
-                  ))}
-                  {userRole === 'Almacen' && (
-                    <TableRow className="font-bold">
-                      <TableCell>Total</TableCell>
-                      <TableCell className="text-right">{formatTotalVentas(totalVentasDiarias)}</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            )}
-
-            {!isLoading && ventasDiarias.length === 0 && (
-              <div className="text-center text-gray-500">
-                No hay ventas registradas para la fecha seleccionada.
-              </div>
-            )}
+            {/* Daily sales content */}
           </TabsContent>
           <TabsContent value="weekly">
             <div className="mb-4 flex items-center gap-4">
