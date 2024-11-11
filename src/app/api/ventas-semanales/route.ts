@@ -13,11 +13,12 @@ export async function GET(request: NextRequest) {
   try {
     let result;
     if (decoded.rol === 'Almacen') {
+      // Para el rol Almacen, obtener ventas de todos los vendedores
       result = await query(
         `WITH weeks AS (
            SELECT 
-             (DATE_TRUNC('week', fecha) + INTERVAL '1 day')::date as week_start,
-             (DATE_TRUNC('week', fecha) + INTERVAL '7 days')::date as week_end
+             (DATE_TRUNC('week', fecha))::date as week_start,  -- Calculamos el primer día de la semana (lunes)
+             (DATE_TRUNC('week', fecha) + INTERVAL '6 days')::date as week_end  -- Calculamos el último día de la semana (domingo)
            FROM ventas
            GROUP BY DATE_TRUNC('week', fecha)
          )
@@ -37,11 +38,12 @@ export async function GET(request: NextRequest) {
          ORDER BY w.week_start DESC, total_ventas DESC`
       );
     } else {
+      // Para el rol Vendedor, obtener solo sus propias ventas
       result = await query(
         `WITH weeks AS (
            SELECT 
-             (DATE_TRUNC('week', fecha) + INTERVAL '1 day')::date as week_start,
-             (DATE_TRUNC('week', fecha) + INTERVAL '7 days')::date as week_end
+             (DATE_TRUNC('week', fecha))::date as week_start,  -- Calculamos el primer día de la semana (lunes)
+             (DATE_TRUNC('week', fecha) + INTERVAL '6 days')::date as week_end  -- Calculamos el último día de la semana (domingo)
            FROM ventas
            WHERE vendedor = $1
            GROUP BY DATE_TRUNC('week', fecha)
@@ -57,8 +59,8 @@ export async function GET(request: NextRequest) {
            AND v.fecha >= w.week_start 
            AND v.fecha <= w.week_end
          GROUP BY w.week_start, w.week_end
-         ORDER BY w.week_start DESC`,
-        [decoded.id, decoded.rol]
+         ORDER BY w.week_start DESC`
+        , [decoded.id, decoded.rol]
       );
     }
 
