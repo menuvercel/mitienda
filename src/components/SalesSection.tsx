@@ -69,7 +69,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
 
   const agruparVentasPorSemana = useCallback((ventas: VentaSemanal[]) => {
     const weekMap = new Map<string, VentasSemana>()
-  
+    
     ventas.forEach((venta) => {
       const weekStart = parseISO(venta.week_start)
       const weekEnd = parseISO(venta.week_end)
@@ -102,13 +102,17 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
       currentWeek.ventas.push(venta)
     })
   
+    // Filtrar las semanas vacías antes de devolverlas
+    const semanasConVentas = Array.from(weekMap.values()).filter(semana => semana.ventas.length > 0)
+  
     // Ordenamos las semanas en orden descendente
-    return Array.from(weekMap.values()).sort((a, b) => {
+    return semanasConVentas.sort((a, b) => {
       const dateA = parseISO(a.fechaInicio)
       const dateB = parseISO(b.fechaInicio)
       return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0
     })
   }, [])
+  
   
   
 
