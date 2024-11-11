@@ -67,27 +67,28 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
     }
   }, []);
 
+  // Función para calcular las semanas de manera correcta
   const agruparVentasPorSemana = useCallback((ventas: VentaSemanal[]) => {
     const weekMap = new Map<string, VentasSemana>();
-    
+
     ventas.forEach((venta) => {
       const weekStart = parseISO(venta.week_start);
       const weekEnd = parseISO(venta.week_end);
-  
+
       // Aseguramos que las fechas sean válidas
       if (!isValid(weekStart) || !isValid(weekEnd)) {
-        console.error(`Invalid date in venta: ${venta.week_start} - ${venta.week_end}`);
+        console.error(`Fecha no válida en venta: ${venta.week_start} - ${venta.week_end}`);
         return;
       }
-  
+
       // Ajustamos las fechas para que la semana comience el lunes
       const adjustedWeekStart = startOfWeek(weekStart, { weekStartsOn: 1 }); // 1 es lunes
-  
+
       // Calculamos manualmente el domingo de la misma semana (fin de semana)
       const adjustedWeekEnd = addDays(adjustedWeekStart, 6); // El domingo es 6 días después del lunes
-  
+
       const weekKey = `${format(adjustedWeekStart, 'yyyy-MM-dd')}-${format(adjustedWeekEnd, 'yyyy-MM-dd')}`;
-  
+
       // Si la semana no existe en el mapa, la creamos
       if (!weekMap.has(weekKey)) {
         weekMap.set(weekKey, {
@@ -96,15 +97,15 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
           ventas: []
         });
       }
-  
+
       // Añadimos la venta a la semana correspondiente
       const currentWeek = weekMap.get(weekKey)!;
       currentWeek.ventas.push(venta);
     });
-  
+
     // Filtrar las semanas vacías antes de devolverlas
     const semanasConVentas = Array.from(weekMap.values()).filter(semana => semana.ventas.length > 0);
-  
+
     // Ordenar las semanas en orden ascendente
     return semanasConVentas.sort((a, b) => {
       const dateA = parseISO(a.fechaInicio);
@@ -113,7 +114,6 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
     });
   }, []);
 
-  
   const obtenerVentasSemanales = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -142,12 +142,12 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
   }, [selectedWeek, agruparVentasPorSemana]);
 
   useEffect(() => {
-    obtenerVentasSemanales()
-  }, [obtenerVentasSemanales])
+    obtenerVentasSemanales();
+  }, [obtenerVentasSemanales]);
 
   const handleMostrarVentasDiarias = () => {
     if (selectedDate) {
-      obtenerVentasDelDia(selectedDate)
+      obtenerVentasDelDia(selectedDate);
     }
   }
 
@@ -210,100 +210,65 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
                 {isLoading ? 'Cargando...' : 'Cargar'}
               </Button>
             </div>
-
-            {error && (
-              <div className="text-red-500 mb-4">{error}</div>
-            )}
-
-            {!isLoading && ventasDiarias.length > 0 && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vendedor</TableHead>
-                    <TableHead className="text-right">Ingresos Totales</TableHead>
+            {error && <div className="text-red-500">{error}</div>}
+            <div>
+              <h2 className="font-semibold text-lg">Total de Ventas</h2>
+              <p>{formatTotalVentas(totalVentasDiarias)}</p>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Vendedor</TableHead>
+                  <TableHead>Total Ventas</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ventasDiarias.map((venta) => (
+                  <TableRow key={venta.vendedor_id}>
+                    <TableCell>{venta.vendedor_nombre}</TableCell>
+                    <TableCell>{formatTotalVentas(venta.total_ventas)}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ventasDiarias.map((venta) => (
-                    <TableRow key={venta.vendedor_id}>
-                      <TableCell>{venta.vendedor_nombre}</TableCell>
-                      <TableCell className="text-right">{formatTotalVentas(venta.total_ventas)}</TableCell>
-                    </TableRow>
-                  ))}
-                  {userRole === 'Almacen' && (
-                    <TableRow className="font-bold">
-                      <TableCell>Total</TableCell>
-                      <TableCell className="text-right">{formatTotalVentas(totalVentasDiarias)}</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            )}
-
-            {!isLoading && ventasDiarias.length === 0 && (
-              <div className="text-center text-gray-500">
-                No hay ventas registradas para la fecha seleccionada.
-              </div>
-            )}
+                ))}
+              </TableBody>
+            </Table>
           </TabsContent>
+
           <TabsContent value="weekly">
             <div className="mb-4 flex items-center gap-4">
-              <Select value={selectedWeek || ''} onValueChange={setSelectedWeek}>
-                <SelectTrigger className="w-[280px]">
+            <Select onValueChange={setSelectedWeek} value={selectedWeek ?? undefined}>
+                <SelectTrigger>
                   <SelectValue placeholder="Seleccionar semana" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ventasSemanales.map((semana, index) => (
-                    <SelectItem 
-                      key={index} 
-                      value={`${semana.fechaInicio}-${semana.fechaFin}`}
-                    >
-                      {`${format(parseISO(semana.fechaInicio), 'dd/MM/yyyy', { locale: es })} - ${format(parseISO(semana.fechaFin), 'dd/MM/yyyy', { locale: es })}`}
+                  {ventasSemanales.map((semana) => (
+                    <SelectItem key={semana.fechaInicio} value={`${semana.fechaInicio}-${semana.fechaFin}`}>
+                      {`${format(parseISO(semana.fechaInicio), "dd/MM/yyyy", { locale: es })} - ${format(parseISO(semana.fechaFin), "dd/MM/yyyy", { locale: es })}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Button onClick={obtenerVentasSemanales} disabled={isLoading}>
-                {isLoading ? 'Cargando...' : 'Cargar'}
-              </Button>
             </div>
-
-            {error && (
-              <div className="text-red-500 mb-4">{error}</div>
-            )}
-
-            {!isLoading && ventasSemanales.length > 0 && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vendedor</TableHead>
-                    <TableHead className="text-right">Ingresos Totales</TableHead>
+            {error && <div className="text-red-500">{error}</div>}
+            <div>
+              <h2 className="font-semibold text-lg">Total de Ventas</h2>
+              <p>{formatTotalVentas(totalVentasSemanales)}</p>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Vendedor</TableHead>
+                  <TableHead>Total Ventas</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ventasSemanalesFiltradas.map((venta) => (
+                  <TableRow key={venta.vendedor_id}>
+                    <TableCell>{venta.vendedor_nombre}</TableCell>
+                    <TableCell>{formatTotalVentas(venta.total_ventas)}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedWeek && ventasSemanalesFiltradas.map((venta) => (
-                    <TableRow key={venta.vendedor_id}>
-                      <TableCell>{venta.vendedor_nombre}</TableCell>
-                      <TableCell className="text-right">{formatTotalVentas(venta.total_ventas)}</TableCell>
-                    </TableRow>
-                  ))}
-                  {userRole === 'Almacen' && selectedWeek && (
-                    <TableRow className="font-bold">
-                      <TableCell>Total</TableCell>
-                      <TableCell className="text-right">
-                        {formatTotalVentas(totalVentasSemanales)}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            )}
-
-            {!isLoading && ventasSemanales.length === 0 && (
-              <div className="text-center text-gray-500">
-                No hay ventas registradas para la semana seleccionada.
-              </div>
-            )}
+                ))}
+              </TableBody>
+            </Table>
           </TabsContent>
         </Tabs>
       </CardContent>
