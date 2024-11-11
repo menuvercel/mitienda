@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { startOfWeek, endOfWeek, format } from 'date-fns';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -277,41 +278,56 @@ export default function AlmacenPage() {
   };
   
   const calcularVentasSemanales = (ventas: Venta[]): VentaSemana[] => {
-    const ventasPorSemana: { [key: string]: Venta[] } = {};
-    ventas.forEach(venta => {
-      const date = new Date(venta.fecha);
-      const weekStart = new Date(date.setDate(date.getDate() - date.getDay()));
-      const weekEnd = new Date(date.setDate(date.getDate() - date.getDay() + 6));
-      const weekKey = `${weekStart.toISOString().split('T')[0]}_${weekEnd.toISOString().split('T')[0]}`;
+    const weekMap = new Map<string, VentaSemana>();
+  
+    const getWeekKey = (date: Date) => {
+      // Usamos startOfWeek y endOfWeek de date-fns para calcular las fechas de inicio y fin de la semana.
+      const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 });  // Asegura que la semana empiece el lunes
+      const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 });  // Y termine el domingo
+      return `${format(mondayOfWeek, 'yyyy-MM-dd')}_${format(sundayOfWeek, 'yyyy-MM-dd')}`;
+    };
+  
+    ventas.forEach((venta) => {
+      const ventaDate = new Date(venta.fecha);
       
-      if (!ventasPorSemana[weekKey]) ventasPorSemana[weekKey] = [];
-      ventasPorSemana[weekKey].push(venta);
+      // Validar que la fecha sea válida
+      if (isNaN(ventaDate.getTime())) {
+        console.error(`Fecha inválida en la venta: ${venta.fecha}`);
+        return;
+      }
+  
+      const weekKey = getWeekKey(ventaDate);
+  
+      if (!weekMap.has(weekKey)) {
+        // Si la semana no está en el Map, agregamos una nueva entrada
+        const mondayOfWeek = startOfWeek(ventaDate, { weekStartsOn: 1 });
+        const sundayOfWeek = endOfWeek(ventaDate, { weekStartsOn: 1 });
+        weekMap.set(weekKey, {
+          fechaInicio: format(mondayOfWeek, 'yyyy-MM-dd'),
+          fechaFin: format(sundayOfWeek, 'yyyy-MM-dd'),
+          ventas: [],
+          total: 0,
+          ganancia: 0,
+        });
+      }
+  
+      // Agregar la venta al Map correspondiente
+      const currentWeek = weekMap.get(weekKey)!;
+      currentWeek.ventas.push(venta);
+      currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0;
+      currentWeek.ganancia = parseFloat((currentWeek.total * 0.08).toFixed(2)); // Ganancia como 8% del total
     });
   
-    return Object.entries(ventasPorSemana).map(([weekKey, ventasDeLaSemana]) => {
-      const [fechaInicio, fechaFin] = weekKey.split('_');
-      const total = ventasDeLaSemana.reduce((sum, venta) => sum + parseFloat(venta.total.toString()), 0);
-      const ganancia = total * 0.08; // Calculamos la ganancia como el 8% del total
-      return {
-        fechaInicio,
-        fechaFin,
-        ventas: ventasDeLaSemana,
-        total,
-        ganancia
-      };
-    });
+    // Convertir el Map a un array de resultados
+    return Array.from(weekMap.values());
   };
+  
 
   const handleVerVendedor = async (vendedor: Vendedor) => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-      const oneMonthAgoString = oneMonthAgo.toISOString().split('T')[0];
-  
       const [productos, ventas, transacciones] = await Promise.all([
         getProductosVendedor(vendedor.id),
-        getVentasVendedor(vendedor.id, oneMonthAgoString, today),
+        getVentasVendedor(vendedor.id), // Ahora no es necesario pasar las fechas
         getTransaccionesVendedor(vendedor.id)
       ]);
   
@@ -333,6 +349,7 @@ export default function AlmacenPage() {
       setVendedorSeleccionado(vendedor);
     }
   };
+  
 
   const handleProductInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target

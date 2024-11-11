@@ -246,10 +246,10 @@ export const reducirProductoVendedor = async (productoId: string, vendedorId: st
   }
 };
 
-export const getVentasVendedor = async (vendedorId: string, startDate: string, endDate: string): Promise<Venta[]> => {
-  console.log('Solicitando ventas para vendedor:', vendedorId, 'desde:', startDate, 'hasta:', endDate);
+export const getVentasVendedor = async (vendedorId: string): Promise<Venta[]> => {
+  console.log('Solicitando todas las ventas para vendedor:', vendedorId);
   try {
-    const response = await api.get(`/ventas?vendedorId=${vendedorId}&startDate=${startDate}&endDate=${endDate}`);
+    const response = await api.get(`/ventas?vendedorId=${vendedorId}`);
     console.log('Respuesta de ventas:', response.data);
     return response.data;
   } catch (error) {
@@ -260,6 +260,7 @@ export const getVentasVendedor = async (vendedorId: string, startDate: string, e
     throw new Error(`No se pudieron obtener las ventas: ${(error as Error).message}`);
   }
 };
+
 
 export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor): Promise<void> => {
   try {
