@@ -183,11 +183,11 @@ const useVendedorData = (vendedorId: string) => {
   const fetchProductos = useCallback(async () => {
     try {
       const data = await getProductosVendedor(vendedorId)
-      console.log('Raw data from getProductosVendedor:', data);
-      setProductosDisponibles(data.filter((up: Producto) => up.cantidad > 0))
-      setProductosAgotados(data.filter((up: Producto) => up.cantidad === 0))
-      console.log('Productos disponibles:', productosDisponibles);
-      console.log('Productos agotados:', productosAgotados);
+      console.log('Raw data from getProductosVendedor:', data)
+      setProductosDisponibles(data.filter((producto: Producto) => producto.cantidad > 0))
+      setProductosAgotados(data.filter((producto: Producto) => producto.cantidad === 0))
+      console.log('Productos disponibles:', productosDisponibles)
+      console.log('Productos agotados:', productosAgotados)
     } catch (error) {
       console.error('Error al obtener productos:', error)
       setError('No se pudieron cargar los productos. Por favor, intenta de nuevo.')
@@ -202,7 +202,11 @@ const useVendedorData = (vendedorId: string) => {
 
       const [ventasDiaData, ventasMesData] = await Promise.all([
         getVentasDia(vendedorId),
-        getVentasMes(vendedorId, firstDayOfMonth.toISOString(), lastDayOfMonth.toISOString())
+        getVentasMes(
+          vendedorId, 
+          firstDayOfMonth.toISOString().split('T')[0], 
+          lastDayOfMonth.toISOString().split('T')[0]
+        )
       ])
 
       const todasLasVentas = [...ventasDiaData, ...ventasMesData]
