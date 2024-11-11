@@ -46,47 +46,47 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
   const [error, setError] = useState<string | null>(null)
 
   const obtenerVentasDelDia = useCallback(async (fecha: Date) => {
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const formattedDate = format(fecha, 'yyyy-MM-dd')
-      const response = await fetch(`/api/ventas-diarias?fecha=${formattedDate}`)
+      const formattedDate = format(fecha, 'yyyy-MM-dd');
+      const response = await fetch(`/api/ventas-diarias?fecha=${formattedDate}`);
       
       if (!response.ok) {
-        throw new Error('Error al obtener las ventas diarias')
+        throw new Error('Error al obtener las ventas diarias');
       }
 
-      const data: VentaDiaria[] = await response.json()
-      setVentasDiarias(data)
+      const data: VentaDiaria[] = await response.json();
+      setVentasDiarias(data);
     } catch (error) {
-      console.error('Error al obtener ventas diarias:', error)
-      setError('Error al obtener las ventas diarias. Por favor, intenta de nuevo.')
+      console.error('Error al obtener ventas diarias:', error);
+      setError('Error al obtener las ventas diarias. Por favor, intenta de nuevo.');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [])
+  }, []);
 
   const agruparVentasPorSemana = useCallback((ventas: VentaSemanal[]) => {
-    const weekMap = new Map<string, VentasSemana>()
+    const weekMap = new Map<string, VentasSemana>();
     
     ventas.forEach((venta) => {
-      const weekStart = parseISO(venta.week_start)
-      const weekEnd = parseISO(venta.week_end)
+      const weekStart = parseISO(venta.week_start);
+      const weekEnd = parseISO(venta.week_end);
   
       // Aseguramos que las fechas sean válidas
       if (!isValid(weekStart) || !isValid(weekEnd)) {
-        console.error(`Invalid date in venta: ${venta.week_start} - ${venta.week_end}`)
-        return
+        console.error(`Invalid date in venta: ${venta.week_start} - ${venta.week_end}`);
+        return;
       }
   
       // Ajustamos las fechas para que la semana comience el lunes
-      const adjustedWeekStart = startOfWeek(weekStart, { weekStartsOn: 1 }) // 1 es lunes
+      const adjustedWeekStart = startOfWeek(weekStart, { weekStartsOn: 1 }); // 1 es lunes
   
       // Calculamos manualmente el domingo de la misma semana (fin de semana)
-      const adjustedWeekEnd = addDays(adjustedWeekStart, 6) // El domingo es 6 días después del lunes
+      const adjustedWeekEnd = addDays(adjustedWeekStart, 6); // El domingo es 6 días después del lunes
   
-      const weekKey = `${format(adjustedWeekStart, 'yyyy-MM-dd')}_${format(adjustedWeekEnd, 'yyyy-MM-dd')}`
+      const weekKey = `${format(adjustedWeekStart, 'yyyy-MM-dd')}_${format(adjustedWeekEnd, 'yyyy-MM-dd')}`;
   
       // Si la semana no existe en el mapa, la creamos
       if (!weekMap.has(weekKey)) {
@@ -94,54 +94,52 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
           fechaInicio: format(adjustedWeekStart, 'yyyy-MM-dd'),
           fechaFin: format(adjustedWeekEnd, 'yyyy-MM-dd'),
           ventas: []
-        })
+        });
       }
   
       // Añadimos la venta a la semana correspondiente
-      const currentWeek = weekMap.get(weekKey)!
-      currentWeek.ventas.push(venta)
-    })
+      const currentWeek = weekMap.get(weekKey)!;
+      currentWeek.ventas.push(venta);
+    });
   
     // Filtrar las semanas vacías antes de devolverlas
-    const semanasConVentas = Array.from(weekMap.values()).filter(semana => semana.ventas.length > 0)
+    const semanasConVentas = Array.from(weekMap.values()).filter(semana => semana.ventas.length > 0);
   
     // Ordenamos las semanas en orden descendente
     return semanasConVentas.sort((a, b) => {
-      const dateA = parseISO(a.fechaInicio)
-      const dateB = parseISO(b.fechaInicio)
-      return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0
-    })
-  }, [])
-  
-  
-  
+      const dateA = parseISO(a.fechaInicio);
+      const dateB = parseISO(b.fechaInicio);
+      return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0;
+    });
+  }, []);
 
+  
   const obtenerVentasSemanales = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const response = await fetch('/api/ventas-semanales')
+      const response = await fetch('/api/ventas-semanales');
       
       if (!response.ok) {
-        throw new Error('Error al obtener las ventas semanales')
+        throw new Error('Error al obtener las ventas semanales');
       }
 
-      const data: VentaSemanal[] = await response.json()
-      const ventasAgrupadasPorSemana = agruparVentasPorSemana(data)
+      const data: VentaSemanal[] = await response.json();
+      const ventasAgrupadasPorSemana = agruparVentasPorSemana(data);
       
-      setVentasSemanales(ventasAgrupadasPorSemana)
+      setVentasSemanales(ventasAgrupadasPorSemana);
       
       if (ventasAgrupadasPorSemana.length > 0 && !selectedWeek) {
-        setSelectedWeek(`${ventasAgrupadasPorSemana[0].fechaInicio},${ventasAgrupadasPorSemana[0].fechaFin}`)
+        setSelectedWeek(`${ventasAgrupadasPorSemana[0].fechaInicio},${ventasAgrupadasPorSemana[0].fechaFin}`);
       }
     } catch (error) {
-      console.error('Error al obtener ventas semanales:', error)
-      setError('Error al obtener las ventas semanales. Por favor, intenta de nuevo.')
+      console.error('Error al obtener ventas semanales:', error);
+      setError('Error al obtener las ventas semanales. Por favor, intenta de nuevo.');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [selectedWeek, agruparVentasPorSemana])
+  }, [selectedWeek, agruparVentasPorSemana]);
 
   useEffect(() => {
     obtenerVentasSemanales()
@@ -154,24 +152,24 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
   }
 
   const formatTotalVentas = (total: number | string | null): string => {
-    if (total === null) return '$0.00'
-    const numTotal = typeof total === 'string' ? parseFloat(total) : total
-    return isNaN(numTotal) ? '$0.00' : `$${numTotal.toFixed(2)}`
-  }
+    if (total === null) return '$0.00';
+    const numTotal = typeof total === 'string' ? parseFloat(total) : total;
+    return isNaN(numTotal) ? '$0.00' : `$${numTotal.toFixed(2)}`;
+  };
 
   const totalVentasDiarias = ventasDiarias.reduce((sum, venta) => {
-    const ventaTotal = typeof venta.total_ventas === 'string' ? parseFloat(venta.total_ventas) : (venta.total_ventas || 0)
-    return sum + (isNaN(ventaTotal) ? 0 : ventaTotal)
-  }, 0)
+    const ventaTotal = typeof venta.total_ventas === 'string' ? parseFloat(venta.total_ventas) : (venta.total_ventas || 0);
+    return sum + (isNaN(ventaTotal) ? 0 : ventaTotal);
+  }, 0);
 
   const ventasSemanalesFiltradas = selectedWeek
     ? ventasSemanales.find(semana => `${semana.fechaInicio},${semana.fechaFin}` === selectedWeek)?.ventas || []
-    : []
+    : [];
 
   const totalVentasSemanales = ventasSemanalesFiltradas.reduce((sum, venta) => {
-    const ventaTotal = typeof venta.total_ventas === 'string' ? parseFloat(venta.total_ventas) : (venta.total_ventas || 0)
-    return sum + (isNaN(ventaTotal) ? 0 : ventaTotal)
-  }, 0)
+    const ventaTotal = typeof venta.total_ventas === 'string' ? parseFloat(venta.total_ventas) : (venta.total_ventas || 0);
+    return sum + (isNaN(ventaTotal) ? 0 : ventaTotal);
+  }, 0);
 
   return (
     <Card className="w-full">
