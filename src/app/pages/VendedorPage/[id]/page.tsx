@@ -94,32 +94,32 @@ const useVendedorData = (vendedorId: string) => {
   const [ventasDiarias, setVentasDiarias] = useState<VentaDia[]>([]);
 
   const agruparVentasPorDia = useCallback((ventas: Venta[]) => {
-    const ventasDiarias: VentaDia[] = []
+    const ventasDiarias: VentaDia[] = [];
     ventas.forEach((venta) => {
-      const fecha = parseISO(venta.fecha)
+      const fecha = parseISO(venta.fecha);
       if (!isValid(fecha)) {
-        console.error(`Invalid date in venta: ${venta.fecha}`)
-        return
+        console.error(`Invalid date in venta: ${venta.fecha}`);
+        return;
       }
-      const fechaStr = format(fecha, 'yyyy-MM-dd')
-      const diaExistente = ventasDiarias.find(d => d.fecha === fechaStr)
+      const fechaStr = format(fecha, 'yyyy-MM-dd');
+      const diaExistente = ventasDiarias.find((d) => d.fecha === fechaStr);
       if (diaExistente) {
-        diaExistente.ventas.push(venta)
-        diaExistente.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0
+        diaExistente.ventas.push(venta);
+        diaExistente.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0;
       } else {
         ventasDiarias.push({
           fecha: fechaStr,
           ventas: [venta],
-          total: typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0
-        })
+          total: typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0,
+        });
       }
-    })
+    });
     return ventasDiarias.sort((a, b) => {
-      const dateA = parseISO(a.fecha)
-      const dateB = parseISO(b.fecha)
-      return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0
-    })
-  }, [])
+      const dateA = parseISO(a.fecha);
+      const dateB = parseISO(b.fecha);
+      return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0;
+    });
+  }, []);
 
   const agruparVentas = useCallback((ventas: Venta[]) => {
     const ventasAgrupadas = ventas.reduce((acc: VentaAgrupada[], venta) => {
@@ -137,48 +137,48 @@ const useVendedorData = (vendedorId: string) => {
   }, [])
 
   const agruparVentasPorSemana = useCallback((ventas: Venta[]) => {
-    const weekMap = new Map<string, VentaSemana>()
-
+    const weekMap = new Map<string, VentaSemana>();
+  
     const getWeekKey = (date: Date) => {
-      const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 })
-      const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 })
-      return `${format(mondayOfWeek, 'yyyy-MM-dd')}_${format(sundayOfWeek, 'yyyy-MM-dd')}`
-    }
-
+      const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 });
+      const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 });
+      return `${format(mondayOfWeek, 'yyyy-MM-dd')}_${format(sundayOfWeek, 'yyyy-MM-dd')}`;
+    };
+  
     ventas.forEach((venta) => {
-      const ventaDate = parseISO(venta.fecha)
+      const ventaDate = parseISO(venta.fecha);
       if (!isValid(ventaDate)) {
-        console.error(`Invalid date in venta: ${venta.fecha}`)
-        return
+        console.error(`Invalid date in venta: ${venta.fecha}`);
+        return;
       }
-      const weekKey = getWeekKey(ventaDate)
-
+      const weekKey = getWeekKey(ventaDate);
+  
       if (!weekMap.has(weekKey)) {
-        const mondayOfWeek = startOfWeek(ventaDate, { weekStartsOn: 1 })
-        const sundayOfWeek = endOfWeek(ventaDate, { weekStartsOn: 1 })
+        const mondayOfWeek = startOfWeek(ventaDate, { weekStartsOn: 1 });
+        const sundayOfWeek = endOfWeek(ventaDate, { weekStartsOn: 1 });
         weekMap.set(weekKey, {
           fechaInicio: format(mondayOfWeek, 'yyyy-MM-dd'),
           fechaFin: format(sundayOfWeek, 'yyyy-MM-dd'),
           ventas: [],
           total: 0,
-          ganancia: 0
-        })
+          ganancia: 0,
+        });
       }
-
-      const currentWeek = weekMap.get(weekKey)!
-      currentWeek.ventas.push(venta)
-      currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0
-      currentWeek.ganancia = parseFloat((currentWeek.total * 0.08).toFixed(2))
-    })
-
-    const ventasSemanales = Array.from(weekMap.values())
-
+  
+      const currentWeek = weekMap.get(weekKey)!;
+      currentWeek.ventas.push(venta);
+      currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0;
+      currentWeek.ganancia = parseFloat((currentWeek.total * 0.08).toFixed(2));
+    });
+  
+    const ventasSemanales = Array.from(weekMap.values());
+  
     return ventasSemanales.sort((a, b) => {
-      const dateA = parseISO(a.fechaInicio)
-      const dateB = parseISO(b.fechaInicio)
-      return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0
-    })
-  }, [])
+      const dateA = parseISO(a.fechaInicio);
+      const dateB = parseISO(b.fechaInicio);
+      return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0;
+    });
+  }, []);
 
   const fetchProductos = useCallback(async () => {
     try {
@@ -295,7 +295,7 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
 
   return (
     <div className="border rounded-lg mb-2">
-      <div 
+      <div
         className="flex justify-between items-center p-4 cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}
       >
@@ -332,27 +332,27 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
 };
 
 const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false);
 
   const parsePrice = (price: number | string): number => {
-    if (typeof price === 'number') return price
-    const parsed = parseFloat(price)
-    return isNaN(parsed) ? 0 : parsed
-  }
+    if (typeof price === 'number') return price;
+    const parsed = parseFloat(price);
+    return isNaN(parsed) ? 0 : parsed;
+  };
 
   const ventasPorDia = venta.ventas.reduce((acc: Record<string, Venta[]>, v) => {
-    const fecha = parseISO(v.fecha)
+    const fecha = parseISO(v.fecha);
     if (!isValid(fecha)) {
-      console.error(`Invalid date in venta: ${v.fecha}`)
-      return acc
+      console.error(`Invalid date in venta: ${v.fecha}`);
+      return acc;
     }
-    const fechaStr = format(fecha, 'yyyy-MM-dd')
+    const fechaStr = format(fecha, 'yyyy-MM-dd');
     if (!acc[fechaStr]) {
-      acc[fechaStr] = []
+      acc[fechaStr] = [];
     }
-    acc[fechaStr].push(v)
-    return acc
-  }, {})
+    acc[fechaStr].push(v);
+    return acc;
+  }, {});
 
   return (
     <div className="border rounded-lg mb-2">
