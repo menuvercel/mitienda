@@ -69,36 +69,45 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
 
   const agruparVentasPorSemana = useCallback((ventas: VentaSemanal[]) => {
     const weekMap = new Map<string, VentasSemana>()
-    
+  
     ventas.forEach((venta) => {
       const weekStart = parseISO(venta.week_start)
       const weekEnd = parseISO(venta.week_end)
-      
+  
+      // Aseguramos que las fechas sean válidas
       if (!isValid(weekStart) || !isValid(weekEnd)) {
         console.error(`Invalid date in venta: ${venta.week_start} - ${venta.week_end}`)
         return
       }
   
-      const weekKey = `${format(weekStart, 'yyyy-MM-dd')}_${format(weekEnd, 'yyyy-MM-dd')}`
-      
+      // Ajustamos las fechas para que la semana comience el lunes y termine el domingo
+      const adjustedWeekStart = startOfWeek(weekStart, { weekStartsOn: 1 }) // 1 es lunes
+      const adjustedWeekEnd = endOfWeek(weekEnd, { weekStartsOn: 1 }) // 0 es domingo
+  
+      const weekKey = `${format(adjustedWeekStart, 'yyyy-MM-dd')}_${format(adjustedWeekEnd, 'yyyy-MM-dd')}`
+  
+      // Si la semana no existe en el mapa, la creamos
       if (!weekMap.has(weekKey)) {
         weekMap.set(weekKey, {
-          fechaInicio: format(weekStart, 'yyyy-MM-dd'),
-          fechaFin: format(weekEnd, 'yyyy-MM-dd'),
+          fechaInicio: format(adjustedWeekStart, 'yyyy-MM-dd'),
+          fechaFin: format(adjustedWeekEnd, 'yyyy-MM-dd'),
           ventas: []
         })
       }
   
+      // Añadimos la venta a la semana correspondiente
       const currentWeek = weekMap.get(weekKey)!
       currentWeek.ventas.push(venta)
     })
   
+    // Ordenamos las semanas en orden descendente
     return Array.from(weekMap.values()).sort((a, b) => {
       const dateA = parseISO(a.fechaInicio)
       const dateB = parseISO(b.fechaInicio)
       return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0
     })
   }, [])
+  
 
   const obtenerVentasSemanales = useCallback(async () => {
     setIsLoading(true)
