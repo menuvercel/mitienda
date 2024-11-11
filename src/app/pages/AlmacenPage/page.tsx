@@ -281,15 +281,15 @@ export default function AlmacenPage() {
     const weekMap = new Map<string, VentaSemana>();
   
     const getWeekKey = (date: Date) => {
-      // Usamos startOfWeek y endOfWeek de date-fns para calcular las fechas de inicio y fin de la semana.
-      const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 });  // Asegura que la semana empiece el lunes
-      const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 });  // Y termine el domingo
+      // Asegúrate de que la semana empiece en lunes
+      const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 });  // Asegura que la semana empieza el lunes
+      const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 });    // Y termina el domingo
       return `${format(mondayOfWeek, 'yyyy-MM-dd')}_${format(sundayOfWeek, 'yyyy-MM-dd')}`;
     };
   
     ventas.forEach((venta) => {
       const ventaDate = new Date(venta.fecha);
-      
+  
       // Validar que la fecha sea válida
       if (isNaN(ventaDate.getTime())) {
         console.error(`Fecha inválida en la venta: ${venta.fecha}`);
@@ -298,8 +298,8 @@ export default function AlmacenPage() {
   
       const weekKey = getWeekKey(ventaDate);
   
+      // Si la semana no existe en el Map, se agrega
       if (!weekMap.has(weekKey)) {
-        // Si la semana no está en el Map, agregamos una nueva entrada
         const mondayOfWeek = startOfWeek(ventaDate, { weekStartsOn: 1 });
         const sundayOfWeek = endOfWeek(ventaDate, { weekStartsOn: 1 });
         weekMap.set(weekKey, {
@@ -311,14 +311,17 @@ export default function AlmacenPage() {
         });
       }
   
-      // Agregar la venta al Map correspondiente
+      // Obtener la semana y agregar la venta
       const currentWeek = weekMap.get(weekKey)!;
       currentWeek.ventas.push(venta);
+  
+      // Acumulación del total
       currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0;
-      currentWeek.ganancia = parseFloat((currentWeek.total * 0.08).toFixed(2)); // Ganancia como 8% del total
+  
+      // Calcular la ganancia
+      currentWeek.ganancia = parseFloat((currentWeek.total * 0.08).toFixed(2));
     });
   
-    // Convertir el Map a un array de resultados
     return Array.from(weekMap.values());
   };
   
