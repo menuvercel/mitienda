@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight, Minus, Plus, DollarSign  } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { format, parseISO, isValid, startOfWeek, endOfWeek, subMonths  } from 'date-fns'
+import { format, parseISO, isValid, startOfWeek, endOfWeek, addDays   } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { 
   getTransaccionesVendedor,
@@ -183,11 +183,11 @@ const useVendedorData = (vendedorId: string) => {
   const fetchProductos = useCallback(async () => {
     try {
       const data = await getProductosVendedor(vendedorId)
-      console.log('Raw data from getProductosVendedor:', data)
-      setProductosDisponibles(data.filter((producto: Producto) => producto.cantidad > 0))
-      setProductosAgotados(data.filter((producto: Producto) => producto.cantidad === 0))
-      console.log('Productos disponibles:', productosDisponibles)
-      console.log('Productos agotados:', productosAgotados)
+      console.log('Raw data from getProductosVendedor:', data);
+      setProductosDisponibles(data.filter((up: Producto) => up.cantidad > 0))
+      setProductosAgotados(data.filter((up: Producto) => up.cantidad === 0))
+      console.log('Productos disponibles:', productosDisponibles);
+      console.log('Productos agotados:', productosAgotados);
     } catch (error) {
       console.error('Error al obtener productos:', error)
       setError('No se pudieron cargar los productos. Por favor, intenta de nuevo.')
@@ -196,30 +196,23 @@ const useVendedorData = (vendedorId: string) => {
 
   const fetchVentasRegistro = useCallback(async () => {
     try {
-      const today = new Date()
-      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-      const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-
-      const [ventasDiaData, ventasMesData] = await Promise.all([
-        getVentasDia(vendedorId),
-        getVentasMes(
-          vendedorId, 
-          firstDayOfMonth.toISOString().split('T')[0], 
-          lastDayOfMonth.toISOString().split('T')[0]
-        )
-      ])
-
-      const todasLasVentas = [...ventasDiaData, ...ventasMesData]
-      setVentasDia(ventasDiaData)
-      setVentasRegistro(todasLasVentas)
-      setVentasAgrupadas(agruparVentas(todasLasVentas))
-      setVentasSemanales(agruparVentasPorSemana(todasLasVentas))
-      setVentasDiarias(agruparVentasPorDia(todasLasVentas))
+      const ventasDiaData: Venta[] = await getVentasDia(vendedorId);
+      const ventasMesData: Venta[] = await getVentasMes(vendedorId);
+      const todasLasVentas = [...ventasDiaData, ...ventasMesData];
+      setVentasDia(ventasDiaData);
+      setVentasRegistro(todasLasVentas);
+      setVentasAgrupadas(agruparVentas(todasLasVentas));
+      setVentasSemanales(agruparVentasPorSemana(todasLasVentas));
+      setVentasDiarias(agruparVentasPorDia(todasLasVentas));
     } catch (error) {
-      console.error('Error al obtener registro de ventas:', error)
-      setError('No se pudo cargar el registro de ventas. Por favor, intenta de nuevo.')
+      console.error('Error al obtener registro de ventas:', error);
+      if (error instanceof Error) {
+        setError(`No se pudo cargar el registro de ventas: ${error.message}`);
+      } else {
+        setError('No se pudo cargar el registro de ventas. Por favor, intenta de nuevo.');
+      }
     }
-  }, [vendedorId, agruparVentas, agruparVentasPorSemana, agruparVentasPorDia])
+  }, [vendedorId, agruparVentas, agruparVentasPorSemana, agruparVentasPorDia]);
 
   const fetchTransacciones = useCallback(async () => {
     try {
@@ -233,32 +226,32 @@ const useVendedorData = (vendedorId: string) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      setIsLoading(true)
-      setError(null)
+      setIsLoading(true);
+      setError(null);
       try {
-        const user = await getCurrentUser()
-        console.log('Usuario actual:', user.id)
+        const user = await getCurrentUser();
+        console.log('Usuario actual:', user.id);
         if (user && user.rol === 'Vendedor') {
           if (user.id.toString() === vendedorId.toString()) {
-            setIsAuthenticated(true)
-            await Promise.all([fetchProductos(), fetchVentasRegistro(), fetchTransacciones()])
+            setIsAuthenticated(true);
+            await Promise.all([fetchProductos(), fetchVentasRegistro(), fetchTransacciones()]);
           } else {
-            throw new Error('ID de vendedor no coincide')
+            throw new Error('ID de vendedor no coincide');
           }
         } else {
-          throw new Error('Rol de usuario no autorizado')
+          throw new Error('Rol de usuario no autorizado');
         }
       } catch (error) {
-        console.error('Error de autenticación:', error)
-        setError(error instanceof Error ? error.message : 'Error de autenticación desconocido')
-        router.push('/pages/LoginPage')
+        console.error('Error de autenticación:', error);
+        setError(error instanceof Error ? error.message : 'Error de autenticación desconocido');
+        router.push('/pages/LoginPage');
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
   
-    checkAuth()
-  }, [vendedorId, fetchProductos, fetchVentasRegistro, fetchTransacciones, router])
+    checkAuth();
+  }, [vendedorId, fetchProductos, fetchVentasRegistro, fetchTransacciones, router]);
 
   return { 
     isAuthenticated, 

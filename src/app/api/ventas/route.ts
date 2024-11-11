@@ -67,34 +67,47 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get('token')?.value
-  const decoded = verifyToken(token) as DecodedToken | null
+  const token = request.cookies.get('token')?.value;
+  const decoded = verifyToken(token) as DecodedToken | null;
 
   if (!decoded) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
-  const { searchParams } = new URL(request.url)
-  const vendedorId = searchParams.get('vendedorId')
-  const startDate = searchParams.get('startDate')
-  const endDate = searchParams.get('endDate')
+  const { searchParams } = new URL(request.url);
+  const vendedorId = searchParams.get('vendedorId');
+  const productoId = searchParams.get('productoId');
+  const startDate = searchParams.get('startDate');
+  const endDate = searchParams.get('endDate');
 
-  if (!vendedorId || !startDate || !endDate) {
-    return NextResponse.json({ error: 'Se requieren vendedorId, startDate y endDate' }, { status: 400 })
+  if ((!vendedorId && !productoId) || !startDate || !endDate) {
+    return NextResponse.json({ error: 'Se requieren vendedorId o productoId, startDate y endDate' }, { status: 400 });
   }
 
   try {
-    const result = await query(
-      `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario
-       FROM ventas v
-       JOIN productos p ON v.producto = p.id
-       WHERE v.vendedor = $1 AND v.fecha BETWEEN $2 AND $3
-       ORDER BY v.fecha DESC`,
-      [vendedorId, startDate, endDate]
-    )
-    return NextResponse.json(result.rows)
+    let result;
+    if (productoId) {
+      result = await query(
+        `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario
+         FROM ventas v
+         JOIN productos p ON v.producto = p.id
+         WHERE v.producto = $1 AND v.fecha BETWEEN $2 AND $3
+         ORDER BY v.fecha DESC`,
+        [productoId, startDate, endDate]
+      );
+    } else {
+      result = await query(
+        `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario
+         FROM ventas v
+         JOIN productos p ON v.producto = p.id
+         WHERE v.vendedor = $1 AND v.fecha BETWEEN $2 AND $3
+         ORDER BY v.fecha DESC`,
+        [vendedorId, startDate, endDate]
+      );
+    }
+    return NextResponse.json(result.rows);
   } catch (error) {
-    console.error('Error al obtener ventas:', error)
-    return NextResponse.json({ error: 'Error al obtener ventas', details: (error as Error).message }, { status: 500 })
+    console.error('Error al obtener ventas:', error);
+    return NextResponse.json({ error: 'Error al obtener ventas', details: (error as Error).message }, { status: 500 });
   }
 }

@@ -106,18 +106,18 @@ export const registerUser = async (userData: Omit<User, 'id'>): Promise<User> =>
 
 export const getProductosVendedor = async (vendedorId: string) => {
   if (!vendedorId) {
-    throw new Error('ID del vendedor no proporcionado')
+    throw new Error('ID del vendedor no proporcionado');
   }
   try {
-    const response = await api.get(`/api/users/productos/${vendedorId}`)
-    console.log('Raw API response:', response)
-    console.log('Productos del vendedor:', response.data)
-    return response.data
+    const response = await api.get(`/users/productos/${vendedorId}`);
+    console.log('Raw API response:', response);
+    console.log('Productos del vendedor:', response.data);
+    return response.data;
   } catch (error) {
-    console.error('Error al obtener productos del vendedor:', error)
-    throw new Error('No se pudieron obtener los productos del vendedor')
+    console.error('Error al obtener productos del vendedor:', error);
+    throw new Error('No se pudieron obtener los productos del vendedor');
   }
-}
+};
 
 export const agregarProducto = async (formData: FormData) => {
   const response = await api.post('/productos', formData, {
@@ -206,26 +206,14 @@ export const getVentasDia = async (vendedorId: string): Promise<Venta[]> => {
   }
 };
 
-export const getVentasMes = async (vendedorId: string, startDate: string, endDate: string): Promise<Venta[]> => {
-  console.log('Solicitando ventas del mes para vendedor:', vendedorId, 'desde:', startDate, 'hasta:', endDate)
-  try {
-    const response = await axios.get('/api/ventas', {
-      params: {
-        vendedorId,
-        startDate,
-        endDate
-      }
-    })
-    console.log('Respuesta de ventas del mes:', response.data)
-    return response.data
-  } catch (error) {
-    console.error('Error al obtener ventas del mes:', error)
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('Respuesta del servidor:', error.response.data)
-    }
-    throw new Error(`No se pudieron obtener las ventas del mes: ${(error as Error).message}`)
-  }
-}
+export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
+  console.log('Solicitando ventas del mes para vendedor:', vendedorId);
+  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  const lastDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0];
+  const response = await api.get(`/ventas?vendedorId=${vendedorId}&startDate=${firstDayOfMonth}&endDate=${lastDayOfMonth}`);
+  console.log('Respuesta de ventas del mes:', response.data);
+  return response.data;
+};
 
 export const getTransaccionesVendedor = async (vendedorId: string) => {
   try {
