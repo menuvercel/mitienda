@@ -344,9 +344,9 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
               <div className="flex-grow overflow-hidden">
                 <p className="font-bold text-sm truncate">{transaccion.producto}</p>
                 <div className="flex justify-between items-center text-xs text-gray-600">
-                  
                   <span>{formatDate(transaccion.fecha)}</span>
                   <span>Cantidad: {transaccion.cantidad}</span>
+                  <span>Precio: ${transaccion.precio}</span>
                 </div>
                 <p className="text-xs font-semibold">{transactionType}</p>
               </div>
