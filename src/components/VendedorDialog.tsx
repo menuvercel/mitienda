@@ -338,7 +338,8 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             transactionType === 'Entrega' ? 'border-green-500' :
             'border-blue-500'
             
-          const precioFormateado = transaccion.precio.toFixed(2)
+          // Convertimos el precio a número y validamos
+          const precioFormateado = parseFloat(transaccion.precio || 0).toFixed(2)
   
           return (
             <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
