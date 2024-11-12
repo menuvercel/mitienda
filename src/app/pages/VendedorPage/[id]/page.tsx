@@ -412,6 +412,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [busqueda, setBusqueda] = useState('')
 
   const fetchProductData = useCallback(async () => {
     setIsLoading(true)
@@ -487,7 +488,9 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   }
 
   const renderTransaccionesList = () => {
-    const filteredTransacciones = filterItems(transacciones, searchTerm)
+    const filteredTransacciones = transacciones.filter(t =>
+      t.producto.toLowerCase().includes(busqueda.toLowerCase())
+    )
     return (
       <div className="space-y-2">
         {filteredTransacciones.map(transaccion => {
@@ -501,7 +504,12 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
             <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
               <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
               <div className="flex-grow overflow-hidden">
-                <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+                <div className="flex justify-between items-center">
+                  <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+                  <p className="text-sm font-semibold text-green-600">
+                    ${typeof transaccion.precio === 'number' ? transaccion.precio.toFixed(2) : '0.00'}
+                  </p>
+                </div>
                 <div className="flex justify-between items-center text-xs text-gray-600">
                   <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
                   <span>Cantidad: {transaccion.cantidad}</span>
@@ -653,6 +661,7 @@ export default function VendedorPage() {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
 
+  
   const handleSort = (key: 'nombre' | 'cantidad') => {
     if (sortBy === key) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
