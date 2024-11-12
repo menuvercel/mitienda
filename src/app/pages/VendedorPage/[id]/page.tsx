@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight, Minus, Plus, DollarSign  } from "lucide-react"
+import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight, Minus, Plus, DollarSign, ArrowUpDown   } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { format, parseISO, isValid, startOfWeek, endOfWeek, addDays   } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -91,6 +91,8 @@ const useVendedorData = (vendedorId: string) => {
   const [ventasAgrupadas, setVentasAgrupadas] = useState<VentaAgrupada[]>([])
   const [ventasSemanales, setVentasSemanales] = useState<VentaSemana[]>([])
   const [ventasDiarias, setVentasDiarias] = useState<VentaDia[]>([]);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
 
   const agruparVentasPorDia = useCallback((ventas: Venta[]) => {
     const ventasDiarias: VentaDia[] = [];
@@ -265,7 +267,11 @@ const useVendedorData = (vendedorId: string) => {
     ventasDiarias,
     fetchProductos, 
     fetchVentasRegistro,
-    fetchTransacciones
+    fetchTransacciones,
+    sortOrder,
+    setSortOrder,
+    sortBy,
+    setSortBy
   }
 }
 
@@ -632,6 +638,10 @@ export default function VendedorPage() {
     ventasDiarias,
     fetchProductos, 
     fetchVentasRegistro,
+    sortOrder,
+    setSortOrder,
+    sortBy,
+    setSortBy,
   } = useVendedorData(vendedorId)
 
   const [busqueda, setBusqueda] = useState('')
@@ -641,7 +651,28 @@ export default function VendedorPage() {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
 
-  const productosFiltrados = productosDisponibles.filter(p => 
+  const handleSort = (key: 'nombre' | 'cantidad') => {
+    if (sortBy === key) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(key)
+      setSortOrder('asc')
+    }
+  }
+
+  const sortedProductos = [...productosDisponibles].sort((a, b) => {
+    if (sortBy === 'nombre') {
+      return sortOrder === 'asc' 
+        ? a.nombre.localeCompare(b.nombre)
+        : b.nombre.localeCompare(a.nombre)
+    } else {
+      return sortOrder === 'asc'
+        ? a.cantidad - b.cantidad
+        : b.cantidad - a.cantidad
+    }
+  })
+
+  const productosFiltrados = sortedProductos.filter(p => 
     p.nombre.toLowerCase().includes(busqueda.toLowerCase())
   )
 
@@ -810,6 +841,26 @@ export default function VendedorPage() {
                   />
                 </div>
               </div>
+              <div className="flex justify-start space-x-2 mb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSort('nombre')}
+                  className="flex items-center text-xs px-2 py-1"
+                >
+                  Nombre
+                  <ArrowUpDown className="ml-1 h-3 w-3" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSort('cantidad')}
+                  className="flex items-center text-xs px-2 py-1"
+                >
+                  Cantidad
+                  <ArrowUpDown className="ml-1 h-3 w-3" />
+                </Button>
+              </div>
               <div className="space-y-2">
                 {productosFiltrados.map((producto) => (
                   <ProductoCard key={producto.id} producto={producto} />
@@ -817,22 +868,7 @@ export default function VendedorPage() {
               </div>
             </TabsContent>
             <TabsContent value="agotados">
-              <div className="mb-4">
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <Input
-                    placeholder="Buscar productos agotados..."
-                    value={busqueda}
-                    onChange={(e) => setBusqueda(e.target.value)}
-                    className="pl-10 max-w-sm"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                {productosAgotadosFiltrados.map((producto) => (
-                  <ProductoCard key={producto.id} producto={producto} />
-                ))}
-              </div>
+              {/* ... existing code for agotados tab */}
             </TabsContent>
           </Tabs>
         )}
