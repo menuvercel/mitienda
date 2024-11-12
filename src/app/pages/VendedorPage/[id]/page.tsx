@@ -315,24 +315,24 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
       </div>
       {isOpen && (
         <div className="p-4 bg-gray-50">
-          {venta.ventas.map((v) => (
-              <div className="flex items-center justify-between py-2">
-              <div className="flex items-center">
-                <Image
-                  src={v.producto_foto || '/placeholder.svg'}
-                  alt={v.producto_nombre}
-                  width={40}
-                  height={40}
-                  className="rounded-md mr-4"
-                />
-                <span>{v.producto_nombre}</span>
+            {venta.ventas.map((v) => (
+              <div key={v._id} className="flex items-center justify-between py-2">
+                <div className="flex items-center">
+                  <Image
+                    src={v.producto_foto || '/placeholder.svg'}
+                    alt={v.producto_nombre}
+                    width={40}
+                    height={40}
+                    className="rounded-md mr-4"
+                  />
+                  <span>{v.producto_nombre}</span>
+                </div>
+                <div className="text-right">
+                  <div>Cantidad: {v.cantidad}</div>
+                  <div>${formatPrice(v.precio_unitario)}</div>
+                </div>
               </div>
-              <div className="text-right">
-                <div>Cantidad: {v.cantidad}</div>
-                <div>${formatPrice(v.precio_unitario)}</div>
-              </div>
-            </div>
-          ))}
+            ))}
         </div>
       )}
     </div>
