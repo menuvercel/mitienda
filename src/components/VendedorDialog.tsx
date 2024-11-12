@@ -337,16 +337,22 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             transactionType === 'Baja' ? 'border-red-500' :
             transactionType === 'Entrega' ? 'border-green-500' :
             'border-blue-500'
+            
+          const precioFormateado = transaccion.precio.toFixed(2)
   
           return (
             <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
               <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
               <div className="flex-grow overflow-hidden">
-                <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+                <div className="flex justify-between items-center">
+                  <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+                  <p className="text-sm font-semibold text-green-600">
+                    ${precioFormateado}
+                  </p>
+                </div>
                 <div className="flex justify-between items-center text-xs text-gray-600">
-                  <span>{formatDate(transaccion.fecha)}</span>
+                  <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
                   <span>Cantidad: {transaccion.cantidad}</span>
-                  <span>Precio: ${transaccion.precio}</span>
                 </div>
                 <p className="text-xs font-semibold">{transactionType}</p>
               </div>
