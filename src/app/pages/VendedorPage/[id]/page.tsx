@@ -44,6 +44,7 @@ interface Transaccion {
   cantidad: number;
   fecha: string;
   tipo: string;
+  precio: number;
 }
 
 interface Venta {
@@ -418,7 +419,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
     try {
       const endDate = new Date().toISOString().split('T')[0];
       const startDate = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0];
-
+  
       const [transaccionesData, ventasData] = await Promise.all([
         getTransaccionesProducto(producto.id),
         getVentasProducto(producto.id, startDate, endDate)
@@ -428,7 +429,8 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
         producto: t.producto,
         cantidad: t.cantidad,
         fecha: t.fecha,
-        tipo: t.tipo
+        tipo: t.tipo,
+        precio: t.precio || 0 // Add a fallback value if precio is not present
       })))
       setVentas(ventasData)
     } catch (error) {
@@ -485,7 +487,9 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   }
 
   const renderTransaccionesList = () => {
-    const filteredTransacciones = filterItems(transacciones, searchTerm)
+    const filteredTransacciones = transacciones.filter(t =>
+      t.producto.toLowerCase().includes(searchTerm.toLowerCase())
+    )
     return (
       <div className="space-y-2">
         {filteredTransacciones.map(transaccion => {
@@ -504,7 +508,10 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
                   <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
                   <span>Cantidad: {transaccion.cantidad}</span>
                 </div>
-                <p className="text-xs font-semibold">{transactionType}</p>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-semibold">{transactionType}</span>
+                  <span className="text-green-600">Precio: ${(transaccion.precio || 0).toFixed(2)}</span>
+                </div>
               </div>
             </div>
           )
@@ -698,7 +705,10 @@ export default function VendedorPage() {
                   <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
                   <span>Cantidad: {transaccion.cantidad}</span>
                 </div>
-                <p className="text-xs font-semibold">{transactionType}</p>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-semibold">{transactionType}</span>
+                  <span className="text-green-600">Precio: ${transaccion.precio.toFixed(2)}</span>
+                </div>
               </div>
             </div>
           )
@@ -1024,7 +1034,7 @@ export default function VendedorPage() {
             </TabsContent>
           </Tabs>
         )}
-       {seccionActual === 'registro' && (
+        {seccionActual === 'registro' && (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Registro de Actividades</h2>
             <div className="relative mb-4">

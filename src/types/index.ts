@@ -57,6 +57,7 @@ export interface Transaccion {
   desde: string;
   hacia: string;
   fecha: string;
+  precio: number;
 }
 
 export interface Entrega {
