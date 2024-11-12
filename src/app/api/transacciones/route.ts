@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     let result;
     if (productoId) {
       result = await query(
-        `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha
+        `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, t.precio
          FROM transacciones t 
          JOIN productos p ON t.producto = p.id 
          WHERE t.producto = $1
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
       );
     } else {
       result = await query(
-        `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha
+        `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, t.precio
          FROM transacciones t 
          JOIN productos p ON t.producto = p.id 
          WHERE t.hacia = $1 OR t.desde = $1
