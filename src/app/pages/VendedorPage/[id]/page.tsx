@@ -290,9 +290,12 @@ const formatDate = (dateString: string): string => {
   }
 }
 
-const formatPrice = (price: number | string): string => {
-const numPrice = typeof price === 'string' ? parseFloat(price) : price
-return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
+const formatPrice = (price: number | string | undefined): string => {
+  if (typeof price === 'undefined') {
+    return '0.00';
+  }
+  const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+  return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2);
 }
 
 const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
@@ -313,7 +316,7 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
       {isOpen && (
         <div className="p-4 bg-gray-50">
           {venta.ventas.map((v) => (
-            <div key={v._id} className="flex items-center justify-between py-2">
+              <div className="flex items-center justify-between py-2">
               <div className="flex items-center">
                 <Image
                   src={v.producto_foto || '/placeholder.svg'}
