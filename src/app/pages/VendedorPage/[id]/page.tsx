@@ -493,15 +493,19 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   const renderTransaccionesList = () => {
     const filteredTransacciones = transacciones.filter(t =>
       t.producto.toLowerCase().includes(busqueda.toLowerCase())
-    )
+    );
+    
     return (
       <div className="space-y-2">
         {filteredTransacciones.map(transaccion => {
-          const transactionType = transaccion.tipo || 'Normal'
+          const transactionType = transaccion.tipo || 'Normal';
           const borderColor = 
             transactionType === 'Baja' ? 'border-red-500' :
             transactionType === 'Entrega' ? 'border-green-500' :
-            'border-blue-500'
+            'border-blue-500';
+  
+          // Usar la función formatPrice para manejar undefined de manera segura
+          const precioFormateado = formatPrice(transaccion.precio);
   
           return (
             <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
@@ -510,7 +514,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
                 <div className="flex justify-between items-center">
                   <p className="font-bold text-sm truncate">{transaccion.producto}</p>
                   <p className="text-sm font-semibold text-green-600">
-                    ${typeof transaccion.precio === 'number' ? transaccion.precio.toFixed(2) : '0.00'}
+                    ${precioFormateado}
                   </p>
                 </div>
                 <div className="flex justify-between items-center text-xs text-gray-600">
@@ -520,11 +524,11 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
                 <p className="text-xs font-semibold">{transactionType}</p>
               </div>
             </div>
-          )
+          );
         })}
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <>
@@ -693,15 +697,19 @@ export default function VendedorPage() {
   const renderTransaccionesList = () => {
     const filteredTransacciones = transacciones.filter(t =>
       t.producto.toLowerCase().includes(busqueda.toLowerCase())
-    )
+    );
+    
     return (
       <div className="space-y-2">
         {filteredTransacciones.map(transaccion => {
-          const transactionType = transaccion.tipo || 'Normal'
+          const transactionType = transaccion.tipo || 'Normal';
           const borderColor = 
             transactionType === 'Baja' ? 'border-red-500' :
             transactionType === 'Entrega' ? 'border-green-500' :
-            'border-blue-500'
+            'border-blue-500';
+  
+          // Usar la función formatPrice para manejar undefined de manera segura
+          const precioFormateado = formatPrice(transaccion.precio);
   
           return (
             <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
@@ -709,7 +717,9 @@ export default function VendedorPage() {
               <div className="flex-grow overflow-hidden">
                 <div className="flex justify-between items-center">
                   <p className="font-bold text-sm truncate">{transaccion.producto}</p>
-                  <p className="text-sm font-semibold text-green-600">${transaccion.precio.toFixed(2)}</p>
+                  <p className="text-sm font-semibold text-green-600">
+                    ${precioFormateado}
+                  </p>
                 </div>
                 <div className="flex justify-between items-center text-xs text-gray-600">
                   <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
@@ -718,11 +728,11 @@ export default function VendedorPage() {
                 <p className="text-xs font-semibold">{transactionType}</p>
               </div>
             </div>
-          )
+          );
         })}
       </div>
-    )
-  }
+    );
+  };
 
   const handleProductSelect = (productId: string) => {
     setSelectedProductIds(prev => 
