@@ -44,6 +44,7 @@ interface Transaccion {
   cantidad: number;
   fecha: string;
   tipo: string;
+  precio: number;
 }
 
 interface Venta {
@@ -428,7 +429,8 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
         producto: t.producto,
         cantidad: t.cantidad,
         fecha: t.fecha,
-        tipo: t.tipo
+        tipo: t.tipo,
+        precio: t.precio
       })))
       setVentas(ventasData)
     } catch (error) {
@@ -693,7 +695,10 @@ export default function VendedorPage() {
             <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
               <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
               <div className="flex-grow overflow-hidden">
-                <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+                <div className="flex justify-between items-center">
+                  <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+                  <p className="text-sm font-semibold text-green-600">${transaccion.precio.toFixed(2)}</p>
+                </div>
                 <div className="flex justify-between items-center text-xs text-gray-600">
                   <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
                   <span>Cantidad: {transaccion.cantidad}</span>
