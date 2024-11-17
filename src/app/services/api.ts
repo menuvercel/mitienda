@@ -8,18 +8,19 @@ const api = axios.create({
   withCredentials: true
 });
 
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  console.log('Token recuperado de localStorage:', token); // Log para depuración
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+    console.log('Token añadido a la solicitud:', config.headers['Authorization']); // Log para depuración
+  } else {
+    console.log('No se encontró token en localStorage'); // Log para depuración
   }
-);
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
 
 interface User {
   id: string;
