@@ -170,7 +170,7 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
+  const token = request.cookies.get('token')?.value || request.headers.get('Authorization')?.split(' ')[1];
   const decoded = verifyToken(token) as DecodedToken | null;
 
   if (!decoded || (decoded.rol !== 'Vendedor' && decoded.rol !== 'Admin')) {
@@ -200,6 +200,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     const sale = saleResult.rows[0];
+
+    // Verificar si el usuario tiene permiso para eliminar esta venta
+    if (decoded.rol !== 'Admin' && decoded.id !== sale.vendedor) {
+      await query('ROLLBACK');
+      return NextResponse.json({ error: 'No autorizado para eliminar esta venta' }, { status: 403 });
+    }
 
     // Devolver la cantidad al stock del vendedor
     await query(

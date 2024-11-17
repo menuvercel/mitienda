@@ -21,6 +21,8 @@ interface VendorDialogProps {
   ventasSemanales: VentaSemana[]
   ventasDiarias: VentaDia[]
   onProductReduce: (productId: string, vendorId: string, cantidad: number) => Promise<void>
+  onSaleUpdate: (saleId: string, newQuantity: number) => Promise<void>
+  onSaleDelete: (saleId: string) => Promise<void>
 }
 
 interface VentaSemana {
@@ -37,7 +39,8 @@ interface VentaDia {
   total: number
 }
 
-export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce }: VendorDialogProps) {
+export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce,   onSaleUpdate,
+  onSaleDelete }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
   const [searchTerm, setSearchTerm] = useState('')
@@ -57,13 +60,13 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const handleUpdateSale = async () => {
     if (editingSale && editedQuantity !== editingSale.cantidad) {
       try {
-        await updateSale(editingSale._id, editedQuantity)
+        setIsLoading(true)
+        await onSaleUpdate(editingSale._id, editedQuantity)
         toast({
           title: "Éxito",
           description: "La venta se ha actualizado correctamente.",
         })
         setEditingSale(null)
-        // Refresh the sales data here if necessary
       } catch (error) {
         console.error('Error al actualizar la venta:', error)
         toast({
@@ -71,6 +74,8 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
           description: "No se pudo actualizar la venta. Por favor, inténtelo de nuevo.",
           variant: "destructive",
         })
+      } finally {
+        setIsLoading(false)
       }
     }
   }
@@ -78,23 +83,24 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const handleDeleteSale = async (saleId: string) => {
     if (window.confirm('¿Está seguro de que desea eliminar esta venta?')) {
       try {
-        await deleteSale(saleId);
+        setIsLoading(true)
+        await onSaleDelete(saleId)
         toast({
           title: "Éxito",
           description: "La venta se ha eliminado correctamente.",
-        });
-        // Refresh the sales data here
-        // For example: await refreshSalesData();
+        })
       } catch (error) {
-        console.error('Error al eliminar la venta:', error);
+        console.error('Error al eliminar la venta:', error)
         toast({
           title: "Error",
           description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
           variant: "destructive",
-        });
+        })
+      } finally {
+        setIsLoading(false)
       }
     }
-  };
+  }
 
   const formatDate = (dateString: string): string => {
     try {
@@ -153,7 +159,9 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                         onChange={(e) => setEditedQuantity(Number(e.target.value))}
                         className="w-20 mr-2"
                       />
-                      <Button onClick={handleUpdateSale} size="sm">Guardar</Button>
+                      <Button onClick={handleUpdateSale} size="sm" disabled={isLoading}>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Guardar'}
+                      </Button>
                     </>
                   ) : (
                     <>
@@ -173,6 +181,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteSale(v._id)}
+                        disabled={isLoading}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

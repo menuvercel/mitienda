@@ -261,7 +261,6 @@ export const getVentasVendedor = async (vendedorId: string): Promise<Venta[]> =>
   }
 };
 
-
 export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor): Promise<void> => {
   try {
     const response = await api.put(`/users/vendedores?id=${vendedorId}`, editedVendor);
@@ -277,10 +276,7 @@ export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor)
 
 export default api;
 
-
 /*panel individual del vendedor*/
-
-// ... (existing imports and functions)
 
 export const getTransaccionesProducto = async (productoId: string): Promise<Transaccion[]> => {
   try {
