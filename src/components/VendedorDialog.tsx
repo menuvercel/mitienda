@@ -78,22 +78,23 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const handleDeleteSale = async (saleId: string) => {
     if (window.confirm('¿Está seguro de que desea eliminar esta venta?')) {
       try {
-        await deleteSale(saleId)
+        await deleteSale(saleId);
         toast({
           title: "Éxito",
           description: "La venta se ha eliminado correctamente.",
-        })
-        // Refresh the sales data here if necessary
+        });
+        // Refresh the sales data here
+        // For example: await refreshSalesData();
       } catch (error) {
-        console.error('Error al eliminar la venta:', error)
+        console.error('Error al eliminar la venta:', error);
         toast({
           title: "Error",
           description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
           variant: "destructive",
-        })
+        });
       }
     }
-  }
+  };
 
   const formatDate = (dateString: string): string => {
     try {
