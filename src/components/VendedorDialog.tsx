@@ -21,8 +21,6 @@ interface VendorDialogProps {
   ventasSemanales: VentaSemana[]
   ventasDiarias: VentaDia[]
   onProductReduce: (productId: string, vendorId: string, cantidad: number) => Promise<void>
-  onSaleUpdate: (saleId: string, newQuantity: number) => Promise<void>
-  onSaleDelete: (saleId: string) => Promise<void>
 }
 
 interface VentaSemana {
@@ -39,8 +37,7 @@ interface VentaDia {
   total: number
 }
 
-export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce,   onSaleUpdate,
-  onSaleDelete }: VendorDialogProps) {
+export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
   const [searchTerm, setSearchTerm] = useState('')
@@ -61,7 +58,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     if (editingSale && editedQuantity !== editingSale.cantidad) {
       try {
         setIsLoading(true)
-        await onSaleUpdate(editingSale._id, editedQuantity)
+        const updatedSale = await updateSale(editingSale._id, editedQuantity)
         toast({
           title: "Éxito",
           description: "La venta se ha actualizado correctamente.",
@@ -84,7 +81,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     if (window.confirm('¿Está seguro de que desea eliminar esta venta?')) {
       try {
         setIsLoading(true)
-        await onSaleDelete(saleId)
+        await deleteSale(saleId)
         toast({
           title: "Éxito",
           description: "La venta se ha eliminado correctamente.",

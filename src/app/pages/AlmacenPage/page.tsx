@@ -894,8 +894,6 @@ export default function AlmacenPage() {
             ventasDiarias={ventasDiarias}
             transacciones={transaccionesVendedor}
             onProductReduce={handleReduceVendorProduct}
-            onSaleUpdate={handleSaleUpdate}
-            onSaleDelete={handleSaleDelete}
           />
         )}
     </div>
