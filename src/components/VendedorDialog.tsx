@@ -3,13 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
-import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { Minus, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, Edit, Trash2 } from 'lucide-react'
 import { format, parseISO, startOfWeek, endOfWeek, isValid, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { updateSale, deleteSale } from '@/app/services/api'
 
 interface VendorDialogProps {
   vendor: Vendedor
@@ -46,6 +46,54 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [quantityToReduce, setQuantityToReduce] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [ventasSemanalesState, setVentasSemanales] = useState<VentaSemana[]>([])
+  const [editingSale, setEditingSale] = useState<Venta | null>(null)
+  const [editedQuantity, setEditedQuantity] = useState(0)
+
+  const handleEditSale = (sale: Venta) => {
+    setEditingSale(sale)
+    setEditedQuantity(sale.cantidad)
+  }
+
+  const handleUpdateSale = async () => {
+    if (editingSale && editedQuantity !== editingSale.cantidad) {
+      try {
+        await updateSale(editingSale._id, editedQuantity)
+        toast({
+          title: "Éxito",
+          description: "La venta se ha actualizado correctamente.",
+        })
+        setEditingSale(null)
+        // Refresh the sales data here if necessary
+      } catch (error) {
+        console.error('Error al actualizar la venta:', error)
+        toast({
+          title: "Error",
+          description: "No se pudo actualizar la venta. Por favor, inténtelo de nuevo.",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+  
+  const handleDeleteSale = async (saleId: string) => {
+    if (window.confirm('¿Está seguro de que desea eliminar esta venta?')) {
+      try {
+        await deleteSale(saleId)
+        toast({
+          title: "Éxito",
+          description: "La venta se ha eliminado correctamente.",
+        })
+        // Refresh the sales data here if necessary
+      } catch (error) {
+        console.error('Error al eliminar la venta:', error)
+        toast({
+          title: "Error",
+          description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
+          variant: "destructive",
+        })
+      }
+    }
+  }
 
   const formatDate = (dateString: string): string => {
     try {
@@ -95,9 +143,40 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   />
                   <span>{v.producto_nombre}</span>
                 </div>
-                <div className="text-right">
-                  <div>Cantidad: {v.cantidad}</div>
-                  <div>${formatPrice(v.precio_unitario)}</div>
+                <div className="text-right flex items-center">
+                  {editingSale && editingSale._id === v._id ? (
+                    <>
+                      <Input
+                        type="number"
+                        value={editedQuantity}
+                        onChange={(e) => setEditedQuantity(Number(e.target.value))}
+                        className="w-20 mr-2"
+                      />
+                      <Button onClick={handleUpdateSale} size="sm">Guardar</Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mr-4">
+                        <div>Cantidad: {v.cantidad}</div>
+                        <div>${formatPrice(v.precio_unitario)}</div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditSale(v)}
+                        className="mr-2"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteSale(v._id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

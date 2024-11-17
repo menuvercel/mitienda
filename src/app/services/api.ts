@@ -307,3 +307,32 @@ export const getVentasProducto = async (productoId: string, startDate: string, e
     throw new Error('No se pudieron obtener las ventas del producto');
   }
 };
+
+//ultimo edit
+
+export const updateSale = async (saleId: string, newQuantity: number): Promise<Venta> => {
+  try {
+    const response = await api.put<Venta>(`/ventas/${saleId}`, { cantidad: newQuantity });
+    console.log('Venta actualizada:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error al actualizar la venta:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Respuesta del servidor:', error.response.data);
+    }
+    throw new Error(`No se pudo actualizar la venta: ${(error as Error).message}`);
+  }
+};
+
+export const deleteSale = async (saleId: string): Promise<void> => {
+  try {
+    const response = await api.delete(`/ventas/${saleId}`);
+    console.log('Venta eliminada:', response.data);
+  } catch (error) {
+    console.error('Error al eliminar la venta:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Respuesta del servidor:', error.response.data);
+    }
+    throw new Error(`No se pudo eliminar la venta: ${(error as Error).message}`);
+  }
+};
