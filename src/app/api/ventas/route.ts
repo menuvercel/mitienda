@@ -176,7 +176,7 @@ export async function DELETE(
   const token = request.cookies.get('token')?.value;
   const decoded = verifyToken(token) as DecodedToken | null;
 
-  if (!decoded || (decoded.rol !== 'Vendedor' && decoded.rol !== 'Admin')) {
+  if (!decoded || (decoded.rol !== 'Vendedor' && decoded.rol !== 'Almacen')) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
@@ -204,7 +204,7 @@ export async function DELETE(
     const sale = saleResult.rows[0];
 
     // Verificar si el usuario tiene permiso para eliminar esta venta
-    if (decoded.rol !== 'Admin' && decoded.id !== sale.vendedor) {
+    if (decoded.rol !== 'Almacen' && decoded.id !== sale.vendedor) {
       await query('ROLLBACK');
       return NextResponse.json({ error: 'No autorizado para eliminar esta venta' }, { status: 403 });
     }
