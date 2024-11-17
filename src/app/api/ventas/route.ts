@@ -169,7 +169,10 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   const token = request.cookies.get('token')?.value;
   const decoded = verifyToken(token) as DecodedToken | null;
 
@@ -177,8 +180,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
+  const id = params.id;
 
   if (!id) {
     return NextResponse.json({ error: 'Se requiere el ID de la venta' }, { status: 400 });

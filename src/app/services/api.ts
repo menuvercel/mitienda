@@ -323,7 +323,7 @@ export const updateSale = async (saleId: string, newQuantity: number): Promise<V
 
 export const deleteSale = async (saleId: string): Promise<void> => {
   try {
-    const response = await api.delete(`/ventas`, { params: { id: saleId } });
+    const response = await api.delete(`/ventas/${saleId}`);
     console.log('Venta eliminada:', response.data);
   } catch (error) {
     console.error('Error al eliminar la venta:', error);
