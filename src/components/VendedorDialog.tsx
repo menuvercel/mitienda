@@ -78,26 +78,66 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }
   
   const handleDeleteSale = async (saleId: string) => {
+    if (!saleId) {
+      toast({
+        title: "Error",
+        description: "ID de venta no válido",
+        variant: "destructive",
+      });
+      return;
+    }
+  
     if (window.confirm('¿Está seguro de que desea eliminar esta venta?')) {
       try {
-        setIsLoading(true)
-        await deleteSale(saleId)
+        setIsLoading(true);
+        
+        // Intentar obtener el token (si lo estás usando)
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('No hay sesión activa');
+        }
+  
+        await deleteSale(saleId);
+        
+        // Si tienes alguna función para actualizar la lista de ventas
+        // await refreshSalesList();
+        
         toast({
           title: "Éxito",
           description: "La venta se ha eliminado correctamente.",
-        })
+        });
       } catch (error) {
-        console.error('Error al eliminar la venta:', error)
+        console.error('Error al eliminar la venta:', error);
+        
+        // Mensajes de error más específicos
+        let errorMessage = "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.";
+        
+        if (error instanceof Error) {
+          switch (error.message) {
+            case 'No hay sesión activa':
+              errorMessage = "Su sesión ha expirado. Por favor, inicie sesión nuevamente.";
+              // Opcional: redirigir al login
+              // router.push('/login');
+              break;
+            case 'No autorizado':
+              errorMessage = "No tiene permisos para eliminar esta venta.";
+              break;
+            case 'Venta no encontrada':
+              errorMessage = "La venta que intenta eliminar ya no existe.";
+              break;
+          }
+        }
+  
         toast({
           title: "Error",
-          description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
+          description: errorMessage,
           variant: "destructive",
-        })
+        });
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     }
-  }
+  };
 
   const formatDate = (dateString: string): string => {
     try {

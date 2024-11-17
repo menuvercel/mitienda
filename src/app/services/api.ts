@@ -321,15 +321,23 @@ export const updateSale = async (saleId: string, newQuantity: number): Promise<V
   }
 };
 
-export const deleteSale = async (saleId: string): Promise<void> => {
+export const deleteSale = async (saleId: string) => {
+  if (!saleId) {
+    throw new Error('ID de venta no proporcionado');
+  }
+
   try {
-    const response = await api.delete(`/ventas/${saleId}`);
-    console.log('Venta eliminada:', response.data);
+    const response = await axios.delete(`/ventas/${saleId}`, {
+      withCredentials: true, // Importante para incluir las cookies
+    });
+
+    return response.data;
   } catch (error) {
-    console.error('Error al eliminar la venta:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('Respuesta del servidor:', error.response.data);
+    if (axios.isAxiosError(error)) {
+      // Manejar errores específicos de Axios
+      const errorMessage = error.response?.data?.error || error.message;
+      throw new Error(errorMessage);
     }
-    throw new Error(`No se pudo eliminar la venta: ${(error as Error).message}`);
+    throw error;
   }
 };
