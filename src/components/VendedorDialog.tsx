@@ -10,6 +10,16 @@ import { Minus, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, Edit, T
 import { format, parseISO, startOfWeek, endOfWeek, isValid, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { updateSale, deleteSale } from '@/app/services/api'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface VendorDialogProps {
   vendor: Vendedor
@@ -48,6 +58,8 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [ventasSemanalesState, setVentasSemanales] = useState<VentaSemana[]>([])
   const [editingSale, setEditingSale] = useState<Venta | null>(null)
   const [editedQuantity, setEditedQuantity] = useState(0)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [saleToDelete, setSaleToDelete] = useState<string | null>(null)
 
   const handleEditSale = (sale: Venta) => {
     setEditingSale(sale)
@@ -77,7 +89,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     }
   }
   
-  const handleDeleteSale = async (saleId: string) => {
+  const handleDeleteSale = (saleId: string) => {
     if (!saleId) {
       toast({
         title: "Error",
@@ -87,30 +99,37 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
       return;
     }
   
-    if (window.confirm('¿Está seguro de que desea eliminar esta venta?')) {
-      try {
-        setIsLoading(true);
-        await deleteSale(saleId);
-        
-        // Refresh the sales list after successful deletion
-        // You'll need to implement this function to update the UI
-        // await refreshSalesList();
-        
-        toast({
-          title: "Éxito",
-          description: "La venta se ha eliminado correctamente.",
-        });
-      } catch (error) {
-        console.error('Error al eliminar la venta:', error);
-        
-        toast({
-          title: "Error",
-          description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
+    setSaleToDelete(saleId)
+    setIsDeleteDialogOpen(true)
+  };
+
+  const confirmDeleteSale = async () => {
+    if (!saleToDelete) return;
+
+    try {
+      setIsLoading(true);
+      await deleteSale(saleToDelete);
+      
+      // Refresh the sales list after successful deletion
+      // You'll need to implement this function to update the UI
+      // await refreshSalesList();
+      
+      toast({
+        title: "Éxito",
+        description: "La venta se ha eliminado correctamente.",
+      });
+    } catch (error) {
+      console.error('Error al eliminar la venta:', error);
+      
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setIsDeleteDialogOpen(false);
+      setSaleToDelete(null);
     }
   };
 
@@ -439,7 +458,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             transactionType === 'Entrega' ? 'border-green-500' :
             'border-blue-500'
             
-          // Convertimos el precio a número y validamos
           const precioFormateado = parseFloat(transaccion.precio || 0).toFixed(2)
   
           return (
@@ -514,95 +532,97 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }, [ventas, agruparVentasPorSemana])
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-full sm:max-w-[90vw] h-[90vh] flex flex-col p-0">
-        <DialogHeader className="p-4">
-          <DialogTitle>{vendor.nombre}</DialogTitle>
-        </DialogHeader>
-        <div className="flex-grow overflow-y-auto p-4">
-          {mode === 'edit' ? (
-            <div className="space-y-4">
-              <Input
-                name="nombre"
-                value={editedVendor.nombre}
-                onChange={handleInputChange}
-                placeholder="Nombre del vendedor"
-              />
-              <Input
-                name="telefono"
-                value={editedVendor.telefono}
-                onChange={handleInputChange}
-                placeholder="Teléfono"
-              />
-              <Button onClick={handleEdit} disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Guardando...
-                  </>
-                ) : (
-                  'Guardar cambios'
-                )}
-              </Button>
-            </div>
-          ) : mode === 'productos' ? (
-            <Tabs defaultValue="disponibles" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
-                <TabsTrigger value="agotados">Agotados</TabsTrigger>
-              </TabsList>
-              <div className="relative mb-4">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+    <>
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent className="w-full max-w-full sm:max-w-[90vw] h-[90vh] flex flex-col p-0">
+          <DialogHeader className="p-4">
+            <DialogTitle>{vendor.nombre}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-grow overflow-y-auto p-4">
+            {mode === 'edit' ? (
+              <div className="space-y-4">
                 <Input
-                  type="search"
-                  placeholder="Buscar productos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  name="nombre"
+                  value={editedVendor.nombre}
+                  onChange={handleInputChange}
+                  placeholder="Nombre del vendedor"
                 />
-              </div>
-              <TabsContent value="disponibles">
-                {renderProductList(productos.filter(p => p.cantidad > 0))}
-              </TabsContent>
-              <TabsContent value="agotados">
-                {renderProductList(productos.filter(p => p.cantidad === 0))}
-              </TabsContent>
-            </Tabs>
-          ) : mode === 'ventas' ? (
-            <div>
-              <h2 className="text-lg font-bold mb-4">Ventas</h2>
-              {renderVentasList()}
-            </div>
-          ) : mode === 'transacciones' ? (
-            <div>
-              <h2 className="text-lg font-bold mb-4">Transacciones</h2>
-              <div className="relative mb-4">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <Input
-                  type="search"
-                  placeholder="Buscar transacciones..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  name="telefono"
+                  value={editedVendor.telefono}
+                  onChange={handleInputChange}
+                  placeholder="Teléfono"
                 />
+                <Button onClick={handleEdit} disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    'Guardar cambios'
+                  )}
+                </Button>
               </div>
-              {renderTransaccionesList()}
-            </div>
-          ) : (
-            <div className="flex flex-col space-y-2">
-              <Button onClick={() => setMode('edit')}>Editar</Button>
-              <Button onClick={() => setMode('productos')}>Productos</Button>
-              <Button onClick={() => setMode('ventas')}>Ventas</Button>
-              <Button onClick={() => setMode('transacciones')}>Transacciones</Button>
+            ) : mode === 'productos' ? (
+              <Tabs defaultValue="disponibles" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
+                  <TabsTrigger value="agotados">Agotados</TabsTrigger>
+                </TabsList>
+                <div className="relative mb-4">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <Input
+                    type="search"
+                    placeholder="Buscar productos..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <TabsContent value="disponibles">
+                  {renderProductList(productos.filter(p => p.cantidad > 0))}
+                </TabsContent>
+                <TabsContent value="agotados">
+                  {renderProductList(productos.filter(p => p.cantidad === 0))}
+                </TabsContent>
+              </Tabs>
+            ) : mode === 'ventas' ? (
+              <div>
+                <h2 className="text-lg font-bold mb-4">Ventas</h2>
+                {renderVentasList()}
+              </div>
+            ) : mode === 'transacciones' ? (
+              <div>
+                <h2 className="text-lg font-bold mb-4">Transacciones</h2>
+                <div className="relative mb-4">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <Input
+                    type="search"
+                    placeholder="Buscar transacciones..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                {renderTransaccionesList()}
+              </div>
+            ) : (
+              <div className="flex flex-col space-y-2">
+                <Button onClick={() => setMode('edit')}>Editar</Button>
+                <Button onClick={() => setMode('productos')}>Productos</Button>
+                <Button onClick={() => setMode('ventas')}>Ventas</Button>
+                <Button onClick={() => setMode('transacciones')}>Transacciones</Button>
+              </div>
+            )}
+          </div>
+          {mode !== 'view' && (
+            <div className="p-4">
+              <Button onClick={() => setMode('view')}>Volver</Button>
             </div>
           )}
-        </div>
-        {mode !== 'view' && (
-          <div className="p-4">
-            <Button onClick={() => setMode('view')}>Volver</Button>
-          </div>
-        )}
-      </DialogContent>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={reduceDialogOpen} onOpenChange={setReduceDialogOpen}>
         <DialogContent>
@@ -634,6 +654,30 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Esto eliminará permanentemente la venta seleccionada.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteSale} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
