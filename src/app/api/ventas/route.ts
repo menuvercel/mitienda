@@ -170,7 +170,7 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const token = request.cookies.get('token')?.value || request.headers.get('Authorization')?.split(' ')[1];
+  const token = request.cookies.get('token')?.value;
   const decoded = verifyToken(token) as DecodedToken | null;
 
   if (!decoded || (decoded.rol !== 'Vendedor' && decoded.rol !== 'Admin')) {
