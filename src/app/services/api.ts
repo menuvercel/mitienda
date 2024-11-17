@@ -143,7 +143,7 @@ export const entregarProducto = async (productoId: string, vendedorId: string, c
     productoId, 
     vendedorId, 
     cantidad,
-    tipo: 'Entrega' // Adding the 'tipo' field
+    tipo: 'Entrega'
   });
   return response.data;
 };
