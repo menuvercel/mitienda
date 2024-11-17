@@ -173,59 +173,88 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const token = request.cookies.get('token')?.value;
-  const decoded = verifyToken(token) as DecodedToken | null;
-
-  if (!decoded || (decoded.rol !== 'Vendedor' && decoded.rol !== 'Almacen')) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
-
-  const id = params.id;
-
-  if (!id) {
-    return NextResponse.json({ error: 'Se requiere el ID de la venta' }, { status: 400 });
-  }
-
   try {
-    // Inicio de la transacción
+    // Validar que el ID existe y es válido
+    if (!params?.id) {
+      return NextResponse.json(
+        { error: 'ID de venta no proporcionado' },
+        { status: 400 }
+      );
+    }
+
+    // Validar el token
+    const token = request.cookies.get('token')?.value;
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Token no proporcionado' },
+        { status: 401 }
+      );
+    }
+
+    const decoded = verifyToken(token) as DecodedToken | null;
+    if (!decoded) {
+      return NextResponse.json(
+        { error: 'Token inválido' },
+        { status: 401 }
+      );
+    }
+
+    if (decoded.rol !== 'Vendedor' && decoded.rol !== 'Almacen') {
+      return NextResponse.json(
+        { error: 'No autorizado - Rol inválido' },
+        { status: 403 }
+      );
+    }
+
+    // Resto de tu código actual...
     await query('BEGIN');
 
-    // Obtener información de la venta
     const saleResult = await query(
       'SELECT * FROM ventas WHERE id = $1',
-      [id]
+      [params.id]
     );
 
     if (saleResult.rows.length === 0) {
       await query('ROLLBACK');
-      return NextResponse.json({ error: 'Venta no encontrada' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Venta no encontrada' },
+        { status: 404 }
+      );
     }
 
     const sale = saleResult.rows[0];
 
-    // Verificar si el usuario tiene permiso para eliminar esta venta
     if (decoded.rol !== 'Almacen' && decoded.id !== sale.vendedor) {
       await query('ROLLBACK');
-      return NextResponse.json({ error: 'No autorizado para eliminar esta venta' }, { status: 403 });
+      return NextResponse.json(
+        { error: 'No autorizado para eliminar esta venta' },
+        { status: 403 }
+      );
     }
 
-    // Devolver la cantidad al stock del vendedor
     await query(
       'UPDATE usuario_productos SET cantidad = cantidad + $1 WHERE producto_id = $2 AND usuario_id = $3',
       [sale.cantidad, sale.producto, sale.vendedor]
     );
 
-    // Eliminar la venta
-    await query('DELETE FROM ventas WHERE id = $1', [id]);
+    await query('DELETE FROM ventas WHERE id = $1', [params.id]);
 
-    // Confirmar la transacción
     await query('COMMIT');
 
-    return NextResponse.json({ message: 'Venta eliminada correctamente' });
+    return NextResponse.json({ 
+      message: 'Venta eliminada correctamente',
+      id: params.id 
+    });
+
   } catch (error) {
-    // Revertir la transacción en caso de error
     await query('ROLLBACK');
     console.error('Error al eliminar venta:', error);
-    return NextResponse.json({ error: 'Error al eliminar venta' }, { status: 500 });
+    return NextResponse.json(
+      { 
+        error: 'Error al eliminar venta',
+        details: error instanceof Error ? error.message : 'Error desconocido'
+      },
+      { status: 500 }
+    );
   }
 }
