@@ -90,16 +90,10 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     if (window.confirm('¿Está seguro de que desea eliminar esta venta?')) {
       try {
         setIsLoading(true);
-        
-        // Intentar obtener el token (si lo estás usando)
-        const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('No hay sesión activa');
-        }
-  
         await deleteSale(saleId);
         
-        // Si tienes alguna función para actualizar la lista de ventas
+        // Refresh the sales list after successful deletion
+        // You'll need to implement this function to update the UI
         // await refreshSalesList();
         
         toast({
@@ -109,28 +103,9 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
       } catch (error) {
         console.error('Error al eliminar la venta:', error);
         
-        // Mensajes de error más específicos
-        let errorMessage = "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.";
-        
-        if (error instanceof Error) {
-          switch (error.message) {
-            case 'No hay sesión activa':
-              errorMessage = "Su sesión ha expirado. Por favor, inicie sesión nuevamente.";
-              // Opcional: redirigir al login
-              // router.push('/login');
-              break;
-            case 'No autorizado':
-              errorMessage = "No tiene permisos para eliminar esta venta.";
-              break;
-            case 'Venta no encontrada':
-              errorMessage = "La venta que intenta eliminar ya no existe.";
-              break;
-          }
-        }
-  
         toast({
           title: "Error",
-          description: errorMessage,
+          description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
           variant: "destructive",
         });
       } finally {

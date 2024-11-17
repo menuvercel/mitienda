@@ -321,23 +321,26 @@ export const updateSale = async (saleId: string, newQuantity: number): Promise<V
   }
 };
 
-export const deleteSale = async (saleId: string) => {
+export async function deleteSale(saleId: string) {
   if (!saleId) {
-    throw new Error('ID de venta no proporcionado');
+    throw new Error('Sale ID is required');
   }
 
   try {
-    const response = await axios.delete(`/ventas/${saleId}`, {
-      withCredentials: true, // Importante para incluir las cookies
-    });
+    const response = await api.delete(`/ventas/${saleId}`);
+    
+    if (!response.data) {
+      throw new Error('No data received from server');
+    }
 
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      // Manejar errores específicos de Axios
-      const errorMessage = error.response?.data?.error || error.message;
-      throw new Error(errorMessage);
+      console.error('Error response:', error.response?.data);
+      throw new Error(`No se pudo eliminar la venta: ${error.response?.data?.error || error.message}`);
+    } else {
+      console.error('Unexpected error:', error);
+      throw new Error('An unexpected error occurred while deleting the sale');
     }
-    throw error;
   }
-};
+}
