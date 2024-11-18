@@ -49,6 +49,65 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [ventasSemanalesState, setVentasSemanales] = useState<VentaSemana[]>([])
   const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [ventasEspecificas, setVentasEspecificas] = useState<{ producto: string; cantidad: number }[]>([])
+  const [sortByVentas, setSortByVentas] = useState<'asc' | 'desc'>('desc')
+
+  const calcularVentasEspecificas = useCallback(() => {
+    const ventasPorProducto = ventas.reduce((acc, venta) => {
+      if (!acc[venta.producto_nombre]) {
+        acc[venta.producto_nombre] = 0
+      }
+      acc[venta.producto_nombre] += venta.cantidad
+      return acc
+    }, {} as Record<string, number>)
+
+    const ventasEspecificasArray = Object.entries(ventasPorProducto).map(([producto, cantidad]) => ({
+      producto,
+      cantidad
+    }))
+
+    setVentasEspecificas(ventasEspecificasArray)
+  }, [ventas])
+
+  useEffect(() => {
+    calcularVentasEspecificas()
+  }, [ventas, calcularVentasEspecificas])
+
+  const sortVentasEspecificas = () => {
+    setSortByVentas(prev => prev === 'asc' ? 'desc' : 'asc')
+    setVentasEspecificas(prev => 
+      [...prev].sort((a, b) => 
+        sortByVentas === 'asc' ? a.cantidad - b.cantidad : b.cantidad - a.cantidad
+      )
+    )
+  }
+
+  const renderVentasEspecificas = () => {
+    return (
+      <div className="space-y-4">
+        <Button onClick={sortVentasEspecificas} className="mb-4">
+          Ordenar por cantidad de ventas
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Producto</TableHead>
+              <TableHead>Cantidad Vendida</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {ventasEspecificas.map((venta) => (
+              <TableRow key={venta.producto}>
+                <TableCell>{venta.producto}</TableCell>
+                <TableCell>{venta.cantidad}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    )
+  }
 
   const exportToExcel = useCallback(() => {
     let dataToExport: any[] = [];
@@ -347,6 +406,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
         <TabsList>
           <TabsTrigger value="por-dia">Por día</TabsTrigger>
           <TabsTrigger value="por-semana">Por semana</TabsTrigger>
+          <TabsTrigger value="especificas">Ventas Específicas</TabsTrigger>
         </TabsList>
         <TabsContent value="por-dia">
           <div className="space-y-4">
@@ -387,6 +447,9 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
               <div className="text-center py-4">No hay ventas registradas</div>
             )}
           </div>
+        </TabsContent>
+        <TabsContent value="especificas">
+          {renderVentasEspecificas()}
         </TabsContent>
       </Tabs>
     )
