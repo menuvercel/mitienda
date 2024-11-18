@@ -574,10 +574,12 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             </div>
           ) : mode === 'productos' ? (
             <Tabs defaultValue="disponibles" className="w-full">
+            <div className="flex justify-center mb-4">
               <Button onClick={exportToExcel} className="bg-green-500 hover:bg-green-600 text-white">
                 <FileDown className="mr-2 h-4 w-4" />
                 Exportar
               </Button>
+            </div>
               <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
                 <TabsTrigger value="agotados">Agotados</TabsTrigger>
