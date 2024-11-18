@@ -12,10 +12,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight, Minus, Plus, DollarSign, ArrowUpDown, FileDown } from "lucide-react"
+import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight, Minus, Plus, DollarSign, ArrowUpDown } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { format, parseISO, isValid, startOfWeek, endOfWeek, addDays   } from 'date-fns'
-import * as XLSX from 'xlsx'
 import { es } from 'date-fns/locale'
 import { 
   getTransaccionesVendedor,
@@ -669,23 +668,6 @@ export default function VendedorPage() {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-
-  const exportToExcel = useCallback(() => {
-    const dataToExport = productosDisponibles.map(producto => ({
-      Nombre: producto.nombre,
-      Precio: producto.precio,
-      Cantidad: producto.cantidad
-    }))
-
-    const ws = XLSX.utils.json_to_sheet(dataToExport)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, "Productos Disponibles")
-
-    const currentDate = format(new Date(), 'yyyy-MM-dd')
-    const fileName = `productos_disponibles_${currentDate}.xlsx`
-
-    XLSX.writeFile(wb, fileName)
-  }, [productosDisponibles])
   
   const handleSort = (key: 'nombre' | 'cantidad') => {
     if (sortBy === key) {
@@ -876,10 +858,7 @@ export default function VendedorPage() {
                 <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
                 <TabsTrigger value="agotados">Agotados</TabsTrigger>
               </TabsList>
-              <Button onClick={exportToExcel} className="bg-green-500 hover:bg-green-600 text-white">
-                <FileDown className="mr-2 h-4 w-4" />
-                Exportar
-              </Button>
+              {/* The export button has been removed as requested */}
             </div>
             <TabsContent value="disponibles">
               <div className="mb-4">

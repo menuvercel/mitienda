@@ -10,6 +10,7 @@ import { Vendedor, Producto, Venta, Transaccion } from '@/types'
 import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, ArrowUpDown  } from 'lucide-react'
 import { format, parseISO, startOfWeek, endOfWeek, isValid, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
+import * as XLSX from 'xlsx'
 
 interface VendorDialogProps {
   vendor: Vendedor
