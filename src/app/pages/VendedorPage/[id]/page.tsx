@@ -957,6 +957,7 @@ export default function VendedorPage() {
                                   {producto.nombre}
                                 </label>
                                 <p className="text-sm text-gray-500">Stock: {producto.cantidad}</p>
+                                <p className="text-sm text-gray-500">Precio: ${formatPrice(producto.precio)}</p>
                               </div>
                             </div>
                           </CardContent>
