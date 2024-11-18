@@ -8,19 +8,18 @@ const api = axios.create({
   withCredentials: true
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  console.log('Token recuperado de localStorage:', token); // Log para depuración
-  if (token) {
-    config.headers['Authorization'] = `Bearer ${token}`;
-    console.log('Token añadido a la solicitud:', config.headers['Authorization']); // Log para depuración
-  } else {
-    console.log('No se encontró token en localStorage'); // Log para depuración
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-}, (error) => {
-  return Promise.reject(error);
-});
+);
 
 interface User {
   id: string;
@@ -143,7 +142,7 @@ export const entregarProducto = async (productoId: string, vendedorId: string, c
     productoId, 
     vendedorId, 
     cantidad,
-    tipo: 'Entrega'
+    tipo: 'Entrega' // Adding the 'tipo' field
   });
   return response.data;
 };
@@ -262,6 +261,7 @@ export const getVentasVendedor = async (vendedorId: string): Promise<Venta[]> =>
   }
 };
 
+
 export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor): Promise<void> => {
   try {
     const response = await api.put(`/users/vendedores?id=${vendedorId}`, editedVendor);
@@ -277,7 +277,10 @@ export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor)
 
 export default api;
 
+
 /*panel individual del vendedor*/
+
+// ... (existing imports and functions)
 
 export const getTransaccionesProducto = async (productoId: string): Promise<Transaccion[]> => {
   try {
@@ -304,43 +307,3 @@ export const getVentasProducto = async (productoId: string, startDate: string, e
     throw new Error('No se pudieron obtener las ventas del producto');
   }
 };
-
-//ultimo edit
-
-export const updateSale = async (saleId: string, newQuantity: number): Promise<Venta> => {
-  try {
-    const response = await api.put<Venta>(`/ventas/${saleId}`, { cantidad: newQuantity });
-    console.log('Venta actualizada:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Error al actualizar la venta:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('Respuesta del servidor:', error.response.data);
-    }
-    throw new Error(`No se pudo actualizar la venta: ${(error as Error).message}`);
-  }
-};
-
-export async function deleteSale(saleId: string) {
-  if (!saleId) {
-    throw new Error('Sale ID is required');
-  }
-
-  try {
-    const response = await api.delete(`/ventas/${saleId}`);
-    
-    if (!response.data) {
-      throw new Error('No data received from server');
-    }
-
-    return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      console.error('Error response:', error.response?.data);
-      throw new Error(`No se pudo eliminar la venta: ${error.response?.data?.error || error.message}`);
-    } else {
-      console.error('Unexpected error:', error);
-      throw new Error('An unexpected error occurred while deleting the sale');
-    }
-  }
-}

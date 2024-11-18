@@ -3,23 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
-import { Minus, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, Edit, Trash2 } from 'lucide-react'
+import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 import { format, parseISO, startOfWeek, endOfWeek, isValid, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { updateSale, deleteSale } from '@/app/services/api'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 
 interface VendorDialogProps {
   vendor: Vendedor
@@ -56,82 +46,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [quantityToReduce, setQuantityToReduce] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [ventasSemanalesState, setVentasSemanales] = useState<VentaSemana[]>([])
-  const [editingSale, setEditingSale] = useState<Venta | null>(null)
-  const [editedQuantity, setEditedQuantity] = useState(0)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [saleToDelete, setSaleToDelete] = useState<string | null>(null)
-
-  const handleEditSale = (sale: Venta) => {
-    setEditingSale(sale)
-    setEditedQuantity(sale.cantidad)
-  }
-
-  const handleUpdateSale = async () => {
-    if (editingSale && editedQuantity !== editingSale.cantidad) {
-      try {
-        setIsLoading(true)
-        const updatedSale = await updateSale(editingSale._id, editedQuantity)
-        toast({
-          title: "Éxito",
-          description: "La venta se ha actualizado correctamente.",
-        })
-        setEditingSale(null)
-      } catch (error) {
-        console.error('Error al actualizar la venta:', error)
-        toast({
-          title: "Error",
-          description: "No se pudo actualizar la venta. Por favor, inténtelo de nuevo.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsLoading(false)
-      }
-    }
-  }
-  
-  const handleDeleteSale = (saleId: string) => {
-    if (!saleId) {
-      toast({
-        title: "Error",
-        description: "ID de venta no válido",
-        variant: "destructive",
-      });
-      return;
-    }
-  
-    setSaleToDelete(saleId)
-    setIsDeleteDialogOpen(true)
-  };
-
-  const confirmDeleteSale = async () => {
-    if (!saleToDelete) return;
-
-    try {
-      setIsLoading(true);
-      await deleteSale(saleToDelete);
-      
-      // Refresh the sales list after successful deletion
-      // You'll need to implement this function to update the UI
-      // await refreshSalesList();
-      
-      toast({
-        title: "Éxito",
-        description: "La venta se ha eliminado correctamente.",
-      });
-    } catch (error) {
-      console.error('Error al eliminar la venta:', error);
-      
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-      setIsDeleteDialogOpen(false);
-      setSaleToDelete(null);
-    }
-  };
 
   const formatDate = (dateString: string): string => {
     try {
@@ -181,43 +95,9 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   />
                   <span>{v.producto_nombre}</span>
                 </div>
-                <div className="text-right flex items-center">
-                  {editingSale && editingSale._id === v._id ? (
-                    <>
-                      <Input
-                        type="number"
-                        value={editedQuantity}
-                        onChange={(e) => setEditedQuantity(Number(e.target.value))}
-                        className="w-20 mr-2"
-                      />
-                      <Button onClick={handleUpdateSale} size="sm" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Guardar'}
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="mr-4">
-                        <div>Cantidad: {v.cantidad}</div>
-                        <div>${formatPrice(v.precio_unitario)}</div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditSale(v)}
-                        className="mr-2"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteSale(v._id)}
-                        disabled={isLoading}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
+                <div className="text-right">
+                  <div>Cantidad: {v.cantidad}</div>
+                  <div>${formatPrice(v.precio_unitario)}</div>
                 </div>
               </div>
             ))}
@@ -458,6 +338,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             transactionType === 'Entrega' ? 'border-green-500' :
             'border-blue-500'
             
+          // Convertimos el precio a número y validamos
           const precioFormateado = parseFloat(transaccion.precio || 0).toFixed(2)
   
           return (
@@ -532,97 +413,95 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }, [ventas, agruparVentasPorSemana])
 
   return (
-    <>
-      <Dialog open={true} onOpenChange={onClose}>
-        <DialogContent className="w-full max-w-full sm:max-w-[90vw] h-[90vh] flex flex-col p-0">
-          <DialogHeader className="p-4">
-            <DialogTitle>{vendor.nombre}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-grow overflow-y-auto p-4">
-            {mode === 'edit' ? (
-              <div className="space-y-4">
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="w-full max-w-full sm:max-w-[90vw] h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-4">
+          <DialogTitle>{vendor.nombre}</DialogTitle>
+        </DialogHeader>
+        <div className="flex-grow overflow-y-auto p-4">
+          {mode === 'edit' ? (
+            <div className="space-y-4">
+              <Input
+                name="nombre"
+                value={editedVendor.nombre}
+                onChange={handleInputChange}
+                placeholder="Nombre del vendedor"
+              />
+              <Input
+                name="telefono"
+                value={editedVendor.telefono}
+                onChange={handleInputChange}
+                placeholder="Teléfono"
+              />
+              <Button onClick={handleEdit} disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  'Guardar cambios'
+                )}
+              </Button>
+            </div>
+          ) : mode === 'productos' ? (
+            <Tabs defaultValue="disponibles" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
+                <TabsTrigger value="agotados">Agotados</TabsTrigger>
+              </TabsList>
+              <div className="relative mb-4">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <Input
-                  name="nombre"
-                  value={editedVendor.nombre}
-                  onChange={handleInputChange}
-                  placeholder="Nombre del vendedor"
+                  type="search"
+                  placeholder="Buscar productos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
                 />
+              </div>
+              <TabsContent value="disponibles">
+                {renderProductList(productos.filter(p => p.cantidad > 0))}
+              </TabsContent>
+              <TabsContent value="agotados">
+                {renderProductList(productos.filter(p => p.cantidad === 0))}
+              </TabsContent>
+            </Tabs>
+          ) : mode === 'ventas' ? (
+            <div>
+              <h2 className="text-lg font-bold mb-4">Ventas</h2>
+              {renderVentasList()}
+            </div>
+          ) : mode === 'transacciones' ? (
+            <div>
+              <h2 className="text-lg font-bold mb-4">Transacciones</h2>
+              <div className="relative mb-4">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <Input
-                  name="telefono"
-                  value={editedVendor.telefono}
-                  onChange={handleInputChange}
-                  placeholder="Teléfono"
+                  type="search"
+                  placeholder="Buscar transacciones..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
                 />
-                <Button onClick={handleEdit} disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Guardando...
-                    </>
-                  ) : (
-                    'Guardar cambios'
-                  )}
-                </Button>
               </div>
-            ) : mode === 'productos' ? (
-              <Tabs defaultValue="disponibles" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
-                  <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
-                  <TabsTrigger value="agotados">Agotados</TabsTrigger>
-                </TabsList>
-                <div className="relative mb-4">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <Input
-                    type="search"
-                    placeholder="Buscar productos..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <TabsContent value="disponibles">
-                  {renderProductList(productos.filter(p => p.cantidad > 0))}
-                </TabsContent>
-                <TabsContent value="agotados">
-                  {renderProductList(productos.filter(p => p.cantidad === 0))}
-                </TabsContent>
-              </Tabs>
-            ) : mode === 'ventas' ? (
-              <div>
-                <h2 className="text-lg font-bold mb-4">Ventas</h2>
-                {renderVentasList()}
-              </div>
-            ) : mode === 'transacciones' ? (
-              <div>
-                <h2 className="text-lg font-bold mb-4">Transacciones</h2>
-                <div className="relative mb-4">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <Input
-                    type="search"
-                    placeholder="Buscar transacciones..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                {renderTransaccionesList()}
-              </div>
-            ) : (
-              <div className="flex flex-col space-y-2">
-                <Button onClick={() => setMode('edit')}>Editar</Button>
-                <Button onClick={() => setMode('productos')}>Productos</Button>
-                <Button onClick={() => setMode('ventas')}>Ventas</Button>
-                <Button onClick={() => setMode('transacciones')}>Transacciones</Button>
-              </div>
-            )}
-          </div>
-          {mode !== 'view' && (
-            <div className="p-4">
-              <Button onClick={() => setMode('view')}>Volver</Button>
+              {renderTransaccionesList()}
+            </div>
+          ) : (
+            <div className="flex flex-col space-y-2">
+              <Button onClick={() => setMode('edit')}>Editar</Button>
+              <Button onClick={() => setMode('productos')}>Productos</Button>
+              <Button onClick={() => setMode('ventas')}>Ventas</Button>
+              <Button onClick={() => setMode('transacciones')}>Transacciones</Button>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </div>
+        {mode !== 'view' && (
+          <div className="p-4">
+            <Button onClick={() => setMode('view')}>Volver</Button>
+          </div>
+        )}
+      </DialogContent>
 
       <Dialog open={reduceDialogOpen} onOpenChange={setReduceDialogOpen}>
         <DialogContent>
@@ -654,30 +533,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente la venta seleccionada.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteSale} disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Eliminando...
-                </>
-              ) : (
-                'Eliminar'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    </Dialog>
   )
 }

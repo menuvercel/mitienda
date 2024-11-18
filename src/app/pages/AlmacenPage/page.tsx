@@ -25,14 +25,19 @@ import {
   reducirProductoVendedor,
   getTransaccionesVendedor,
   editarVendedor,
-  eliminarProducto,
-  updateSale,
-  deleteSale
+  eliminarProducto
 } from '../../services/api'
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
 import SalesSection from '@/components/SalesSection'
 import { Producto, Vendedor, Venta, Transaccion } from '@/types'
+
+interface VendorDialogProps {
+  vendor: Vendedor
+  onClose: () => void
+  productos: Producto[]
+  transacciones: Transaccion[]
+}
 
 interface VentaSemana {
   fechaInicio: string
@@ -145,33 +150,22 @@ export default function AlmacenPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
 
-  const handleSaleUpdate = async (saleId: string, newQuantity: number) => {
-    try {
-      await updateSale(saleId, newQuantity);
-      // Update the local state to reflect the change
-      setVentasVendedor(prevVentas => 
-        prevVentas.map(venta => 
-          venta._id === saleId ? { ...venta, cantidad: newQuantity } : venta
-        )
-      );
-      // You might also need to update ventasSemanales and ventasDiarias here
-    } catch (error) {
-      console.error('Error updating sale:', error);
-      // Handle error (e.g., show an error message)
-    }
-  };
 
-  const handleSaleDelete = async (saleId: string) => {
+  const obtenerVentasDelDia = useCallback(async (fecha: Date, vendedorId: string) => {
     try {
-      await deleteSale(saleId);
-      // Remove the deleted sale from the local state
-      setVentasVendedor(prevVentas => prevVentas.filter(venta => venta._id !== saleId));
-      // You might also need to update ventasSemanales and ventasDiarias here
+      const startDate = fecha.toISOString().split('T')[0]
+      const endDate = startDate
+      const response = await fetch(`/api/ventas?vendedorId=${vendedorId}&startDate=${startDate}&endDate=${endDate}`)
+      if (!response.ok) {
+        throw new Error(`Error al obtener ventas para el vendedor ${vendedorId}`)
+      }
+      const ventas: Venta[] = await response.json()
+      return ventas
     } catch (error) {
-      console.error('Error deleting sale:', error);
-      // Handle error (e.g., show an error message)
+      console.error('Error al obtener ventas:', error)
+      throw error
     }
-  };
+  }, [])
 
   const handleDeleteProduct = async (productId: string) => {
     try {
