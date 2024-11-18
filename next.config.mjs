@@ -4,6 +4,18 @@ const nextConfig = {
   images: {
     domains: ['qt6unnu3m4pwg8gz.public.blob.vercel-storage.com'],
   },
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,DELETE,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization, X-Requested-With' },
+        ],
+      },
+    ];
+  },
 }
 
 export default nextConfig;
