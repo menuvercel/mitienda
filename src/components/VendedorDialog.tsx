@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
-import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, ArrowUpDown  } from 'lucide-react'
 import { format, parseISO, startOfWeek, endOfWeek, isValid, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -46,6 +46,33 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [quantityToReduce, setQuantityToReduce] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [ventasSemanalesState, setVentasSemanales] = useState<VentaSemana[]>([])
+  const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+
+  const handleSort = (key: 'nombre' | 'cantidad') => {
+    if (sortBy === key) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(key)
+      setSortOrder('asc')
+    }
+  }
+
+  const sortAndFilterProducts = useCallback((products: Producto[]) => {
+    return products
+      .filter(p => p.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
+      .sort((a, b) => {
+        if (sortBy === 'nombre') {
+          return sortOrder === 'asc' 
+            ? a.nombre.localeCompare(b.nombre)
+            : b.nombre.localeCompare(a.nombre)
+        } else {
+          return sortOrder === 'asc'
+            ? a.cantidad - b.cantidad
+            : b.cantidad - a.cantidad
+        }
+      })
+  }, [searchTerm, sortBy, sortOrder])
 
   const formatDate = (dateString: string): string => {
     try {
@@ -246,10 +273,10 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }, [])
 
   const renderProductList = (products: Producto[]) => {
-    const filteredProducts = filterItems(products, searchTerm)
+    const filteredAndSortedProducts = sortAndFilterProducts(products)
     return (
       <div className="space-y-2">
-        {filteredProducts.map(producto => (
+        {filteredAndSortedProducts.map(producto => (
           <div key={producto.id} className="flex items-center bg-white p-4 rounded-lg shadow">
             <Image
               src={producto.foto || '/placeholder.svg'}
@@ -450,15 +477,37 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
                 <TabsTrigger value="agotados">Agotados</TabsTrigger>
               </TabsList>
-              <div className="relative mb-4">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <Input
-                  type="search"
-                  placeholder="Buscar productos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+              <div className="space-y-4 mb-4">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <Input
+                    type="search"
+                    placeholder="Buscar productos..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex justify-start space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSort('nombre')}
+                    className="flex items-center"
+                  >
+                    Nombre
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSort('cantidad')}
+                    className="flex items-center"
+                  >
+                    Cantidad
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <TabsContent value="disponibles">
                 {renderProductList(productos.filter(p => p.cantidad > 0))}
