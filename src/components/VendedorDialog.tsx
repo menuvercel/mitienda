@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
-import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, ArrowUpDown  } from 'lucide-react'
+import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, ArrowUpDown, FileDown} from 'lucide-react'
 import { format, parseISO, startOfWeek, endOfWeek, isValid, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import * as XLSX from 'xlsx'
@@ -49,6 +49,43 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [ventasSemanalesState, setVentasSemanales] = useState<VentaSemana[]>([])
   const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+
+  const exportToExcel = useCallback(() => {
+    let dataToExport: any[] = [];
+    let fileName = '';
+
+    if (mode === 'productos') {
+      dataToExport = productos.map(producto => ({
+        Nombre: producto.nombre,
+        Precio: producto.precio,
+        Cantidad: producto.cantidad
+      }));
+      fileName = `productos_${vendor.nombre}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    } else if (mode === 'ventas') {
+      dataToExport = ventas.map(venta => ({
+        Fecha: format(parseISO(venta.fecha), 'dd/MM/yyyy'),
+        Producto: venta.producto_nombre,
+        Cantidad: venta.cantidad,
+        'Precio Unitario': venta.precio_unitario,
+        Total: venta.total
+      }));
+      fileName = `ventas_${vendor.nombre}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    } else if (mode === 'transacciones') {
+      dataToExport = transacciones.map(transaccion => ({
+        Fecha: format(parseISO(transaccion.fecha), 'dd/MM/yyyy'),
+        Producto: transaccion.producto,
+        Cantidad: transaccion.cantidad,
+        Tipo: transaccion.tipo || 'Normal',
+        Precio: transaccion.precio
+      }));
+      fileName = `transacciones_${vendor.nombre}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data");
+    XLSX.writeFile(wb, fileName);
+  }, [mode, productos, ventas, transacciones, vendor.nombre]);
 
   const handleSort = (key: 'nombre' | 'cantidad') => {
     if (sortBy === key) {
@@ -478,6 +515,10 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
                 <TabsTrigger value="agotados">Agotados</TabsTrigger>
               </TabsList>
+              <Button onClick={exportToExcel} className="bg-green-500 hover:bg-green-600 text-white">
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Exportar
+                </Button>
               <div className="space-y-4 mb-4">
                 <div className="relative">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
