@@ -7,10 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
-import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, Trash2, Edit, X, Check  } from 'lucide-react'
+import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 import { format, parseISO, startOfWeek, endOfWeek, isValid, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
-import axios from 'axios'
 
 interface VendorDialogProps {
   vendor: Vendedor
@@ -47,79 +46,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [quantityToReduce, setQuantityToReduce] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [ventasSemanalesState, setVentasSemanales] = useState<VentaSemana[]>([])
-  const [editingSale, setEditingSale] = useState<string | null>(null)
-  const [editedQuantity, setEditedQuantity] = useState<number>(0)
-  const [deletingSale, setDeletingSale] = useState<string | null>(null)
-
-  const handleDeleteSale = async (saleId: string) => {
-    setDeletingSale(saleId)
-  }
-
-  const confirmDeleteSale = async () => {
-    if (deletingSale) {
-      setIsLoading(true)
-      try {
-        // API call to delete the sale
-        await axios.delete(`/api/ventas/${deletingSale}`)
-        
-        toast({
-          title: "Éxito",
-          description: "La venta ha sido eliminada correctamente.",
-        })
-        
-        // Optionally, you might want to trigger a refresh of sales data
-        // This depends on how you're managing state in the parent component
-        // onSalesRefresh()
-      } catch (error) {
-        console.error('Error al eliminar la venta:', error)
-        toast({
-          title: "Error",
-          description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
-          variant: "destructive",
-        })
-      } finally {
-        setDeletingSale(null)
-        setIsLoading(false)
-      }
-    }
-  }
-
-  const handleEditSale = (saleId: string, currentQuantity: number) => {
-    setEditingSale(saleId)
-    setEditedQuantity(currentQuantity)
-  }
-
-  const confirmEditSale = async () => {
-    if (editingSale) {
-      setIsLoading(true)
-      try {
-        // API call to edit the sale
-        await axios.put(`/api/ventas/${editingSale}`, { 
-          cantidad: editedQuantity 
-        })
-        
-        toast({
-          title: "Éxito",
-          description: "La venta ha sido actualizada correctamente.",
-        })
-        
-        // Optionally, you might want to trigger a refresh of sales data
-        // This depends on how you're managing state in the parent component
-        // onSalesRefresh()
-      } catch (error) {
-        console.error('Error al editar la venta:', error)
-        toast({
-          title: "Error",
-          description: "No se pudo editar la venta. Por favor, inténtelo de nuevo.",
-          variant: "destructive",
-        })
-      } finally {
-        setEditingSale(null)
-        setIsLoading(false)
-      }
-    }
-  }
-
 
   const formatDate = (dateString: string): string => {
     try {
@@ -143,19 +69,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
     const [isOpen, setIsOpen] = useState(false)
 
-    const formatDate = (dateString: string) => {
-      return format(new Date(dateString), 'dd MMM yyyy', { locale: es })
-    }
-
-    const formatPrice = (price: number) => {
-      return price.toLocaleString('es-CL', { 
-        style: 'currency', 
-        currency: 'CLP',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      })
-    }
-
     return (
       <div className="border rounded-lg mb-2">
         <div 
@@ -164,14 +77,14 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
         >
           <span>{formatDate(venta.fecha)}</span>
           <div className="flex items-center">
-            <span className="mr-2">{formatPrice(venta.total)}</span>
+            <span className="mr-2">${formatPrice(venta.total)}</span>
             {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </div>
         </div>
         {isOpen && (
           <div className="p-4 bg-gray-50">
             {venta.ventas.map((v) => (
-              <div key={v._id} className="flex items-center justify-between py-2 border-b last:border-b-0">
+              <div key={v._id} className="flex items-center justify-between py-2">
                 <div className="flex items-center">
                   <Image
                     src={v.producto_foto || '/placeholder.svg'}
@@ -182,55 +95,9 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   />
                   <span>{v.producto_nombre}</span>
                 </div>
-                <div className="flex items-center">
-                  {editingSale === v._id ? (
-                    <>
-                      <Input
-                        type="number"
-                        value={editedQuantity}
-                        onChange={(e) => setEditedQuantity(Number(e.target.value))}
-                        className="w-20 mr-2"
-                        disabled={isLoading}
-                      />
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        onClick={confirmEditSale}
-                        disabled={isLoading}
-                      >
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                      </Button>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        onClick={() => setEditingSale(null)}
-                        disabled={isLoading}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-right mr-4">
-                        <div>Cantidad: {v.cantidad}</div>
-                        <div>{formatPrice(v.precio_unitario)}</div>
-                      </div>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        onClick={() => handleEditSale(v._id, v.cantidad)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        onClick={() => handleDeleteSale(v._id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
+                <div className="text-right">
+                  <div>Cantidad: {v.cantidad}</div>
+                  <div>${formatPrice(v.precio_unitario)}</div>
                 </div>
               </div>
             ))}
@@ -546,7 +413,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }, [ventas, agruparVentasPorSemana])
 
   return (
-    <>
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="w-full max-w-full sm:max-w-[90vw] h-[90vh] flex flex-col p-0">
         <DialogHeader className="p-4">
@@ -636,63 +502,37 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
           </div>
         )}
       </DialogContent>
-    </Dialog>
 
-    <Dialog open={reduceDialogOpen} onOpenChange={setReduceDialogOpen}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Reducir cantidad de producto</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <p>Especifique la cantidad a reducir para {productToReduce?.nombre}</p>
-          <Input
-            type="number"
-            value={quantityToReduce}
-            onChange={(e) => setQuantityToReduce(Math.max(0, Math.min(Number(e.target.value), productToReduce?.cantidad || 0)))}
-            max={productToReduce?.cantidad}
-            min={0}
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setReduceDialogOpen(false)} disabled={isLoading}>Cancelar</Button>
-          <Button onClick={confirmReduce} disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Procesando...
-              </>
-            ) : (
-              'Confirmar'
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <Dialog open={!!deletingSale} onOpenChange={() => setDeletingSale(null)}>
+      <Dialog open={reduceDialogOpen} onOpenChange={setReduceDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogTitle>Reducir cantidad de producto</DialogTitle>
           </DialogHeader>
-          <p>¿Está seguro de que desea eliminar esta venta?</p>
+          <div className="space-y-4">
+            <p>Especifique la cantidad a reducir para {productToReduce?.nombre}</p>
+            <Input
+              type="number"
+              value={quantityToReduce}
+              onChange={(e) => setQuantityToReduce(Math.max(0, Math.min(Number(e.target.value), productToReduce?.cantidad || 0)))}
+              max={productToReduce?.cantidad}
+              min={0}
+            />
+          </div>
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setDeletingSale(null)}
-              disabled={isLoading}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={confirmDeleteSale}
-              disabled={isLoading}
-            >
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Eliminar'}
+            <Button variant="outline" onClick={() => setReduceDialogOpen(false)} disabled={isLoading}>Cancelar</Button>
+            <Button onClick={confirmReduce} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Procesando...
+                </>
+              ) : (
+                'Confirmar'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
+      </Dialog>
     </Dialog>
-   </>
   )
 }
