@@ -667,6 +667,7 @@ export default function VendedorPage() {
   const [seccionActual, setSeccionActual] = useState<'productos' | 'ventas' | 'registro'>('productos')
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   
   const handleSort = (key: 'nombre' | 'cantidad') => {
@@ -758,6 +759,7 @@ export default function VendedorPage() {
     ])
     
     setSelectedProductIds([])
+    setIsDialogOpen(false)
   }
 
   const handleAjustarCantidad = (id: string, incremento: number) => {
@@ -914,9 +916,9 @@ export default function VendedorPage() {
                   onChange={(e) => setFecha(e.target.value)}
                 />
                 <h2 className="text-xl font-semibold">2. Selecciona los productos</h2>
-                <Dialog>
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button>Seleccionar Productos</Button>
+                    <Button onClick={() => setIsDialogOpen(true)}>Seleccionar Productos</Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
