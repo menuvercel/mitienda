@@ -956,7 +956,7 @@ export default function VendedorPage() {
                                 <label htmlFor={`product-${producto.id}`} className="font-medium">
                                   {producto.nombre}
                                 </label>
-                                <p className="text-sm text-gray-500">Stock: {producto.cantidad}</p>
+                                <p className="text-sm text-gray-500">Cantidad: {producto.cantidad}</p>
                                 <p className="text-sm text-gray-500">Precio: ${formatPrice(producto.precio)}</p>
                               </div>
                             </div>
@@ -973,7 +973,10 @@ export default function VendedorPage() {
                   <h3 className="font-bold mb-2">Productos Seleccionados:</h3>
                   {productosSeleccionados.map((producto) => (
                     <div key={producto.id} className="flex justify-between items-center mb-2 p-2 bg-gray-100 rounded">
-                      <span>{producto.nombre}</span>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{producto.nombre}</span>
+                          <span className="text-sm text-gray-600">Precio: ${formatPrice(producto.precio)}</span>
+                        </div>
                       <div className="flex items-center space-x-2">
                         <Button
                           variant="outline"
