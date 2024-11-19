@@ -37,18 +37,15 @@ export async function PUT(request: NextRequest) {
   const { nombre, telefono, password } = await request.json();
 
   try {
+    const queryParams = [nombre, telefono];
     let queryString = 'UPDATE usuarios SET nombre = $1, telefono = $2';
-    let queryParams = [nombre, telefono];
-    let paramCount = 2;
 
-    // If a new password is provided, add it to the query without hashing
     if (password) {
-      queryString += `, password = $${paramCount + 1}`;
+      queryString += ', password = $3';
       queryParams.push(password);
-      paramCount++;
     }
 
-    queryString += ` WHERE id = $${paramCount + 1} RETURNING id, nombre, telefono, rol`;
+    queryString += ' WHERE id = $' + (queryParams.length + 1) + ' RETURNING id, nombre, telefono, rol';
     queryParams.push(id);
 
     const result = await query(queryString, queryParams);
