@@ -215,6 +215,13 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
 
       console.log("IDs de ventas:", venta.ventas.map(v => v._id));
 
+      console.log("Detalles de ventas:", venta.ventas.map(v => ({
+        id: v._id,
+        producto: v.producto_nombre,
+        cantidad: v.cantidad,
+        precio: v.precio_unitario
+      })));
+
     return (
       <div className="border rounded-lg mb-2">
         <div 
