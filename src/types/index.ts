@@ -23,7 +23,7 @@ export interface Producto {
 }
 
 export interface Venta {
-  id: string;
+  _id: string;
   producto: string;
   producto_nombre: string;
   producto_foto: string;
