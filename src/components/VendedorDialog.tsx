@@ -213,6 +213,8 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
     const [isOpen, setIsOpen] = useState(false)
 
+    console.log("IDs de ventas:", venta.ventas.map(v => v.id));
+
     return (
       <div className="border rounded-lg mb-2">
         <div 
@@ -228,7 +230,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
         {isOpen && (
           <div className="p-4 bg-gray-50">
             {venta.ventas.map((v) => (
-              <div key={v._id} className="flex items-center justify-between py-2">
+              <div key={v.id} className="flex items-center justify-between py-2">
                 <div className="flex items-center">
                   <Image
                     src={v.producto_foto || '/placeholder.svg'}
@@ -249,7 +251,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                     size="icon"
                     onClick={(e) => {
                       e.stopPropagation()
-                      handleDeleteSale(v._id)
+                      handleDeleteSale(v.id)
                     }}
                   >
                     <X className="h-4 w-4 text-red-500" />
