@@ -326,6 +326,10 @@ export const getVentasProducto = async (productoId: string, startDate: string, e
 //ultimo edit
 
 export const deleteSale = async (saleId: string): Promise<void> => {
+  if (!saleId) {
+    throw new Error('El ID de la venta es requerido');
+  }
+  
   try {
     await api.delete(`/ventas/${saleId}`);
   } catch (error) {
