@@ -227,23 +227,25 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     const confirmDelete = async () => {
       if (saleToDelete) {
         try {
-          await handleDeleteSale(saleToDelete)
-          setDeleteDialogOpen(false)
-          setSaleToDelete(null)
+          await handleDeleteSale(saleToDelete);
+          setDeleteDialogOpen(false);
+          setSaleToDelete(null);
           toast({
             title: "Éxito",
             description: "La venta se ha eliminado correctamente.",
-          })
+          });
+          // recargamos la página
+          window.location.reload();
         } catch (error) {
-          console.error('Error al eliminar la venta:', error)
+          console.error('Error al eliminar la venta:', error);
           toast({
             title: "Error",
             description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
             variant: "destructive",
-          })
+          });
         }
       }
-    }
+    };
   
     return (
       <div className="border rounded-lg mb-2">
