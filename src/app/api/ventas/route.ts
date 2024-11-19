@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     let result;
     if (productoId) {
       result = await query(
-        `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario, v.id
+        `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario
          FROM ventas v
          JOIN productos p ON v.producto = p.id
          WHERE v.producto = $1
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
       );
     } else {
       result = await query(
-        `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario, v.id
+        `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario
          FROM ventas v
          JOIN productos p ON v.producto = p.id
          WHERE v.vendedor = $1

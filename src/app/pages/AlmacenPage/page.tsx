@@ -34,13 +34,6 @@ import SalesSection from '@/components/SalesSection'
 import { Producto, Vendedor, Venta, Transaccion } from '@/types'
 import { toast } from "@/hooks/use-toast";
 
-interface VendorDialogProps {
-  vendor: Vendedor
-  onClose: () => void
-  productos: Producto[]
-  transacciones: Transaccion[]
-}
-
 interface VentaSemana {
   fechaInicio: string
   fechaFin: string
