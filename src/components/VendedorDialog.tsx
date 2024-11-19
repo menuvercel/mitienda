@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
-import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, ArrowUpDown, FileDown} from 'lucide-react'
+import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, ArrowUpDown, FileDown, X} from 'lucide-react'
 import { format, parseISO, startOfWeek, endOfWeek, isValid, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import * as XLSX from 'xlsx'
@@ -22,6 +22,7 @@ interface VendorDialogProps {
   ventasSemanales: VentaSemana[]
   ventasDiarias: VentaDia[]
   onProductReduce: (productId: string, vendorId: string, cantidad: number) => Promise<void>
+  onDeleteSale: (saleId: string) => Promise<void>
 }
 
 interface VentaSemana {
@@ -38,7 +39,7 @@ interface VentaDia {
   total: number
 }
 
-export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce }: VendorDialogProps) {
+export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce, onDeleteSale }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
   const [searchTerm, setSearchTerm] = useState('')
@@ -53,6 +54,23 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [sortByVentas, setSortByVentas] = useState<'asc' | 'desc'>('desc')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+
+  const handleDeleteSale = async (saleId: string) => {
+    try {
+      await onDeleteSale(saleId)
+      toast({
+        title: "Éxito",
+        description: "La venta se ha eliminado correctamente.",
+      })
+    } catch (error) {
+      console.error('Error al eliminar la venta:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
+        variant: "destructive",
+      })
+    }
+  }
 
   const calcularVentasEspecificas = useCallback(() => {
     const ventasPorProducto = ventas.reduce((acc, venta) => {
@@ -221,9 +239,21 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   />
                   <span>{v.producto_nombre}</span>
                 </div>
-                <div className="text-right">
-                  <div>Cantidad: {v.cantidad}</div>
-                  <div>${formatPrice(v.precio_unitario)}</div>
+                <div className="flex items-center">
+                  <div className="text-right mr-4">
+                    <div>Cantidad: {v.cantidad}</div>
+                    <div>${formatPrice(v.precio_unitario)}</div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteSale(v._id)
+                    }}
+                  >
+                    <X className="h-4 w-4 text-red-500" />
+                  </Button>
                 </div>
               </div>
             ))}

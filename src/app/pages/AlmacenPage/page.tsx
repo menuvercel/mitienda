@@ -25,7 +25,8 @@ import {
   reducirProductoVendedor,
   getTransaccionesVendedor,
   editarVendedor,
-  eliminarProducto
+  eliminarProducto,
+  deleteSale
 } from '../../services/api'
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
@@ -892,6 +893,7 @@ export default function AlmacenPage() {
             ventasDiarias={ventasDiarias}
             transacciones={transaccionesVendedor}
             onProductReduce={handleReduceVendorProduct}
+            onDeleteSale={deleteSale}
           />
         )}
     </div>

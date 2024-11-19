@@ -321,3 +321,18 @@ export const getVentasProducto = async (productoId: string, startDate: string, e
     throw new Error('No se pudieron obtener las ventas del producto');
   }
 };
+
+
+//ultimo edit
+
+export const deleteSale = async (saleId: string): Promise<void> => {
+  try {
+    await api.delete(`/ventas/${saleId}`);
+  } catch (error) {
+    console.error('Error al eliminar la venta:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Respuesta del servidor:', error.response.data);
+    }
+    throw new Error(`No se pudo eliminar la venta: ${(error as Error).message}`);
+  }
+};
