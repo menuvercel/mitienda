@@ -57,12 +57,11 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [isOpen, setIsOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [saleToDelete, setSaleToDelete] = useState<string | null>(null)
-  const [localVentas, setLocalVentas] = useState<Venta[]>(ventas)
+  
 
   const handleDeleteSale = async (saleId: string) => {
     try {
       await onDeleteSale(saleId)
-      setLocalVentas(prevVentas => prevVentas.filter(venta => venta.id !== saleId))
       toast({
         title: "Éxito",
         description: "La venta se ha eliminado correctamente.",
@@ -215,7 +214,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
   }
 
-  const VentaDiaDesplegable = ({ venta, onDeleteSale }: { venta: VentaDia; onDeleteSale: (saleId: string) => Promise<void> }) => {
+  const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
     const [isOpen, setIsOpen] = useState(false)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [saleToDelete, setSaleToDelete] = useState<string | null>(null)
@@ -228,9 +227,13 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     const confirmDelete = async () => {
       if (saleToDelete) {
         try {
-          await onDeleteSale(saleToDelete)
+          await handleDeleteSale(saleToDelete)
           setDeleteDialogOpen(false)
           setSaleToDelete(null)
+          toast({
+            title: "Éxito",
+            description: "La venta se ha eliminado correctamente.",
+          })
         } catch (error) {
           console.error('Error al eliminar la venta:', error)
           toast({
@@ -304,16 +307,16 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
       </div>
     )
   }
-  
-  const VentaSemanaDesplegable = ({ venta, onDeleteSale }: { venta: VentaSemana; onDeleteSale: (saleId: string) => Promise<void> }) => {
+
+  const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
     const [isOpen, setIsOpen] = useState(false)
-  
+
     const parsePrice = (price: number | string): number => {
       if (typeof price === 'number') return price
       const parsed = parseFloat(price)
       return isNaN(parsed) ? 0 : parsed
     }
-  
+
     const ventasPorDia = venta.ventas.reduce((acc: Record<string, Venta[]>, v) => {
       const fecha = parseISO(v.fecha)
       if (!isValid(fecha)) {
@@ -327,7 +330,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
       acc[fechaStr].push(v)
       return acc
     }, {})
-  
+
     return (
       <div className="border rounded-lg mb-2">
         <div 
@@ -362,8 +365,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                         fecha, 
                         ventas: ventasDia, 
                         total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
-                      }}
-                      onDeleteSale={onDeleteSale}
+                      }} 
                     />
                   )
                 }
@@ -497,26 +499,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }
 
   const renderVentasList = () => {
-    const [localVentas, setLocalVentas] = useState<Venta[]>(ventas)
-  
-    const handleDeleteSale = async (saleId: string) => {
-      try {
-        await onDeleteSale(saleId)
-        setLocalVentas(prevVentas => prevVentas.filter(venta => venta.id !== saleId))
-        toast({
-          title: "Éxito",
-          description: "La venta se ha eliminado correctamente.",
-        })
-      } catch (error) {
-        console.error('Error al eliminar la venta:', error)
-        toast({
-          title: "Error",
-          description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
-          variant: "destructive",
-        })
-      }
-    }
-  
     return (
       <Tabs defaultValue="por-dia">
         <TabsList>
@@ -537,7 +519,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             </div>
             {ventasDiarias.length > 0 ? (
               ventasDiarias.map((venta) => (
-                <VentaDiaDesplegable key={venta.fecha} venta={venta} onDeleteSale={handleDeleteSale} />
+                <VentaDiaDesplegable key={venta.fecha} venta={venta} />
               ))
             ) : (
               <div className="text-center py-4">No hay ventas registradas</div>
@@ -557,11 +539,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             </div>
             {ventasSemanalesState.length > 0 ? (
               ventasSemanalesState.map((venta) => (
-                <VentaSemanaDesplegable 
-                  key={`${venta.fechaInicio}-${venta.fechaFin}`} 
-                  venta={venta} 
-                  onDeleteSale={handleDeleteSale}
-                />
+                <VentaSemanaDesplegable key={`${venta.fechaInicio}-${venta.fechaFin}`} venta={venta} />
               ))
             ) : (
               <div className="text-center py-4">No hay ventas registradas</div>
