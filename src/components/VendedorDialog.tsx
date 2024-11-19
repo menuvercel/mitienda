@@ -51,6 +51,8 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [ventasEspecificas, setVentasEspecificas] = useState<{ producto: string; cantidad: number }[]>([])
   const [sortByVentas, setSortByVentas] = useState<'asc' | 'desc'>('desc')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
 
   const calcularVentasEspecificas = useCallback(() => {
     const ventasPorProducto = ventas.reduce((acc, venta) => {
@@ -302,17 +304,38 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setEditedVendor(prev => ({
-      ...prev,
-      [name]: value,
-    }))
+    if (name === 'newPassword') {
+      setNewPassword(value)
+    } else if (name === 'confirmPassword') {
+      setConfirmPassword(value)
+    } else {
+      setEditedVendor(prev => ({
+        ...prev,
+        [name]: value,
+      }))
+    }
   }
 
   const handleEdit = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Las contraseñas no coinciden.",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       setIsLoading(true)
-      await onEdit(editedVendor)
+      const updatedVendor = {
+        ...editedVendor,
+        ...(newPassword && { password: newPassword }),
+      }
+      await onEdit(updatedVendor)
       setMode('view')
+      setNewPassword('')
+      setConfirmPassword('')
       toast({
         title: "Éxito",
         description: "Los datos del vendedor se han actualizado correctamente.",
@@ -549,29 +572,43 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
         <div className="flex-grow overflow-y-auto p-4">
           {mode === 'edit' ? (
             <div className="space-y-4">
-              <Input
-                name="nombre"
-                value={editedVendor.nombre}
-                onChange={handleInputChange}
-                placeholder="Nombre del vendedor"
-              />
-              <Input
-                name="telefono"
-                value={editedVendor.telefono}
-                onChange={handleInputChange}
-                placeholder="Teléfono"
-              />
-              <Button onClick={handleEdit} disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Guardando...
-                  </>
-                ) : (
-                  'Guardar cambios'
-                )}
-              </Button>
-            </div>
+            <Input
+              name="nombre"
+              value={editedVendor.nombre}
+              onChange={handleInputChange}
+              placeholder="Nombre del vendedor"
+            />
+            <Input
+              name="telefono"
+              value={editedVendor.telefono}
+              onChange={handleInputChange}
+              placeholder="Teléfono"
+            />
+            <Input
+              type="password"
+              name="newPassword"
+              value={newPassword}
+              onChange={handleInputChange}
+              placeholder="Nueva contraseña (dejar en blanco para no cambiar)"
+            />
+            <Input
+              type="password"
+              name="confirmPassword"
+              value={confirmPassword}
+              onChange={handleInputChange}
+              placeholder="Confirmar nueva contraseña"
+            />
+            <Button onClick={handleEdit} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                'Guardar cambios'
+              )}
+            </Button>
+          </div>
           ) : mode === 'productos' ? (
             <Tabs defaultValue="disponibles" className="w-full">
             <div className="flex justify-center mb-4">

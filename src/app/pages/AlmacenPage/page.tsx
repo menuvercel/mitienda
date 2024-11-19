@@ -31,6 +31,7 @@ import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
 import SalesSection from '@/components/SalesSection'
 import { Producto, Vendedor, Venta, Transaccion } from '@/types'
+import { toast } from "@/hooks/use-toast";
 
 interface VendorDialogProps {
   vendor: Vendedor
@@ -457,19 +458,22 @@ export default function AlmacenPage() {
     }
   };
 
-  const handleEditVendedor = async (editedVendor: Vendedor) => {
+  const handleEditVendedor = async (editedVendor: Vendedor & { newPassword?: string }) => {
     try {
       await editarVendedor(editedVendor.id, editedVendor);
       await fetchVendedores();
       setVendedorSeleccionado(null);
-      alert('Vendedor actualizado exitosamente');
+      toast({
+        title: "Éxito",
+        description: "Vendedor actualizado exitosamente",
+      });
     } catch (error) {
       console.error('Error editing vendor:', error);
-      if (error instanceof Error) {
-        alert(`Error al editar el vendedor: ${error.message}`);
-      } else {
-        alert('Error desconocido al editar el vendedor');
-      }
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Error desconocido al editar el vendedor',
+        variant: "destructive",
+      });
     }
   };
 

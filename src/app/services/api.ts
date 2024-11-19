@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Venta, Vendedor, Producto, Transaccion } from '@/types';
+import { Venta, Vendedor, Transaccion } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -26,12 +26,14 @@ interface User {
   nombre: string;
   rol: string;
   telefono?: string;
+  password: string;
 }
 
-interface DeliveryItem {
-  productId: string;
-  vendorId: string;
-  quantity: number;
+interface Producto {
+  id: string;
+  nombre: string;
+  precio: number;
+  cantidad: number;
 }
 
 export const uploadImage = async (file: File) => {
@@ -262,16 +264,28 @@ export const getVentasVendedor = async (vendedorId: string): Promise<Venta[]> =>
 };
 
 
-export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor): Promise<void> => {
+export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor & { newPassword?: string }): Promise<void> => {
   try {
-    const response = await api.put(`/users/vendedores?id=${vendedorId}`, editedVendor);
+    const vendorData: Vendedor = { ...editedVendor };
+    
+    // If a new password is provided, include it in the request
+    if (editedVendor.newPassword) {
+      vendorData.password = editedVendor.newPassword;
+    }
+    
+    // Remove the newPassword field from the request payload
+    delete (vendorData as any).newPassword;
+
+    const response = await api.put(`/users/vendedores?id=${vendedorId}`, vendorData);
     console.log('Vendedor actualizado:', response.data);
   } catch (error) {
     console.error('Error al editar vendedor:', error);
     if (axios.isAxiosError(error) && error.response) {
       console.error('Respuesta del servidor:', error.response.data);
     }
-    throw new Error(`No se pudo editar el vendedor: ${(error as Error).message}`);
+    throw new Error(axios.isAxiosError(error) && error.response?.data?.message 
+      ? error.response.data.message 
+      : `No se pudo editar el vendedor: ${(error as Error).message}`);
   }
 };
 

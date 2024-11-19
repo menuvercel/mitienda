@@ -34,13 +34,24 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'ID no proporcionado' }, { status: 400 });
   }
 
-  const { nombre, telefono } = await request.json();
+  const { nombre, telefono, password } = await request.json();
 
   try {
-    const result = await query(
-      'UPDATE usuarios SET nombre = $1, telefono = $2 WHERE id = $3 RETURNING id, nombre, telefono, rol',
-      [nombre, telefono, id]
-    );
+    let queryString = 'UPDATE usuarios SET nombre = $1, telefono = $2';
+    let queryParams = [nombre, telefono];
+    let paramCount = 2;
+
+    // If a new password is provided, add it to the query without hashing
+    if (password) {
+      queryString += `, password = $${paramCount + 1}`;
+      queryParams.push(password);
+      paramCount++;
+    }
+
+    queryString += ` WHERE id = $${paramCount + 1} RETURNING id, nombre, telefono, rol`;
+    queryParams.push(id);
+
+    const result = await query(queryString, queryParams);
 
     if (result.rowCount === 0) {
       return NextResponse.json({ error: 'Vendedor no encontrado' }, { status: 404 });

@@ -40,6 +40,7 @@ export interface Vendedor {
   productos: Producto[];
   rol: string;
   telefono?: string;
+  password: string;
 }
 
 export interface Usuario {
