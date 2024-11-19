@@ -48,7 +48,7 @@ interface Transaccion {
 }
 
 interface Venta {
-  _id: string;
+  id: string;
   producto: string;
   producto_nombre: string;
   producto_foto: string;
@@ -316,7 +316,7 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
       {isOpen && (
         <div className="p-4 bg-gray-50">
             {venta.ventas.map((v) => (
-              <div key={v._id} className="flex items-center justify-between py-2">
+              <div key={v.id} className="flex items-center justify-between py-2">
                 <div className="flex items-center">
                   <Image
                     src={v.producto_foto || '/placeholder.svg'}
@@ -481,7 +481,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
       <div className="space-y-2">
         {filteredVentas.length > 0 ? (
           filteredVentas.map(venta => (
-            <VentaItem key={venta._id} venta={venta} />
+            <VentaItem key={venta.id} venta={venta} />
           ))
         ) : (
           <div className="text-center py-4">No hay ventas registradas</div>
