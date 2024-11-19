@@ -77,13 +77,30 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const vendedorId = searchParams.get('vendedorId');
   const productoId = searchParams.get('productoId');
-
-  if (!vendedorId && !productoId) {
-    return NextResponse.json({ error: 'Se requiere vendedorId o productoId' }, { status: 400 });
-  }
+  const ventaId = searchParams.get('id'); // Añadimos el parámetro id
 
   try {
     let result;
+    
+    // Si se proporciona un ID de venta específico
+    if (ventaId) {
+      result = await query(
+        `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario
+         FROM ventas v
+         JOIN productos p ON v.producto = p.id
+         WHERE v.id = $1`,
+        [ventaId]
+      );
+
+      // Si no se encuentra la venta
+      if (result.rows.length === 0) {
+        return NextResponse.json({ error: 'Venta no encontrada' }, { status: 404 });
+      }
+
+      return NextResponse.json(result.rows[0]); // Retornamos solo la venta específica
+    }
+    
+    // Lógica existente para filtrar por producto
     if (productoId) {
       result = await query(
         `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario
@@ -93,7 +110,9 @@ export async function GET(request: NextRequest) {
          ORDER BY v.fecha DESC`,
         [productoId]
       );
-    } else {
+    } 
+    // Lógica existente para filtrar por vendedor
+    else if (vendedorId) {
       result = await query(
         `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario
          FROM ventas v
@@ -102,7 +121,12 @@ export async function GET(request: NextRequest) {
          ORDER BY v.fecha DESC`,
         [vendedorId]
       );
+    } 
+    // Si no se proporciona ningún filtro
+    else {
+      return NextResponse.json({ error: 'Se requiere vendedorId, productoId o id' }, { status: 400 });
     }
+
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Error al obtener ventas:', error);
