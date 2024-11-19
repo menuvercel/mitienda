@@ -54,6 +54,10 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [sortByVentas, setSortByVentas] = useState<'asc' | 'desc'>('desc')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [saleToDelete, setSaleToDelete] = useState<string | null>(null)
+  
 
   const handleDeleteSale = async (saleId: string) => {
     try {
@@ -212,16 +216,35 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
 
   const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
     const [isOpen, setIsOpen] = useState(false)
-
-      console.log("IDs de ventas:", venta.ventas.map(v => v.id));
-
-      console.log("Detalles de ventas:", venta.ventas.map(v => ({
-        id: v.id,
-        producto: v.producto_nombre,
-        cantidad: v.cantidad,
-        precio: v.precio_unitario
-      })));
-
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    const [saleToDelete, setSaleToDelete] = useState<string | null>(null)
+  
+    const handleDeleteClick = (saleId: string) => {
+      setSaleToDelete(saleId)
+      setDeleteDialogOpen(true)
+    }
+  
+    const confirmDelete = async () => {
+      if (saleToDelete) {
+        try {
+          await handleDeleteSale(saleToDelete)
+          setDeleteDialogOpen(false)
+          setSaleToDelete(null)
+          toast({
+            title: "Éxito",
+            description: "La venta se ha eliminado correctamente.",
+          })
+        } catch (error) {
+          console.error('Error al eliminar la venta:', error)
+          toast({
+            title: "Error",
+            description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
+            variant: "destructive",
+          })
+        }
+      }
+    }
+  
     return (
       <div className="border rounded-lg mb-2">
         <div 
@@ -258,7 +281,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                     size="icon"
                     onClick={(e) => {
                       e.stopPropagation()
-                      handleDeleteSale(v.id)
+                      handleDeleteClick(v.id)
                     }}
                   >
                     <X className="h-4 w-4 text-red-500" />
@@ -268,6 +291,19 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             ))}
           </div>
         )}
+  
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar eliminación</DialogTitle>
+            </DialogHeader>
+            <p>¿Está seguro de que desea eliminar esta venta?</p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
+              <Button variant="destructive" onClick={confirmDelete}>Eliminar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     )
   }
