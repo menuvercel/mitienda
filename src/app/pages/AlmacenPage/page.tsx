@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import * as XLSX from 'xlsx';
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { startOfWeek, endOfWeek, format } from 'date-fns';
@@ -11,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Menu, ArrowUpDown, Plus, Truck, UserPlus } from "lucide-react"
+import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet  } from "lucide-react"
 import { 
   getVendedores, 
   getCurrentUser, 
@@ -144,8 +145,18 @@ export default function AlmacenPage() {
   const [productSearchTerm, setProductSearchTerm] = useState("")
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
+  
+  const handleExportToExcel = () => {
+    const header = ["Nombre", "Precio", "Cantidad"];
+    const data = inventario.map(producto => [producto.nombre, producto.precio, producto.cantidad]);
 
+    const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Productos");
 
+    XLSX.writeFile(wb, "lista_productos.xlsx");
+  };
+  
   const obtenerVentasDelDia = useCallback(async (fecha: Date, vendedorId: string) => {
     try {
       const startDate = fecha.toISOString().split('T')[0]
@@ -542,6 +553,12 @@ export default function AlmacenPage() {
               className="bg-blue-500 hover:bg-blue-600 text-white"
             >
               <Truck className="mr-2 h-4 w-4" /> Entrega Masiva
+            </Button>
+            <Button
+              onClick={handleExportToExcel}
+              className="bg-purple-500 hover:bg-purple-600 text-white"
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar a Excel
             </Button>
           </div>
           <Card>
