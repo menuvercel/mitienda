@@ -25,6 +25,7 @@ import {
   getTransaccionesProducto,
   getVentasProducto
 } from '../../../services/api'
+import { WeekPicker } from '@/components/Weekpicker'
 
 interface Producto {
   id: string;
@@ -927,10 +928,9 @@ export default function VendedorPage() {
             <TabsContent value="vender">
               <div className="space-y-4">
                 <h2 className="text-xl font-semibold">1. Selecciona la fecha</h2>
-                <Input
-                  type="date"
+                <WeekPicker
                   value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
+                  onChange={setFecha}
                 />
                 <h2 className="text-xl font-semibold">2. Selecciona los productos</h2>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
