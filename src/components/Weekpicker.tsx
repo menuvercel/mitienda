@@ -24,10 +24,14 @@ export function WeekPicker({ value, onChange }: WeekPickerProps) {
 
   const handleSelect = (date: Date | undefined) => {
     if (date) {
-      // Ajustar la zona horaria para evitar el problema del día anterior
-      const localDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000)
-      onChange(format(localDate, 'yyyy-MM-dd'))
-      setOpen(false) // Cerrar el popover después de seleccionar
+      // Crear una nueva fecha usando los componentes individuales
+      const year = date.getFullYear()
+      const month = date.getMonth()
+      const day = date.getDate()
+      const selectedDate = new Date(year, month, day, 12) // Establecer hora a mediodía
+      
+      onChange(format(selectedDate, 'yyyy-MM-dd'))
+      setOpen(false)
     }
   }
 
@@ -41,14 +45,14 @@ export function WeekPicker({ value, onChange }: WeekPickerProps) {
             !value && "text-muted-foreground"
           )}
         >
-          {value ? format(new Date(value), "EEEE, d 'de' MMMM", { locale: es }) : 
+          {value ? format(new Date(value + 'T12:00:00'), "EEEE, d 'de' MMMM", { locale: es }) : 
             <span>Selecciona un día de esta semana</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
-          selected={value ? new Date(value) : undefined}
+          selected={value ? new Date(value + 'T12:00:00') : undefined}
           onSelect={handleSelect}
           disabled={(date) => {
             return !weekDays.some(weekDay => isSameDay(date, weekDay))
