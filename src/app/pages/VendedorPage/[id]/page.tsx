@@ -16,6 +16,7 @@ import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight, Minus, Plu
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { format, parseISO, isValid, startOfWeek, endOfWeek, addDays   } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { OptimizedImage } from '@/components/OptimizedImage';
 import { 
   getTransaccionesVendedor,
   getProductosVendedor, 
@@ -32,7 +33,7 @@ interface Producto {
   nombre: string;
   precio: number;
   cantidad: number;
-  foto: string;
+  foto: string | null;
 }
 
 interface ProductoVenta extends Producto {
@@ -964,8 +965,9 @@ export default function VendedorPage() {
                                 checked={selectedProductIds.includes(producto.id)}
                                 onCheckedChange={() => handleProductSelect(producto.id)}
                               />
-                              <Image
+                              <OptimizedImage
                                 src={producto.foto || '/placeholder.svg'}
+                                fallbackSrc="/placeholder.svg"
                                 alt={producto.nombre}
                                 width={40}
                                 height={40}
