@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
+import { OptimizedImage } from '@/components/OptimizedImage'
 import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet  } from "lucide-react"
 import { 
   getVendedores, 
@@ -605,17 +606,14 @@ export default function AlmacenPage() {
                     variant="ghost"
                   >
                     {producto.foto ? (
-                      <Image
-                        src={producto.foto}
-                        alt={producto.nombre}
-                        width={50}
-                        height={50}
-                        className="object-cover rounded mr-4"
-                        onError={(e) => {
-                          console.error(`Error loading image for ${producto.nombre}:`, e)
-                          e.currentTarget.src = '/placeholder.svg'
-                        }}
-                      />
+                      <OptimizedImage
+                      src={producto.foto || '/placeholder.svg'}
+                      fallbackSrc="/placeholder.svg"
+                      alt={producto.nombre}
+                      width={50}
+                      height={50}
+                      className="object-cover rounded mr-4"
+                    />
                     ) : (
                       <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-4">
                         <span className="text-gray-500 text-xs">Sin imagen</span>
