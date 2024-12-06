@@ -589,15 +589,12 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
                 <div className="flex flex-col items-center space-y-4">
                   <div className="w-full h-[300px] flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
                     <div className="relative w-full h-full">
-                      <Image
+                      <OptimizedImage
                         src={producto.foto || '/placeholder.svg'}
+                        fallbackSrc="/placeholder.svg"
                         alt={producto.nombre}
                         fill
                         className="object-contain"
-                        onError={(e) => {
-                          console.error(`Error loading image for ${producto.nombre}:`, e);
-                          e.currentTarget.src = '/placeholder.svg';
-                        }}
                       />
                     </div>
                   </div>
