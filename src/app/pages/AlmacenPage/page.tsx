@@ -603,40 +603,36 @@ export default function AlmacenPage() {
                 </Button>
               </div>
               <div className="space-y-2">
-                {filteredInventario.map((producto) => (
-                  <Button
-                    key={producto.id}
-                    onClick={() => setSelectedProduct(producto)}
-                    className={`w-full h-auto p-2 flex items-center text-left border border-gray-200 rounded-lg shadow-sm transition-colors ${
-                      producto.cantidad === 0 ? 'bg-red-100 hover:bg-red-200' : 'bg-white hover:bg-gray-100'
-                    }`}
-                    variant="ghost"
-                  >
-                    {producto.foto ? (
-                      <OptimizedImage
+              {filteredInventario.map((producto) => (
+                <div 
+                  key={producto.id}
+                  onClick={() => setSelectedProduct(producto)}
+                  className="flex items-center p-3 rounded-lg border mb-2 bg-white hover:bg-gray-50 cursor-pointer"
+                >
+                  <div className="w-12 h-12 mr-3">
+                    <Image 
                       src={producto.foto || '/placeholder.svg'}
-                      fallbackSrc="/placeholder.svg"
                       alt={producto.nombre}
-                      width={50}
-                      height={50}
-                      className="object-cover rounded mr-4"
+                      width={48}
+                      height={48}
+                      className="rounded-md object-cover"
                     />
-                    ) : (
-                      <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center mr-4">
-                        <span className="text-gray-500 text-xs">Sin imagen</span>
-                      </div>
-                    )}
-                    <div className="flex-grow">
-                      <span className="font-semibold text-gray-800">{producto.nombre}</span>
-                      <div className="text-sm text-gray-600">
-                        <span className="mr-4">Precio: ${producto.precio}</span>
-                        <span className={producto.cantidad === 0 ? 'text-red-600 font-bold' : ''}>
-                          Cantidad: {producto.cantidad}
-                        </span>
-                      </div>
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-medium text-gray-900 truncate">
+                      {producto.nombre}
+                    </h3>
+                    <div className="flex flex-wrap gap-x-4 text-sm text-gray-500">
+                      <p>Precio: ${producto.precio.toFixed(2)}</p>
+                      <p className={`${producto.cantidad === 0 ? 'text-red-500' : ''}`}>
+                        Cantidad: {producto.cantidad}
+                      </p>
                     </div>
-                  </Button>
-                ))}
+                  </div>
+                </div>
+              ))}
+
               </div>
             </CardContent>
           </Card>
