@@ -75,37 +75,43 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [isOpen, setIsOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [saleToDelete, setSaleToDelete] = useState<string | null>(null)
+  const [ventasDiariasLocales, setVentasDiariasLocales] = useState<VentaDia[]>(ventasDiarias)
   
+  const actualizarDatosVentas = useCallback(() => {
+    // Filtrar las ventas eliminadas
+    const nuevasVentasDiarias = ventasDiariasLocales.map(ventaDia => ({
+      ...ventaDia,
+      ventas: ventaDia.ventas.filter(v => ventasLocales.some(vl => vl.id === v.id)),
+      total: ventaDia.ventas
+        .filter(v => ventasLocales.some(vl => vl.id === v.id))
+        .reduce((sum, v) => sum + parseFloat(v.total.toString()), 0)
+    })).filter(ventaDia => ventaDia.ventas.length > 0)
 
-// Busca la función handleDeleteSale actual y reemplázala con esta
-const handleDeleteSale = async (saleId: string) => {
-  try {
-    await onDeleteSale(saleId)
-    
-    // Actualizar el estado local
-    setVentasLocales(prevVentas => prevVentas.filter(v => v.id !== saleId))
-    
-    // Recalcular las ventas diarias y semanales
-    const ventasDiariasActualizadas = calcularVentasDiarias(ventasLocales)
-    const ventasSemanalesActualizadas = agruparVentasPorSemana(ventasLocales)
-    
-    // Actualizar los estados correspondientes
-    setVentasSemanales(ventasSemanalesActualizadas)
+    setVentasDiariasLocales(nuevasVentasDiarias)
     calcularVentasEspecificas()
-    
-    toast({
-      title: "Éxito",
-      description: "La venta se ha eliminado correctamente.",
-    })
-  } catch (error) {
-    console.error('Error al eliminar la venta:', error)
-    toast({
-      title: "Error",
-      description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
-      variant: "destructive",
-    })
+  }, [ventasLocales, ventasDiariasLocales])
+
+
+  const handleDeleteSale = async (saleId: string) => {
+    try {
+      await onDeleteSale(saleId)
+      
+      // Actualizar el estado local
+      setVentasLocales(prevVentas => prevVentas.filter(v => v.id !== saleId))
+      
+      toast({
+        title: "Éxito",
+        description: "La venta se ha eliminado correctamente.",
+      })
+    } catch (error) {
+      console.error('Error al eliminar la venta:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
+        variant: "destructive",
+      })
+    }
   }
-}
 
 
 const calcularVentasEspecificas = useCallback(() => {
@@ -246,7 +252,7 @@ const calcularVentasEspecificas = useCallback(() => {
     return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
   }
 
-  const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
+  const VentaDiaDesplegable = ({ venta, onVentaDeleted }: { venta: VentaDia, onVentaDeleted: () => void }) => {
     const [isOpen, setIsOpen] = useState(false)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [saleToDelete, setSaleToDelete] = useState<string | null>(null)
@@ -262,6 +268,8 @@ const calcularVentasEspecificas = useCallback(() => {
           await handleDeleteSale(saleToDelete)
           setDeleteDialogOpen(false)
           setSaleToDelete(null)
+          // Llamar a la función de actualización
+          onVentaDeleted()
         } catch (error) {
           console.error('Error al eliminar la venta:', error)
           toast({
@@ -374,34 +382,36 @@ const calcularVentasEspecificas = useCallback(() => {
           </div>
         </div>
         {isOpen && (
-          <div className="p-4 bg-gray-50">
-            {Object.entries(ventasPorDia)
-              .sort(([dateA], [dateB]) => {
-                const a = parseISO(dateA)
-                const b = parseISO(dateB)
-                return isValid(a) && isValid(b) ? a.getTime() - b.getTime() : 0
-              })
-              .map(([fecha, ventasDia]) => {
-                const fechaVenta = parseISO(fecha)
-                const fechaInicio = parseISO(venta.fechaInicio)
-                const fechaFin = parseISO(venta.fechaFin)
-                if (isValid(fechaVenta) && isValid(fechaInicio) && isValid(fechaFin) &&
-                    fechaVenta >= fechaInicio && fechaVenta <= fechaFin) {
-                  return (
-                    <VentaDiaDesplegable 
-                      key={fecha} 
-                      venta={{
-                        fecha, 
-                        ventas: ventasDia, 
-                        total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
-                      }} 
-                    />
-                  )
-                }
-                return null
-              })}
-          </div>
-        )}
+            <div className="p-4 bg-gray-50">
+              {Object.entries(ventasPorDia)
+                .sort(([dateA], [dateB]) => {
+                  const a = parseISO(dateA)
+                  const b = parseISO(dateB)
+                  return isValid(a) && isValid(b) ? a.getTime() - b.getTime() : 0
+                })
+                .map(([fecha, ventasDia]) => {
+                  const fechaVenta = parseISO(fecha)
+                  const fechaInicio = parseISO(venta.fechaInicio)
+                  const fechaFin = parseISO(venta.fechaFin)
+                  if (isValid(fechaVenta) && isValid(fechaInicio) && isValid(fechaFin) &&
+                      fechaVenta >= fechaInicio && fechaVenta <= fechaFin) {
+                    return (
+                      <VentaDiaDesplegable 
+                        key={fecha} 
+                        venta={{
+                          fecha, 
+                          ventas: ventasDia, 
+                          total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
+                        }} 
+                        onVentaDeleted={actualizarDatosVentas} // Añade esta línea
+                      />
+                    )
+                  }
+                  return null
+                })}
+            </div>
+          )}
+
       </div>
     )
   }
@@ -546,9 +556,13 @@ const calcularVentasEspecificas = useCallback(() => {
                 className="pl-10"
               />
             </div>
-            {ventasDiarias.length > 0 ? (
-              ventasDiarias.map((venta) => (
-                <VentaDiaDesplegable key={venta.fecha} venta={venta} />
+            {ventasDiariasLocales.length > 0 ? (
+              ventasDiariasLocales.map((venta) => (
+                <VentaDiaDesplegable 
+                  key={venta.fecha} 
+                  venta={venta} 
+                  onVentaDeleted={actualizarDatosVentas}
+                />
               ))
             ) : (
               <div className="text-center py-4">No hay ventas registradas</div>
