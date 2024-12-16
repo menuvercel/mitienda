@@ -624,7 +624,7 @@ export default function AlmacenPage() {
                       {producto.nombre}
                     </h3>
                     <div className="flex flex-wrap gap-x-4 text-sm text-gray-500">
-                      <p>Precio: ${producto.precio.toFixed(2)}</p>
+                      <p>Precio: ${Number(producto.precio).toFixed(2)}</p>
                       <p className={`${producto.cantidad === 0 ? 'text-red-500' : ''}`}>
                         Cantidad: {producto.cantidad}
                       </p>
@@ -632,7 +632,6 @@ export default function AlmacenPage() {
                   </div>
                 </div>
               ))}
-
               </div>
             </CardContent>
           </Card>
