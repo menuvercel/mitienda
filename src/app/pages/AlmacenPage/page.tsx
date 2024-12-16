@@ -542,26 +542,33 @@ export default function AlmacenPage() {
 
       {activeSection === 'productos' && (
         <div>
-          <div className="flex justify-end mb-4 space-x-2">
+          <div className="flex flex-wrap justify-end gap-2 mb-4">
             <Button
               onClick={() => setShowAddProductModal(true)}
-              className="bg-green-500 hover:bg-green-600 text-white"
+              className="flex-grow sm:flex-grow-0 bg-green-500 hover:bg-green-600 text-white"
             >
-              <Plus className="mr-2 h-4 w-4" /> Agregar Producto
+              <Plus className="mr-2 h-4 w-4" /> 
+              <span className="hidden sm:inline">Agregar Producto</span>
+              <span className="sm:hidden">Agregar</span>
             </Button>
             <Button
               onClick={() => setShowMassDeliveryDialog(true)}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
+              className="flex-grow sm:flex-grow-0 bg-blue-500 hover:bg-blue-600 text-white"
             >
-              <Truck className="mr-2 h-4 w-4" /> Entrega Masiva
+              <Truck className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Entrega Masiva</span>
+              <span className="sm:hidden">Entregar</span>
             </Button>
             <Button
               onClick={handleExportToExcel}
-              className="bg-purple-500 hover:bg-purple-600 text-white"
+              className="flex-grow sm:flex-grow-0 bg-purple-500 hover:bg-purple-600 text-white"
             >
-              <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar a Excel
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Exportar a Excel</span>
+              <span className="sm:hidden">Exportar</span>
             </Button>
           </div>
+
           <Card>
             <CardHeader>
               <CardTitle>Lista de productos</CardTitle>
