@@ -39,10 +39,28 @@ interface VentaDia {
   total: number
 }
 
+// Después de las interfaces y antes de export default function VendorDialog
+const calcularVentasDiarias = (ventas: Venta[]): VentaDia[] => {
+  const ventasPorDia = ventas.reduce((acc: Record<string, Venta[]>, venta) => {
+    const fecha = format(parseISO(venta.fecha), 'yyyy-MM-dd')
+    if (!acc[fecha]) acc[fecha] = []
+    acc[fecha].push(venta)
+    return acc
+  }, {})
+
+  return Object.entries(ventasPorDia).map(([fecha, ventas]) => ({
+    fecha,
+    ventas,
+    total: ventas.reduce((sum, v) => sum + parseFloat(v.total.toString()), 0)
+  }))
+}
+
+
 export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce, onDeleteSale }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
   const [searchTerm, setSearchTerm] = useState('')
+  const [ventasLocales, setVentasLocales] = useState<Venta[]>(ventas)
   const [reduceDialogOpen, setReduceDialogOpen] = useState(false)
   const [productToReduce, setProductToReduce] = useState<Producto | null>(null)
   const [quantityToReduce, setQuantityToReduce] = useState(0)
@@ -59,39 +77,53 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [saleToDelete, setSaleToDelete] = useState<string | null>(null)
   
 
-  const handleDeleteSale = async (saleId: string) => {
-    try {
-      await onDeleteSale(saleId)
-      toast({
-        title: "Éxito",
-        description: "La venta se ha eliminado correctamente.",
-      })
-    } catch (error) {
-      console.error('Error al eliminar la venta:', error)
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
-        variant: "destructive",
-      })
-    }
+// Busca la función handleDeleteSale actual y reemplázala con esta
+const handleDeleteSale = async (saleId: string) => {
+  try {
+    await onDeleteSale(saleId)
+    
+    // Actualizar el estado local
+    setVentasLocales(prevVentas => prevVentas.filter(v => v.id !== saleId))
+    
+    // Recalcular las ventas diarias y semanales
+    const ventasDiariasActualizadas = calcularVentasDiarias(ventasLocales)
+    const ventasSemanalesActualizadas = agruparVentasPorSemana(ventasLocales)
+    
+    // Actualizar los estados correspondientes
+    setVentasSemanales(ventasSemanalesActualizadas)
+    calcularVentasEspecificas()
+    
+    toast({
+      title: "Éxito",
+      description: "La venta se ha eliminado correctamente.",
+    })
+  } catch (error) {
+    console.error('Error al eliminar la venta:', error)
+    toast({
+      title: "Error",
+      description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
+      variant: "destructive",
+    })
   }
+}
 
-  const calcularVentasEspecificas = useCallback(() => {
-    const ventasPorProducto = ventas.reduce((acc, venta) => {
-      if (!acc[venta.producto_nombre]) {
-        acc[venta.producto_nombre] = 0
-      }
-      acc[venta.producto_nombre] += venta.cantidad
-      return acc
-    }, {} as Record<string, number>)
 
-    const ventasEspecificasArray = Object.entries(ventasPorProducto).map(([producto, cantidad]) => ({
-      producto,
-      cantidad
-    }))
+const calcularVentasEspecificas = useCallback(() => {
+  const ventasPorProducto = ventasLocales.reduce((acc, venta) => {
+    if (!acc[venta.producto_nombre]) {
+      acc[venta.producto_nombre] = 0
+    }
+    acc[venta.producto_nombre] += venta.cantidad
+    return acc
+  }, {} as Record<string, number>)
 
-    setVentasEspecificas(ventasEspecificasArray)
-  }, [ventas])
+  const ventasEspecificasArray = Object.entries(ventasPorProducto).map(([producto, cantidad]) => ({
+    producto,
+    cantidad
+  }))
+
+  setVentasEspecificas(ventasEspecificasArray)
+}, [ventasLocales])
 
   useEffect(() => {
     calcularVentasEspecificas()
@@ -227,25 +259,20 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     const confirmDelete = async () => {
       if (saleToDelete) {
         try {
-          await handleDeleteSale(saleToDelete);
-          setDeleteDialogOpen(false);
-          setSaleToDelete(null);
-          toast({
-            title: "Éxito",
-            description: "La venta se ha eliminado correctamente.",
-          });
-          // recargamos la página
-          window.location.reload();
+          await handleDeleteSale(saleToDelete)
+          setDeleteDialogOpen(false)
+          setSaleToDelete(null)
         } catch (error) {
-          console.error('Error al eliminar la venta:', error);
+          console.error('Error al eliminar la venta:', error)
           toast({
             title: "Error",
             description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
             variant: "destructive",
-          });
+          })
         }
       }
-    };
+    }
+  
   
     return (
       <div className="border rounded-lg mb-2">
@@ -637,8 +664,8 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }, [])
 
   useEffect(() => {
-    setVentasSemanales(agruparVentasPorSemana(ventas))
-  }, [ventas, agruparVentasPorSemana])
+    setVentasSemanales(agruparVentasPorSemana(ventasLocales))
+  }, [ventasLocales, agruparVentasPorSemana])
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
