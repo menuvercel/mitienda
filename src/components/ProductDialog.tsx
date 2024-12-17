@@ -109,16 +109,14 @@ export default function ProductDialog({
       parametros: editedProduct.parametros // Aseguramos que los parámetros se incluyan
     }
 
-    if (updatedProduct.tiene_parametros && updatedProduct.parametros) {
+    if (updatedProduct.tieneParametros && updatedProduct.parametros) {
       updatedProduct.cantidad = updatedProduct.parametros.reduce((sum, param) => sum + param.cantidad, 0)
     }
 
     await onEdit(updatedProduct, newImage)
     setMode('view')
     setNewImage(null)
-}
-
-
+  }
 
   const handleDeliver = async () => {
     if (selectedVendedor && deliveryQuantity > 0 && deliveryQuantity <= getTotalCantidad()) {
