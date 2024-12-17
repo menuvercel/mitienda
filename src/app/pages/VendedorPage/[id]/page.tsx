@@ -127,11 +127,16 @@ const useVendedorData = (vendedorId: string) => {
       alert('Por favor, seleccione una fecha.');
       return;
     }
+    if (!vendedorId) { // Agregar esta validación
+      alert('No se pudo identificar el vendedor.');
+      return;
+    }
   
     try {
       console.log('Iniciando proceso de venta');
       console.log('Productos seleccionados:', productosSeleccionados);
       console.log('Fecha seleccionada:', fecha);
+      console.log('Vendedor ID:', vendedorId);
   
       await Promise.all(productosSeleccionados.map(async producto => {
         try {
@@ -139,7 +144,8 @@ const useVendedorData = (vendedorId: string) => {
             producto.id, 
             producto.cantidadVendida, 
             fecha,
-            producto.parametrosVenta
+            producto.parametrosVenta,
+            vendedorId  // Agregar el vendedorId aquí
           );
           console.log(`Venta realizada para producto ${producto.id}:`, response);
           return response;
@@ -159,6 +165,7 @@ const useVendedorData = (vendedorId: string) => {
       setError(error instanceof Error ? error.message : 'Error al realizar la venta');
     }
   };
+  
 
   const agruparVentasPorDia = useCallback((ventas: Venta[]) => {
     const ventasDiarias: VentaDia[] = [];
