@@ -3,7 +3,27 @@ import { put } from '@vercel/blob';
 import { query } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
+const obtenerProductoConParametros = async (productoId: string) => {
+    const result = await query(`
+        SELECT 
+            p.*,
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'nombre', pp.nombre,
+                        'cantidad', pp.cantidad
+                    )
+                ) FILTER (WHERE pp.id IS NOT NULL),
+                '[]'::json
+            ) as parametros
+        FROM productos p
+        LEFT JOIN producto_parametros pp ON p.id = pp.producto_id
+        WHERE p.id = $1
+        GROUP BY p.id
+    `, [productoId]);
 
+    return result.rows[0];
+};
 
 export async function POST(request: NextRequest) {
     try {
@@ -14,48 +34,67 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
   
-      const formData = await request.formData();
-      const nombre = formData.get('nombre') as string;
-      const precio = formData.get('precio') as string;
-      const cantidad = formData.get('cantidad') as string;
-      const foto = formData.get('foto') as File | null;
+        const formData = await request.formData();
+        const nombre = formData.get('nombre') as string;
+        const precio = formData.get('precio') as string;
+        const cantidad = formData.get('cantidad') as string;
+        const foto = formData.get('foto') as File | null;
+        const tieneParametros = formData.get('tieneParametros') === 'true';
+        const parametrosRaw = formData.get('parametros') as string;
+        const parametros = parametrosRaw ? JSON.parse(parametrosRaw) : [];
+
+        console.log('Received form data:', { nombre, precio, cantidad, foto, tieneParametros, parametros });
   
-      console.log('Received form data:', { nombre, precio, cantidad, foto });
+        let fotoUrl = '';
   
-      let fotoUrl = '';
-  
-      if (foto && foto instanceof File) {
-        try {
-          console.log('Uploading image:', foto.name);
-          const blob = await put(foto.name, foto, {
-            access: 'public',
-          });
-          fotoUrl = blob.url;
-          console.log('Image uploaded successfully:', fotoUrl);
-        } catch (error) {
-          console.error('Error uploading image:', error);
-          return NextResponse.json({ error: 'Error al subir la imagen' }, { status: 500 });
+        if (foto && foto instanceof File) {
+            try {
+                console.log('Uploading image:', foto.name);
+                const blob = await put(foto.name, foto, {
+                    access: 'public',
+                });
+                fotoUrl = blob.url;
+                console.log('Image uploaded successfully:', fotoUrl);
+            } catch (error) {
+                console.error('Error uploading image:', error);
+                return NextResponse.json({ error: 'Error al subir la imagen' }, { status: 500 });
+            }
         }
-      } else {
-        console.log('No image file received');
-      }
-  
-      const result = await query(
-        'INSERT INTO productos (nombre, precio, cantidad, foto) VALUES ($1, $2, $3, $4) RETURNING *',
-        [nombre, Number(precio), Number(cantidad), fotoUrl]
-      );
-  
-      console.log('Product inserted:', result.rows[0]);
-  
-      return NextResponse.json(result.rows[0]);
+
+        await query('BEGIN');
+
+        try {
+            const result = await query(
+                'INSERT INTO productos (nombre, precio, cantidad, foto, tiene_parametros) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+                [nombre, Number(precio), Number(cantidad), fotoUrl, tieneParametros]
+            );
+
+            const productoId = result.rows[0].id;
+
+            if (tieneParametros && parametros.length > 0) {
+                for (const param of parametros) {
+                    await query(
+                        'INSERT INTO producto_parametros (producto_id, nombre, cantidad) VALUES ($1, $2, $3)',
+                        [productoId, param.nombre, param.cantidad]
+                    );
+                }
+            }
+
+            await query('COMMIT');
+            
+            const productoCompleto = await obtenerProductoConParametros(productoId);
+            return NextResponse.json(productoCompleto);
+        } catch (error) {
+            await query('ROLLBACK');
+            throw error;
+        }
     } catch (error) {
-      console.error('Error creating product:', error);
-      return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+        console.error('Error creating product:', error);
+        return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
     }
-  }
+}
 
-
-  export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
     try {
         const token = request.cookies.get('token')?.value;
         const decoded = verifyToken(token);
@@ -64,17 +103,28 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
   
-      const result = await query('SELECT * FROM productos');
-      
-      console.log('Products with image URLs:', result.rows.map(product => ({
-        id: product.id,
-        nombre: product.nombre,
-        foto: product.foto
-      })));
+        const result = await query(`
+            SELECT 
+                p.*,
+                COALESCE(
+                    json_agg(
+                        json_build_object(
+                            'nombre', pp.nombre,
+                            'cantidad', pp.cantidad
+                        )
+                    ) FILTER (WHERE pp.id IS NOT NULL),
+                    '[]'::json
+                ) as parametros
+            FROM productos p
+            LEFT JOIN producto_parametros pp ON p.id = pp.producto_id
+            GROUP BY p.id
+        `);
   
-      return NextResponse.json(result.rows);
+        console.log('Products with parameters:', result.rows);
+  
+        return NextResponse.json(result.rows);
     } catch (error) {
-      console.error('Error fetching products:', error);
-      return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+        console.error('Error fetching products:', error);
+        return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
     }
-  }
+}

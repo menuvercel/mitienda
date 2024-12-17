@@ -17,10 +17,8 @@ export async function DELETE(
   const ventaId = params.id;
 
   try {
-    // Inicio de la transacción
     await query('BEGIN');
 
-    // Obtener información de la venta
     const ventaResult = await query(
       'SELECT * FROM ventas WHERE id = $1',
       [ventaId]
@@ -33,29 +31,36 @@ export async function DELETE(
 
     const venta = ventaResult.rows[0];
 
-    // Verificar si el usuario es el vendedor de la venta o un administrador
     if (decoded.rol !== 'Almacen' && venta.vendedor !== decoded.id) {
       await query('ROLLBACK');
       return NextResponse.json({ error: 'No autorizado para eliminar esta venta' }, { status: 403 });
     }
 
-    // Restaurar el stock del vendedor
-    await query(
-      'UPDATE usuario_productos SET cantidad = cantidad + $1 WHERE producto_id = $2 AND usuario_id = $3',
-      [venta.cantidad, venta.producto, venta.vendedor]
-    );
+    // Restaurar stock según parámetros
+    if (venta.parametros) {
+      const parametros = JSON.parse(venta.parametros);
+      for (const param of parametros) {
+        await query(
+          `UPDATE usuario_producto_parametros 
+           SET cantidad = cantidad + $1 
+           WHERE usuario_id = $2 AND producto_id = $3 AND nombre = $4`,
+          [param.cantidad, venta.vendedor, venta.producto, param.nombre]
+        );
+      }
+    } else {
+      await query(
+        'UPDATE usuario_productos SET cantidad = cantidad + $1 WHERE producto_id = $2 AND usuario_id = $3',
+        [venta.cantidad, venta.producto, venta.vendedor]
+      );
+    }
 
-    // Eliminar la venta
     await query('DELETE FROM ventas WHERE id = $1', [ventaId]);
-
-    // Confirmar la transacción
     await query('COMMIT');
 
     return NextResponse.json({ message: 'Venta eliminada con éxito' });
   } catch (error) {
-    // Revertir la transacción en caso de error
     await query('ROLLBACK');
     console.error('Error al eliminar venta:', error);
-    return NextResponse.json({ error: 'Error al eliminar venta', details: (error as Error).message }, { status: 500 });
+    return NextResponse.json({ error: 'Error al eliminar venta' }, { status: 500 });
   }
 }

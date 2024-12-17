@@ -20,6 +20,11 @@ export interface Producto {
   precio: number;
   cantidad: number;
   foto?: string;
+  tieneParametros: boolean;
+  parametros?: Array<{
+    nombre: string;
+    cantidad: number;
+  }>;
 }
 
 export interface Venta {

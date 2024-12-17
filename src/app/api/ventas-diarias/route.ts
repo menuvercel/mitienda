@@ -20,12 +20,20 @@ export async function GET(request: NextRequest) {
   try {
     let result;
     if (decoded.rol === 'Almacen') {
-      // Para el rol Almacen, obtener ventas de todos los vendedores
       result = await query(
         `SELECT 
            u.id as vendedor_id,
            u.nombre as vendedor_nombre,
-           COALESCE(SUM(v.total), 0) as total_ventas
+           COALESCE(SUM(v.total), 0) as total_ventas,
+           json_agg(
+             json_build_object(
+               'id', v.id,
+               'producto_id', v.producto,
+               'cantidad', v.cantidad,
+               'total', v.total,
+               'parametros', v.parametros
+             )
+           ) FILTER (WHERE v.id IS NOT NULL) as detalles_ventas
          FROM usuarios u
          LEFT JOIN ventas v ON u.id = v.vendedor AND v.fecha::date = $1::date
          WHERE u.rol = 'Vendedor'
@@ -34,12 +42,20 @@ export async function GET(request: NextRequest) {
         [fecha]
       );
     } else {
-      // Para el rol Vendedor, obtener solo sus propias ventas
       result = await query(
         `SELECT 
            $1::uuid as vendedor_id,
            $2::text as vendedor_nombre,
-           COALESCE(SUM(total), 0) as total_ventas
+           COALESCE(SUM(total), 0) as total_ventas,
+           json_agg(
+             json_build_object(
+               'id', id,
+               'producto_id', producto,
+               'cantidad', cantidad,
+               'total', total,
+               'parametros', parametros
+             )
+           ) FILTER (WHERE id IS NOT NULL) as detalles_ventas
          FROM ventas
          WHERE vendedor = $1 AND fecha::date = $3::date`,
         [decoded.id, decoded.rol, fecha]

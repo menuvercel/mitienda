@@ -62,7 +62,13 @@ interface NewProduct {
   precio: number;
   cantidad: number;
   foto: File | null;
+  tieneParametros: boolean;
+  parametros: Array<{
+    nombre: string;
+    cantidad: number;
+  }>;
 }
+
 
 const useAlmacenData = () => {
   const router = useRouter()
@@ -133,7 +139,9 @@ export default function AlmacenPage() {
     nombre: '',
     precio: 0,
     cantidad: 0,
-    foto: null
+    foto: null,
+    tieneParametros: false,
+    parametros: []
   })
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null)
@@ -365,22 +373,44 @@ export default function AlmacenPage() {
 
   const handleProductInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target
+    
     if (type === 'file') {
       const fileList = e.target.files
       if (fileList && fileList.length > 0) {
         setNewProduct({ ...newProduct, [name]: fileList[0] })
       }
+    } else if (type === 'checkbox' && name === 'tieneParametros') {
+      setNewProduct({ 
+        ...newProduct, 
+        tieneParametros: e.target.checked,
+        parametros: e.target.checked ? [{ nombre: '', cantidad: 0 }] : []
+      })
     } else {
-      setNewProduct({ ...newProduct, [name]: type === 'number' ? parseFloat(value) : value })
+      setNewProduct({ 
+        ...newProduct, 
+        [name]: type === 'number' ? parseFloat(value) : value 
+      })
     }
   }
+  
 
   const handleAddProduct = async () => {
     try {
       const formData = new FormData()
       formData.append('nombre', newProduct.nombre)
       formData.append('precio', newProduct.precio.toString())
-      formData.append('cantidad', newProduct.cantidad.toString())
+      
+      // Si tiene parámetros, enviamos los parámetros y su cantidad total
+      if (newProduct.tieneParametros) {
+        formData.append('tieneParametros', 'true')
+        formData.append('parametros', JSON.stringify(newProduct.parametros))
+        // Calculamos la cantidad total sumando las cantidades de todos los parámetros
+        const cantidadTotal = newProduct.parametros.reduce((sum, param) => sum + param.cantidad, 0)
+        formData.append('cantidad', cantidadTotal.toString())
+      } else {
+        formData.append('tieneParametros', 'false')
+        formData.append('cantidad', newProduct.cantidad.toString())
+      }
       
       if (newProduct.foto) {
         formData.append('foto', newProduct.foto)
@@ -392,13 +422,26 @@ export default function AlmacenPage() {
         nombre: '',
         precio: 0,
         cantidad: 0,
-        foto: null
+        foto: null,
+        tieneParametros: false,
+        parametros: []
       })
       await fetchInventario()
+      
+      toast({
+        title: "Éxito",
+        description: "Producto agregado correctamente",
+      })
     } catch (error) {
       console.error('Error al agregar producto:', error)
+      toast({
+        title: "Error",
+        description: "Error al agregar el producto",
+        variant: "destructive",
+      })
     }
   }
+  
 
   const handleProductDelivery = async (productId: string, vendedorId: string, cantidad: number) => {
     try {
@@ -625,13 +668,24 @@ export default function AlmacenPage() {
                     </h3>
                     <div className="flex flex-wrap gap-x-4 text-sm text-gray-500">
                       <p>Precio: ${Number(producto.precio).toFixed(2)}</p>
-                      <p className={`${producto.cantidad === 0 ? 'text-red-500' : ''}`}>
-                        Cantidad: {producto.cantidad}
-                      </p>
+                      {producto.tieneParametros ? (
+                        <div className="text-xs">
+                          {producto.parametros?.map((param, index) => (
+                            <span key={index} className="mr-2">
+                              {param.nombre}: {param.cantidad}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className={`${producto.cantidad === 0 ? 'text-red-500' : ''}`}>
+                          Cantidad: {producto.cantidad}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
               ))}
+
               </div>
             </CardContent>
           </Card>
@@ -855,17 +909,74 @@ export default function AlmacenPage() {
                 placeholder="Precio del producto"
               />
             </div>
-            <div>
-              <label htmlFor="cantidad" className="block text-sm font-medium text-gray-700">Cantidad</label>
-              <Input
-                id="cantidad"
-                name="cantidad"
-                type="number"
-                value={newProduct.cantidad}
-                onChange={handleProductInputChange}
-                placeholder="Cantidad del producto"
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="tieneParametros"
+                checked={newProduct.tieneParametros}
+                onCheckedChange={(checked) => {
+                  setNewProduct(prev => ({
+                    ...prev,
+                    tieneParametros: checked as boolean,
+                    parametros: checked ? [{ nombre: '', cantidad: 0 }] : []
+                  }));
+                }}
               />
+              <label htmlFor="tieneParametros">Tiene parámetros</label>
             </div>
+
+            {newProduct.tieneParametros ? (
+              <div className="space-y-4">
+                {newProduct.parametros.map((param, index) => (
+                  <div key={index} className="flex space-x-2">
+                    <Input
+                      placeholder="Nombre del parámetro"
+                      value={param.nombre}
+                      onChange={(e) => {
+                        const newParametros = [...newProduct.parametros];
+                        newParametros[index].nombre = e.target.value;
+                        setNewProduct(prev => ({...prev, parametros: newParametros}));
+                      }}
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Cantidad"
+                      value={param.cantidad}
+                      onChange={(e) => {
+                        const newParametros = [...newProduct.parametros];
+                        newParametros[index].cantidad = parseInt(e.target.value);
+                        setNewProduct(prev => ({...prev, parametros: newParametros}));
+                      }}
+                    />
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setNewProduct(prev => ({
+                      ...prev,
+                      parametros: [...prev.parametros, { nombre: '', cantidad: 0 }]
+                    }));
+                  }}
+                  className="w-full"
+                >
+                  + Agregar parámetro
+                </Button>
+              </div>
+            ) : (
+              <div>
+                <label htmlFor="cantidad" className="block text-sm font-medium text-gray-700">Cantidad</label>
+                <Input
+                  id="cantidad"
+                  name="cantidad"
+                  type="number"
+                  value={newProduct.cantidad}
+                  onChange={handleProductInputChange}
+                  placeholder="Cantidad del producto"
+                />
+              </div>
+            )}
+
             <div>
               <label htmlFor="foto" className="block text-sm font-medium text-gray-700">Foto del producto</label>
               <Input
@@ -880,6 +991,7 @@ export default function AlmacenPage() {
           </div>
         </DialogContent>
       </Dialog>
+
 
       {selectedProduct && (
         <ProductDialog

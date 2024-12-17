@@ -34,7 +34,14 @@ interface Producto {
   nombre: string;
   precio: number;
   cantidad: number;
+  foto?: string;
+  tieneParametros: boolean;
+  parametros?: Array<{
+    nombre: string;
+    cantidad: number;
+  }>;
 }
+
 
 export const uploadImage = async (file: File) => {
   const formData = new FormData();
@@ -122,32 +129,81 @@ export const getProductosVendedor = async (vendedorId: string) => {
 };
 
 export const agregarProducto = async (formData: FormData) => {
-  const response = await api.post('/productos', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-  return response.data;
+  try {
+    // Si hay parámetros, necesitamos asegurarnos de que se envíen correctamente
+    const parametrosRaw = formData.get('parametros');
+    if (parametrosRaw) {
+      // Asegurarnos de que los parámetros se envíen como string
+      const parametros = JSON.parse(parametrosRaw as string);
+      formData.set('parametros', JSON.stringify(parametros));
+    }
+
+    const response = await api.post('/productos', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error al agregar producto:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.message || 'Error al agregar el producto');
+    }
+    throw new Error('Error al agregar el producto');
+  }
 };
+
 
 export const editarProducto = async (id: string, formData: FormData) => {
-  const response = await api.put(`/productos/${id}`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-  return response.data;
+  try {
+    // Si hay parámetros, necesitamos asegurarnos de que se envíen correctamente
+    const parametrosRaw = formData.get('parametros');
+    if (parametrosRaw) {
+      // Asegurarnos de que los parámetros se envíen como string
+      const parametros = JSON.parse(parametrosRaw as string);
+      formData.set('parametros', JSON.stringify(parametros));
+    }
+
+    const response = await api.put(`/productos/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error al editar producto:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.message || 'Error al editar el producto');
+    }
+    throw new Error('Error al editar el producto');
+  }
 };
 
-export const entregarProducto = async (productoId: string, vendedorId: string, cantidad: number) => {
-  const response = await api.post('/transacciones', { 
-    productoId, 
-    vendedorId, 
-    cantidad,
-    tipo: 'Entrega' // Adding the 'tipo' field
-  });
-  return response.data;
+
+export const entregarProducto = async (
+  productoId: string, 
+  vendedorId: string, 
+  cantidad: number,
+  parametros?: Array<{ nombre: string; cantidad: number }>
+) => {
+  try {
+    const response = await api.post('/transacciones', { 
+      productoId, 
+      vendedorId, 
+      cantidad,
+      tipo: 'Entrega',
+      parametros: parametros // Agregamos los parámetros si existen
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error al entregar producto:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.message || 'Error al entregar el producto');
+    }
+    throw new Error('Error al entregar el producto');
+  }
 };
+
 
 export const getTransacciones = async () => {
   const response = await api.get('/transacciones');
@@ -179,19 +235,29 @@ export const crearBajaTransaccion = async (productoId: string, vendedorId: strin
   }
 };
 
-export const realizarVenta = async (productoId: string, cantidad: number, fecha: string) => {
+export const realizarVenta = async (
+  productoId: string, 
+  cantidad: number, 
+  fecha: string,
+  parametrosVenta?: { nombre: string; cantidad: number; }[]
+) => {
   try {
-    // Ajustamos la fecha para que sea a las 12:00 PM en la zona horaria local
     const fechaAjustada = new Date(fecha + 'T12:00:00');
     const fechaISO = fechaAjustada.toISOString();
 
-    const response = await api.post('/ventas', { productoId, cantidad, fecha: fechaISO });
+    const response = await api.post('/ventas', { 
+      productoId, 
+      cantidad, 
+      fecha: fechaISO,
+      parametrosVenta // incluir los parámetros en la petición
+    });
     return response.data;
   } catch (error) {
     console.error('Error al realizar la venta:', error);
     throw new Error('No se pudo realizar la venta');
   }
 };
+
 
 export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
   console.log('Solicitando todas las ventas para vendedor:', vendedorId);
@@ -238,15 +304,29 @@ const handleApiError = (error: unknown, context: string) => {
 
 /*estas son las funciones nuevas*/
 
-export const reducirProductoVendedor = async (productoId: string, vendedorId: string, cantidad: number) => {
+export const reducirProductoVendedor = async (
+  productoId: string, 
+  vendedorId: string, 
+  cantidad: number,
+  parametros?: Array<{ nombre: string; cantidad: number }>
+) => {
   try {
-    const response = await api.put(`/productos/reducir`, { productoId, vendedorId, cantidad });
+    const response = await api.put(`/productos/reducir`, { 
+      productoId, 
+      vendedorId, 
+      cantidad,
+      parametros // Agregamos los parámetros si existen
+    });
     return response.data;
   } catch (error) {
     console.error('Error al reducir la cantidad del producto:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.message || 'Error al reducir la cantidad del producto');
+    }
     throw new Error('No se pudo reducir la cantidad del producto');
   }
 };
+
 
 export const getVentasVendedor = async (vendedorId: string): Promise<Venta[]> => {
   console.log('Solicitando todas las ventas para vendedor:', vendedorId);

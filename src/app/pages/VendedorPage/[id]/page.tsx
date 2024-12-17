@@ -34,11 +34,24 @@ interface Producto {
   precio: number;
   cantidad: number;
   foto: string | null;
+  tiene_parametros: boolean;
+  parametros?: ProductoParametro[];
 }
+
+interface ProductoParametro {
+  nombre: string;
+  cantidad: number;
+}
+
 
 interface ProductoVenta extends Producto {
   cantidadVendida: number;
+  parametrosVenta?: {
+    nombre: string;
+    cantidad: number;
+  }[];
 }
+
 
 interface Transaccion {
   id: string;
@@ -79,6 +92,13 @@ interface VentaDia {
   fecha: string;
   ventas: Venta[];
   total: number;
+}
+
+interface ParametrosDialogProps {
+  producto: Producto | null;
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (parametros: ProductoParametro[]) => void;
 }
 
 const useVendedorData = (vendedorId: string) => {
@@ -556,15 +576,27 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
               <span className="text-gray-500 text-xs">Sin imagen</span>
             </div>
           )}
-          <div>
-            <h3 className="font-semibold">{producto.nombre}</h3>
+        <div>
+          <h3 className="font-semibold">{producto.nombre}</h3>
+          <p className="text-sm text-gray-600">
+            Precio: ${formatPrice(producto.precio)}
+          </p>
+          {producto.tiene_parametros ? (
+            <div className="text-sm text-gray-500">
+              {producto.parametros?.map(param => (
+                <div key={param.nombre}>
+                  {param.nombre}: {param.cantidad}
+                </div>
+              ))}
+            </div>
+          ) : (
             <p className="text-sm text-gray-600">
-              Precio: ${formatPrice(producto.precio)} - 
               {producto.cantidad > 0 ? `Cantidad: ${producto.cantidad}` : 'Agotado'}
             </p>
-          </div>
-        </CardContent>
-      </Card>
+          )}
+        </div>
+      </CardContent>
+    </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[800px]">
@@ -640,6 +672,62 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   )
 }
 
+const ParametrosDialog = ({ 
+  producto, 
+  open, 
+  onClose, 
+  onSubmit 
+}: ParametrosDialogProps) => {
+  const [parametros, setParametros] = useState<ProductoParametro[]>(
+    producto?.parametros?.map(p => ({ ...p, cantidad: 0 })) || []
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Seleccionar Cantidades</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          {parametros.map((param, index) => (
+            <div key={param.nombre} className="flex items-center justify-between">
+              <label>{param.nombre}</label>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    const newParams = [...parametros];
+                    newParams[index].cantidad = Math.max(0, param.cantidad - 1);
+                    setParametros(newParams);
+                  }}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <span>{param.cantidad}</span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    const newParams = [...parametros];
+                    newParams[index].cantidad = param.cantidad + 1;
+                    setParametros(newParams);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+          <Button onClick={() => onSubmit(parametros)}>
+            Confirmar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export default function VendedorPage() {
   const params = useParams()
   const vendedorId = params.id as string
@@ -667,6 +755,8 @@ export default function VendedorPage() {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [parametrosDialogOpen, setParametrosDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null);
   
   const handleSort = (key: 'nombre' | 'cantidad') => {
     if (sortBy === key) {
@@ -733,13 +823,36 @@ export default function VendedorPage() {
     );
   };
 
-  const handleProductSelect = (productId: string) => {
-    setSelectedProductIds(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
-    )
-  }
+  const handleProductSelect = (producto: Producto) => {
+    if (producto.tiene_parametros) {
+      // Abrir diálogo para seleccionar parámetros
+      setSelectedProduct(producto);
+      setParametrosDialogOpen(true);
+    } else {
+      setSelectedProductIds(prev => 
+        prev.includes(producto.id) 
+          ? prev.filter(id => id !== producto.id)
+          : [...prev, producto.id]
+      );
+    }
+  };
+  
+  const handleParametrosSubmit = (parametros: ProductoParametro[]) => {
+    if (!selectedProduct) return;
+  
+    setProductosSeleccionados(prev => [
+      ...prev,
+      {
+        ...selectedProduct,
+        cantidadVendida: 1,
+        parametrosVenta: parametros
+      }
+    ]);
+    
+    setParametrosDialogOpen(false);
+    setSelectedProduct(null);
+  };
+  
 
   const handleConfirmSelection = () => {
     const newSelectedProducts = productosDisponibles
@@ -775,29 +888,35 @@ export default function VendedorPage() {
 
   const handleEnviarVenta = async () => {
     if (productosSeleccionados.length === 0) {
-      alert('Por favor, seleccione al menos un producto.')
-      return
+      alert('Por favor, seleccione al menos un producto.');
+      return;
     }
     if (!fecha) {
-      alert('Por favor, seleccione una fecha.')
-      return
+      alert('Por favor, seleccione una fecha.');
+      return;
     }
   
     try {
       await Promise.all(productosSeleccionados.map(producto => {
-        return realizarVenta(producto.id, producto.cantidadVendida, fecha);
+        return realizarVenta(
+          producto.id, 
+          producto.cantidadVendida, 
+          fecha,
+          producto.parametrosVenta
+        );
       }));
   
-      setProductosSeleccionados([])
-      setFecha('')
-      await fetchProductos()
-      await fetchVentasRegistro()
-      alert('Venta realizada con éxito')
+      setProductosSeleccionados([]);
+      setFecha('');
+      await fetchProductos();
+      await fetchVentasRegistro();
+      alert('Venta realizada con éxito');
     } catch (error) {
-      console.error('Error al realizar la venta:', error)
-      alert(`Error al realizar la venta: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+      console.error('Error al realizar la venta:', error);
+      alert('Error al realizar la venta');
     }
-  }
+  };
+  
 
   const productosAgotadosFiltrados = productosAgotados.filter(p => 
     p.nombre.toLowerCase().includes(busqueda.toLowerCase())
@@ -960,7 +1079,7 @@ export default function VendedorPage() {
                               <Checkbox
                                 id={`product-${producto.id}`}
                                 checked={selectedProductIds.includes(producto.id)}
-                                onCheckedChange={() => handleProductSelect(producto.id)}
+                                onCheckedChange={() => handleProductSelect(producto)}
                               />
                               <OptimizedImage
                                 src={producto.foto || '/placeholder.svg'}
@@ -1089,6 +1208,15 @@ export default function VendedorPage() {
           </div>
         )}
       </main>
+      <ParametrosDialog
+        producto={selectedProduct}
+        open={parametrosDialogOpen}
+        onClose={() => {
+          setParametrosDialogOpen(false);
+          setSelectedProduct(null);
+        }}
+        onSubmit={handleParametrosSubmit}
+      />
     </div>
   )
 }
