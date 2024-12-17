@@ -68,12 +68,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear venta
-    const ventaResult = await query(
-      `INSERT INTO ventas (producto, cantidad, precio_unitario, total, vendedor, fecha, parametros) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [productoId, cantidad, precioUnitario, precioUnitario * cantidad, vendedorId, fechaVenta, 
-       parametros ? JSON.stringify(parametros) : null]
-    );
+// Crear venta
+const ventaResult = await query(
+  `INSERT INTO ventas (producto, cantidad, precio_unitario, total, vendedor, fecha) 
+   VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+  [
+    productoId, 
+    cantidad, 
+    precioUnitario, 
+    precioUnitario * cantidad, 
+    vendedorId, 
+    fechaVenta
+  ]
+);
+
 
     await query('COMMIT');
     return NextResponse.json(ventaResult.rows[0]);

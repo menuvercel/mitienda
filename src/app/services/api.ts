@@ -211,37 +211,32 @@ export const realizarVenta = async (
   productoId: string, 
   cantidad: number, 
   fecha: string,
-  parametrosVenta?: { nombre: string; cantidad: number; }[],
+  _parametrosVenta?: { nombre: string; cantidad: number; }[], // Lo mantenemos como parámetro opcional pero no lo usamos
   vendedorId?: string
 ) => {
   try {
-    // Validaciones
-    if (!productoId) throw new Error('El ID del producto es requerido');
-    if (!cantidad || cantidad <= 0) throw new Error('La cantidad debe ser mayor a 0');
-    if (!fecha) throw new Error('La fecha es requerida');
-    if (!vendedorId) throw new Error('El ID del vendedor es requerido');
+    if (!vendedorId) {
+      throw new Error('El ID del vendedor es requerido');
+    }
 
     const fechaAjustada = new Date(fecha + 'T12:00:00');
     const fechaISO = fechaAjustada.toISOString();
 
+    // Solo enviamos los campos necesarios
     const response = await api.post('/ventas', { 
       productoId, 
       cantidad, 
       fecha: fechaISO,
-      parametros: parametrosVenta,
       vendedorId
     });
     
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('Error del servidor:', error.response.data);
-      throw new Error(error.response.data.error || 'Error al realizar la venta');
-    }
     console.error('Error al realizar la venta:', error);
-    throw new Error('No se pudo realizar la venta');
+    throw new Error('Error al crear venta');
   }
 };
+
 
 
 
