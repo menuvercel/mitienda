@@ -316,7 +316,7 @@ export default function ProductDialog({
                   {(product.tiene_parametros || product.tieneParametros) && product.parametros && product.parametros.length > 0 ? (
                     <div className="space-y-2">
                       <h4 className="font-medium text-sm text-gray-700">Parámetros:</h4>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 gap-2">
                         {product.parametros.map((param, index) => (
                           <div 
                             key={index}
