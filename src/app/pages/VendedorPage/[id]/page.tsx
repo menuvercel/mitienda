@@ -240,6 +240,9 @@ const useVendedorData = (vendedorId: string) => {
 
   const fetchTransacciones = useCallback(async () => {
     try {
+      if (!vendedorId) {
+        throw new Error('ID de vendedor no válido');
+      }
       const data = await getTransaccionesVendedor(vendedorId);
       setTransacciones(data);
     } catch (error) {
@@ -247,6 +250,7 @@ const useVendedorData = (vendedorId: string) => {
       setError('No se pudieron cargar las transacciones. Por favor, intenta de nuevo.');
     }
   }, [vendedorId]);
+  
 
   useEffect(() => {
     const checkAuth = async () => {

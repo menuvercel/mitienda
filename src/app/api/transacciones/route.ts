@@ -137,8 +137,18 @@ export async function GET(request: NextRequest) {
   const vendedorId = searchParams.get('vendedorId');
   const productoId = searchParams.get('productoId');
 
-  if (!vendedorId && !productoId) {
-    return NextResponse.json({ error: 'Se requiere vendedorId o productoId' }, { status: 400 });
+  // Validación adicional para asegurarse de que los IDs son números válidos
+  if ((!vendedorId || vendedorId.trim() === '') && (!productoId || productoId.trim() === '')) {
+    return NextResponse.json({ error: 'Se requiere vendedorId o productoId válido' }, { status: 400 });
+  }
+
+  // Validar que los IDs son números
+  if (vendedorId && !/^\d+$/.test(vendedorId)) {
+    return NextResponse.json({ error: 'vendedorId debe ser un número' }, { status: 400 });
+  }
+
+  if (productoId && !/^\d+$/.test(productoId)) {
+    return NextResponse.json({ error: 'productoId debe ser un número' }, { status: 400 });
   }
 
   try {
@@ -162,7 +172,13 @@ export async function GET(request: NextRequest) {
       ORDER BY t.fecha DESC
     `;
 
-    const result = await query(query_text, [productoId || vendedorId]);
+    // Usar el ID validado
+    const paramValue = productoId || vendedorId;
+    if (!paramValue) {
+      throw new Error('No se proporcionó un ID válido');
+    }
+
+    const result = await query(query_text, [paramValue]);
 
     if (!result.rows || result.rows.length === 0) {
       return NextResponse.json([]);
