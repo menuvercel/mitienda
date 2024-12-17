@@ -58,10 +58,9 @@ interface Transaccion {
   producto: string;
   cantidad: number;
   fecha: string;
-  tipo: 'Entrega' | 'Baja';
-  precio?: number; // Hacer el precio opcional
+  tipo: string;
+  precio: number;
 }
-
 
 interface Venta {
   id: string;
@@ -240,9 +239,6 @@ const useVendedorData = (vendedorId: string) => {
 
   const fetchTransacciones = useCallback(async () => {
     try {
-      if (!vendedorId) {
-        throw new Error('ID de vendedor no válido');
-      }
       const data = await getTransaccionesVendedor(vendedorId);
       setTransacciones(data);
     } catch (error) {
@@ -250,7 +246,6 @@ const useVendedorData = (vendedorId: string) => {
       setError('No se pudieron cargar las transacciones. Por favor, intenta de nuevo.');
     }
   }, [vendedorId]);
-  
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -478,16 +473,12 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   }
 
   const filterItems = useCallback((items: any[], term: string) => {
-    if (!items || !Array.isArray(items)) return [];
-    return items.filter(item => {
-      if (!item) return false;
-      return Object.values(item).some(value => {
-        if (!value) return false;
-        return value.toString().toLowerCase().includes(term.toLowerCase());
-      });
-    });
-  }, []);
-  
+    return items.filter(item => 
+      Object.values(item).some(value => 
+        value && value.toString().toLowerCase().includes(term.toLowerCase())
+      )
+    )
+  }, [])
 
   const formatPrice = (price: number | string): string => {
     const numPrice = typeof price === 'string' ? parseFloat(price) : price
@@ -507,38 +498,28 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   };
 
   const renderVentasList = () => {
-    if (!ventas) return null;
-    
-    const filteredVentas = filterItems(ventas, searchTerm || '');
+    const filteredVentas = filterItems(ventas, searchTerm)
     return (
       <div className="space-y-2">
         {filteredVentas.length > 0 ? (
           filteredVentas.map(venta => (
-            venta ? <VentaItem key={venta.id} venta={venta} /> : null
+            <VentaItem key={venta.id} venta={venta} />
           ))
         ) : (
           <div className="text-center py-4">No hay ventas registradas</div>
         )}
       </div>
-    );
-  };
-  
-
-  const filteredTransacciones = transacciones.filter(t =>
-    t?.producto?.toLowerCase().includes(busqueda?.toLowerCase() || '') || false
-  );
+    )
+  }
 
   const renderTransaccionesList = () => {
-    if (!transacciones) return null;
-    
     const filteredTransacciones = transacciones.filter(t =>
-      t?.producto?.toLowerCase().includes(busqueda?.toLowerCase() || '') || false
+      t.producto.toLowerCase().includes(busqueda.toLowerCase())
     );
     
     return (
       <div className="space-y-2">
         {filteredTransacciones.map(transaccion => {
-          if (!transaccion) return null;
           const transactionType = transaccion.tipo || 'Normal';
           const borderColor = 
             transactionType === 'Baja' ? 'border-red-500' :
@@ -546,8 +527,8 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
             'border-blue-500';
   
           // Usar la función formatPrice para manejar undefined de manera segura
-          const precioFormateado = formatPrice(transaccion.precio ?? 0);
-
+          const precioFormateado = formatPrice(transaccion.precio);
+  
           return (
             <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
               <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
@@ -799,8 +780,8 @@ export default function VendedorPage() {
   })
 
   const productosFiltrados = sortedProductos.filter(p => 
-    p?.nombre?.toLowerCase().includes(busqueda?.toLowerCase() || '') || false
-  );
+    p.nombre.toLowerCase().includes(busqueda.toLowerCase())
+  )
 
   const renderTransaccionesList = () => {
     const filteredTransacciones = transacciones.filter(t =>

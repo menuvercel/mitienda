@@ -14,15 +14,8 @@ interface ProductDialogProps {
   vendedores: Vendedor[]
   onEdit: (editedProduct: Producto, foto: File | null) => Promise<void>
   onDelete: (productId: string, vendedorId: string, cantidad: number) => Promise<void>
-  onDeliver: (
-    productId: string, 
-    vendedorId: string, 
-    cantidad: number, 
-    tipo: 'Entrega' | 'Baja',
-    parametros?: Array<{nombre: string, cantidad: number}>
-  ) => Promise<void>
+  onDeliver: (productId: string, vendedorId: string, cantidad: number) => Promise<void>
 }
-
 
 export default function ProductDialog({ 
   product, 
@@ -48,17 +41,6 @@ export default function ProductDialog({
   const [newImage, setNewImage] = useState<File | null>(null)
   const [selectedVendedor, setSelectedVendedor] = useState<string | null>(null)
   const [deliveryQuantity, setDeliveryQuantity] = useState<number>(0)
-  const [deliveryQuantities, setDeliveryQuantities] = useState<number[]>([]);
-
-  useEffect(() => {
-    if (mode === 'deliver' && product.parametros) {
-      // Inicializar array de cantidades con ceros
-      setDeliveryQuantities(new Array(product.parametros.length).fill(0));
-      // Resetear cantidad general si hay parámetros
-      setDeliveryQuantity(0);
-    }
-  }, [mode, product.parametros]);
-  
 
   useEffect(() => {
     setEditedProduct({
@@ -68,34 +50,6 @@ export default function ProductDialog({
       parametros: product.parametros || []
     })
   }, [product])
-
-
-  const handleDeliveryQuantityChange = (index: number, value: number) => {
-    setDeliveryQuantities(prev => {
-      const newQuantities = [...prev];
-      newQuantities[index] = value;
-      return newQuantities;
-    });
-  };
-  
-  const getTotalDeliveryQuantity = () => {
-    return deliveryQuantities.reduce((sum, qty) => sum + qty, 0);
-  };
-
-  const canDeliver = () => {
-    if (!selectedVendedor) return false;
-    
-    if (product.tiene_parametros && product.parametros) {
-      // Verificar que al menos una cantidad sea mayor a 0 y ninguna exceda el disponible
-      const hasValidQuantities = deliveryQuantities.some(qty => qty > 0);
-      const withinLimits = product.parametros.every((param, index) => 
-        deliveryQuantities[index] <= param.cantidad && deliveryQuantities[index] >= 0
-      );
-      return hasValidQuantities && withinLimits;
-    }
-    
-    return deliveryQuantity > 0 && deliveryQuantity <= getTotalCantidad();
-  };
   
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,45 +129,21 @@ export default function ProductDialog({
   
 
   const handleDeliver = async () => {
-    if (!selectedVendedor) return;
-  
-    try {
-      if (product.tiene_parametros && product.parametros) {
-        // Filtrar solo los parámetros con cantidad mayor a 0
-        const parametrosEntrega = product.parametros
-          .map((param, index) => ({
-            nombre: param.nombre,
-            cantidad: deliveryQuantities[index]
-          }))
-          .filter(param => param.cantidad > 0);
-  
-        await onDeliver(
-          product.id, 
-          selectedVendedor, 
-          getTotalDeliveryQuantity(),
-          'Entrega',
-          parametrosEntrega
-        );
-      } else {
-        await onDeliver(
-          product.id, 
-          selectedVendedor, 
-          deliveryQuantity,
-          'Entrega'
-        );
+    if (selectedVendedor && deliveryQuantity > 0 && deliveryQuantity <= getTotalCantidad()) {
+      try {
+        await onDeliver(product.id, selectedVendedor, deliveryQuantity)
+        alert(`Se entregaron ${deliveryQuantity} unidades al vendedor seleccionado`)
+        setDeliveryQuantity(0)
+        setSelectedVendedor(null)
+        setMode('view')
+      } catch (error) {
+        console.error('Error al entregar producto:', error)
+        alert(error instanceof Error ? error.message : 'Error desconocido al entregar producto')
       }
-  
-      alert('Entrega realizada con éxito');
-      setDeliveryQuantities([]);
-      setDeliveryQuantity(0);
-      setSelectedVendedor(null);
-      setMode('view');
-    } catch (error) {
-      console.error('Error al entregar producto:', error);
-      alert(error instanceof Error ? error.message : 'Error desconocido al entregar producto');
+    } else {
+      alert('Verifica que has seleccionado un vendedor y que la cantidad es correcta.')
     }
-  };
-  
+  }
 
   const handleDelete = async () => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
@@ -346,73 +276,37 @@ export default function ProductDialog({
                 </div>
               </div>
             </>
-              ) : mode === 'deliver' ? (
-                <>
-                  <Label>Seleccionar vendedor:</Label>
-                  <div className="grid gap-2">
-                    {vendedores.map(vendedor => (
-                      <Button
-                        key={vendedor.id}
-                        onClick={() => handleVendedorSelect(vendedor.id)}
-                        variant={selectedVendedor === vendedor.id ? 'default' : 'outline'}
-                        className="w-full"
-                      >
-                        {vendedor.nombre}
-                      </Button>
-                    ))}
-                  </div>
-
-                  <Label>Cantidad a entregar:</Label>
-                  {(product.tiene_parametros || product.tieneParametros) && product.parametros ? (
-                    <div className="space-y-2">
-                      {product.parametros.map((param, index) => (
-                        <div key={index} className="space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <Label>{param.nombre}</Label>
-                            <span className="text-gray-500">Disponible: {param.cantidad}</span>
-                          </div>
-                          <Input
-                            type="number"
-                            value={deliveryQuantities?.[index] || 0}
-                            onChange={(e) => handleDeliveryQuantityChange(index, Number(e.target.value))}
-                            placeholder="Cantidad"
-                            min={0}
-                            max={param.cantidad}
-                            className="w-full"
-                          />
-                        </div>
-                      ))}
-                      <div className="mt-2 p-2 bg-gray-50 rounded-md">
-                        <div className="flex justify-between text-sm font-medium">
-                          <span>Total a entregar:</span>
-                          <span>{getTotalDeliveryQuantity()}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <Input
-                      type="number"
-                      value={deliveryQuantity}
-                      onChange={(e) => setDeliveryQuantity(Number(e.target.value))}
-                      placeholder="Cantidad"
-                      min={1}
-                      max={getTotalCantidad()}
-                    />
-                  )}
-
-                  <div className="flex justify-between gap-2">
-                    <Button 
-                      onClick={handleDeliver} 
-                      className="w-full"
-                      disabled={!canDeliver()}
-                    >
-                      Confirmar entrega
-                    </Button>
-                    <Button variant="outline" onClick={() => setMode('view')} className="w-full">
-                      Cancelar
-                    </Button>
-                  </div>
-                </>
+          ) : mode === 'deliver' ? (
+            <>
+              <Label>Seleccionar vendedor:</Label>
+              <div className="grid gap-2">
+                {vendedores.map(vendedor => (
+                  <Button
+                    key={vendedor.id}
+                    onClick={() => handleVendedorSelect(vendedor.id)}
+                    variant={selectedVendedor === vendedor.id ? 'default' : 'outline'}
+                    className="w-full"
+                  >
+                    {vendedor.nombre}
+                  </Button>
+                ))}
+              </div>
+              <Label>Cantidad a entregar:</Label>
+              <Input
+                type="number"
+                value={deliveryQuantity}
+                onChange={(e) => setDeliveryQuantity(Number(e.target.value))}
+                placeholder="Cantidad"
+                min={1}
+                max={getTotalCantidad()}
+              />
+              <div className="flex justify-between gap-2">
+                <Button onClick={handleDeliver} className="w-full">Confirmar entrega</Button>
+                <Button variant="outline" onClick={() => setMode('view')} className="w-full">
+                  Cancelar
+                </Button>
+              </div>
+            </>
           ) : (
             <>
               <div className="space-y-4">

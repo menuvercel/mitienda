@@ -60,17 +60,13 @@ export interface Usuario {
 
 export interface Transaccion {
   id: string;
+  tipo: 'Baja' | 'Entrega';
   producto: string;
   cantidad: number;
-  tipo: 'Entrega' | 'Baja';
   desde: string;
   hacia: string;
   fecha: string;
-  precio?: number;
-  parametros?: Array<{
-    nombre: string;
-    cantidad: number;
-  }>;
+  precio: number;
 }
 
 export interface Entrega {

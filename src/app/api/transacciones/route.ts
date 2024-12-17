@@ -38,6 +38,12 @@ export async function POST(request: NextRequest) {
         throw new Error('Stock insuficiente');
       }
 
+      // Insertar en la tabla transacciones
+      const transactionResult = await query(
+        'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [productoId, cantidad, tipo, decoded.id, vendedorId, new Date()]
+      );
+      
       // Obtener el precio del producto
       const productResult = await query('SELECT precio FROM productos WHERE id = $1', [productoId]);
       const productPrice = productResult.rows[0]?.precio;
@@ -45,12 +51,6 @@ export async function POST(request: NextRequest) {
       if (!productPrice) {
         throw new Error('No se pudo obtener el precio del producto');
       }
-
-      // Insertar transacción principal
-      const transactionResult = await query(
-        'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [productoId, cantidad, tipo, decoded.id, vendedorId, new Date()]
-      );
       
       // Actualizar la tabla productos
       await query(
@@ -79,12 +79,6 @@ export async function POST(request: NextRequest) {
           if (paramStockResult.rows[0].cantidad < (param.cantidad * cantidad)) {
             throw new Error(`Stock insuficiente para el parámetro ${param.nombre}`);
           }
-
-          // Registrar la transacción del parámetro
-          await query(
-            'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6)',
-            [`${productoId}:${param.nombre}`, param.cantidad * cantidad, tipo, decoded.id, vendedorId, new Date()]
-          );
 
           // Actualizar stock del parámetro en producto_parametros
           await query(
@@ -145,42 +139,18 @@ export async function GET(request: NextRequest) {
     let result;
     if (productoId) {
       result = await query(
-        `SELECT 
-           t.id, 
-           CASE 
-             WHEN t.producto LIKE $1::text || ':%' THEN 
-               p.nombre || ' - ' || split_part(t.producto, ':', 2)
-             ELSE p.nombre 
-           END as producto,
-           t.cantidad, 
-           t.tipo, 
-           t.desde, 
-           t.hacia, 
-           t.fecha, 
-           p.precio
+        `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, p.precio
          FROM transacciones t 
-         JOIN productos p ON split_part(t.producto, ':', 1)::integer = p.id 
-         WHERE split_part(t.producto, ':', 1)::integer = $1
+         JOIN productos p ON t.producto = p.id 
+         WHERE t.producto = $1
          ORDER BY t.fecha DESC`,
         [productoId]
       );
     } else {
       result = await query(
-        `SELECT 
-           t.id, 
-           CASE 
-             WHEN t.producto LIKE '%:%' THEN 
-               p.nombre || ' - ' || split_part(t.producto, ':', 2)
-             ELSE p.nombre 
-           END as producto,
-           t.cantidad, 
-           t.tipo, 
-           t.desde, 
-           t.hacia, 
-           t.fecha, 
-           p.precio
+        `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, p.precio
          FROM transacciones t 
-         JOIN productos p ON split_part(t.producto, ':', 1)::integer = p.id 
+         JOIN productos p ON t.producto = p.id 
          WHERE t.hacia = $1 OR t.desde = $1
          ORDER BY t.fecha DESC`,
         [vendedorId]

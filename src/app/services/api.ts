@@ -219,47 +219,10 @@ export const entregarProducto = async (
 };
 
 
-export const getTransacciones = async (filters?: { 
-  vendedorId?: string;
-  productoId?: string;
-}): Promise<Transaccion[]> => {
-  try {
-    // Validación de parámetros antes de hacer la llamada
-    const validatedFilters: Record<string, string> = {};
-    
-    if (filters?.vendedorId) {
-      // Solo incluir si no está vacío
-      if (filters.vendedorId.trim() !== '') {
-        validatedFilters.vendedorId = filters.vendedorId;
-      }
-    }
-    
-    if (filters?.productoId) {
-      // Solo incluir si no está vacío
-      if (filters.productoId.trim() !== '') {
-        validatedFilters.productoId = filters.productoId;
-      }
-    }
-
-    // Si no hay filtros válidos, enviar la petición sin parámetros
-    const response = await api.get('/transacciones', 
-      Object.keys(validatedFilters).length > 0 ? { params: validatedFilters } : undefined
-    );
-
-    return response.data.map((transaccion: any) => ({
-      ...transaccion,
-      producto: transaccion.producto?.includes(':') 
-        ? `${transaccion.producto_nombre} - ${transaccion.producto.split(':')[1]}`
-        : transaccion.producto_nombre || ''
-    }));
-  } catch (error) {
-    console.error('Error al obtener transacciones:', error);
-    handleApiError(error, 'transacciones');
-    throw new Error('No se pudieron obtener las transacciones');
-  }
+export const getTransacciones = async () => {
+  const response = await api.get('/transacciones');
+  return response.data;
 };
-
-
 
 export const eliminarProducto = async (productId: string) => {
   try {
@@ -271,30 +234,20 @@ export const eliminarProducto = async (productId: string) => {
   }
 };
 
-export const crearBajaTransaccion = async (
-  productoId: string, 
-  vendedorId: string, 
-  cantidad: number,
-  parametros?: Array<{ nombre: string; cantidad: number }>
-) => {
+export const crearBajaTransaccion = async (productoId: string, vendedorId: string, cantidad: number) => {
   try {
     const response = await api.post('/transacciones', {
       productoId,
       vendedorId,
       cantidad,
-      tipo: 'Baja',
-      parametros
+      tipo: 'Baja'
     });
     return response.data;
   } catch (error) {
     console.error('Error creating Baja transaction:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      throw new Error(error.response.data.message || 'Error al crear la baja');
-    }
     throw error;
   }
 };
-
 
 export const realizarVenta = async (
   productoId: string, 
@@ -332,22 +285,13 @@ export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
 
 export const getTransaccionesVendedor = async (vendedorId: string) => {
   try {
-    const response = await api.get(`/transacciones`, {
-      params: { vendedorId }
-    });
-    return response.data.map((transaccion: any) => ({
-      ...transaccion,
-      // Procesar el nombre del producto cuando incluye parámetro
-      producto: transaccion.producto.includes(':') 
-        ? `${transaccion.producto_nombre} - ${transaccion.producto.split(':')[1]}`
-        : transaccion.producto_nombre
-    }));
+    const response = await api.get(`/transacciones?vendedorId=${vendedorId}`);
+    return response.data;
   } catch (error) {
     console.error('Error al obtener transacciones del vendedor:', error);
     throw new Error('No se pudieron obtener las transacciones del vendedor');
   }
 };
-
 
 const handleApiError = (error: unknown, context: string) => {
   if (axios.isAxiosError(error)) {
@@ -488,27 +432,5 @@ export const deleteSale = async (saleId: string): Promise<void> => {
       console.error('Respuesta del servidor:', error.response.data);
     }
     throw new Error(`No se pudo eliminar la venta: ${(error as Error).message}`);
-  }
-};
-
-
-//edit d param
-
-export const getHistorialParametros = async (
-  productoId: string,
-  parametroNombre: string
-): Promise<Transaccion[]> => {
-  try {
-    const response = await api.get<Transaccion[]>('/transacciones', {
-      params: { 
-        productoId,
-        parametro: parametroNombre
-      }
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error al obtener historial de parámetros:', error);
-    handleApiError(error, 'historial de parámetros');
-    throw new Error('No se pudo obtener el historial de parámetros');
   }
 };
