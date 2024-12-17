@@ -165,10 +165,12 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
             }
 
             // 2. Eliminar todas las transacciones relacionadas
-            await query('DELETE FROM transacciones WHERE producto_id = $1', [id]);
+            await query('DELETE FROM transacciones WHERE producto = $1', [id]);
 
-            // 3. Eliminar parámetros del producto
-            await query('DELETE FROM producto_parametros WHERE producto_id = $1', [id]);
+            // 3. Si tienes una tabla de parámetros, eliminarlos
+            if (producto.rows[0].tiene_parametros) {
+                await query('DELETE FROM producto_parametros WHERE producto = $1', [id]);
+            }
 
             // 4. Eliminar el producto
             await query('DELETE FROM productos WHERE id = $1', [id]);
@@ -188,11 +190,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         console.error('Error in DELETE function:', error);
         return NextResponse.json({ 
             error: 'Error interno del servidor', 
-            details: (error as Error).message,
-            stack: (error as Error).stack
+            details: (error as Error).message
         }, { status: 500 });
     }
 }
+
 
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
