@@ -149,7 +149,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
         const { id } = params;
         
-        await query('BEGIN'); // Iniciamos una transacción para asegurar que todo se ejecute o nada
+        await query('BEGIN');
 
         try {
             // 1. Verificar si el producto existe
@@ -163,18 +163,29 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
                 return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
             }
 
-            // 2. Primero eliminamos todas las transacciones asociadas
+            // 2. Eliminar referencias en usuario_productos
+            const usuarioProductosEliminados = await query(
+                'DELETE FROM usuario_productos WHERE producto_id = $1 RETURNING *',
+                [id]
+            );
+
+            // 3. Eliminar transacciones asociadas
             const transaccionesEliminadas = await query(
                 'DELETE FROM transacciones WHERE producto = $1 RETURNING *',
                 [id]
             );
 
-            // 3. Eliminamos los parámetros si existen
+            // 4. Eliminar parámetros si existen
+            let parametrosEliminados = 0;
             if (producto.rows[0].tiene_parametros) {
-                await query('DELETE FROM producto_parametros WHERE producto_id = $1', [id]);
+                const result = await query(
+                    'DELETE FROM producto_parametros WHERE producto_id = $1 RETURNING *',
+                    [id]
+                );
+                parametrosEliminados = result.rows.length;
             }
 
-            // 4. Finalmente eliminamos el producto
+            // 5. Finalmente eliminar el producto
             await query('DELETE FROM productos WHERE id = $1', [id]);
 
             await query('COMMIT');
@@ -182,11 +193,15 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
             return NextResponse.json({ 
                 message: 'Producto eliminado exitosamente',
                 deletedProduct: producto.rows[0],
-                transaccionesEliminadas: transaccionesEliminadas.rows.length
+                deletedData: {
+                    usuarioProductos: usuarioProductosEliminados.rows.length,
+                    transacciones: transaccionesEliminadas.rows.length,
+                    parametros: parametrosEliminados
+                }
             });
 
         } catch (error) {
-            await query('ROLLBACK'); // Si algo falla, revertimos todos los cambios
+            await query('ROLLBACK');
             console.error('Error durante la eliminación:', error);
             throw error;
         }
@@ -199,6 +214,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         }, { status: 500 });
     }
 }
+
 
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
