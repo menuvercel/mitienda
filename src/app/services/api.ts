@@ -8,19 +8,19 @@ const api = axios.create({
   withCredentials: true
 });
 
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-    return config;
-  },
+api.interceptors.response.use(
+  (response) => response,
   (error) => {
+    if (error.response?.status === 401) {
+      console.log('Sesión expirada o token inválido');
+      localStorage.removeItem('token');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/pages/LoginPage';
+      }
+    }
     return Promise.reject(error);
   }
 );
-
 interface User {
   id: string;
   nombre: string;
@@ -71,8 +71,13 @@ export const getCurrentUser = async (): Promise<User> => {
 export const login = async (nombre: string, password: string): Promise<User> => {
   try {
     const response = await api.post('/auth/login', { nombre, password });
-    localStorage.setItem('token', response.data.token); // Store the token
-    return response.data;
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      return response.data;
+    } else {
+      throw new Error('No se recibió el token de autenticación');
+    }
   } catch (error) {
     if (axios.isAxiosError(error)) {
       console.error('Error en la solicitud de login:', error.response?.data || error.message);
@@ -83,14 +88,18 @@ export const login = async (nombre: string, password: string): Promise<User> => 
   }
 };
 
+
 export const logout = async (): Promise<void> => {
   try {
     await api.post('/auth/logout');
+    localStorage.removeItem('token'); // Asegurarse de limpiar el token
   } catch (error) {
     console.error('Error al cerrar sesión:', error);
+    localStorage.removeItem('token'); // Limpiar el token incluso si hay error
     throw error;
   }
 };
+
 
 export const getVendedores = async (): Promise<Vendedor[]> => {
   const response = await api.get('/users/vendedores');
@@ -264,31 +273,28 @@ export const realizarVenta = async (
     const fechaAjustada = new Date(fecha + 'T12:00:00');
     const fechaISO = fechaAjustada.toISOString();
 
-    const response = await api.post('/ventas', 
-      { 
-        productoId, 
-        cantidad, 
-        fecha: fechaISO,
-        parametrosVenta
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    // Removemos el header de autorización extra ya que el interceptor lo maneja
+    const response = await api.post('/ventas', { 
+      productoId, 
+      cantidad, 
+      fecha: fechaISO,
+      parametrosVenta
+    });
     
     return response.data;
-  } catch (error:any) {
+  } catch (error: unknown) {
     console.error('Error al realizar la venta:', error);
-    if (error.response?.status === 401) {
-      throw new Error('Sesión expirada. Por favor, inicie sesión nuevamente.');
+    
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token'); // Limpiamos el token si está expirado
+        throw new Error('Sesión expirada. Por favor, inicie sesión nuevamente.');
+      }
+      throw new Error(error.response?.data?.message || 'No se pudo realizar la venta');
     }
     throw new Error('No se pudo realizar la venta');
   }
 };
-
 
 
 export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
