@@ -137,18 +137,22 @@ export async function GET(request: NextRequest) {
   const vendedorId = searchParams.get('vendedorId');
   const productoId = searchParams.get('productoId');
 
+  if (!vendedorId && !productoId) {
+    return NextResponse.json({ error: 'Se requiere vendedorId o productoId' }, { status: 400 });
+  }
+
   try {
     const query_text = `
       SELECT 
         t.id,
-        t.producto,
-        t.cantidad,
-        t.tipo,
-        t.desde,
-        t.hacia,
-        t.fecha,
-        p.nombre as producto_nombre,
-        p.tiene_parametros,
+        COALESCE(t.producto, '') as producto,
+        COALESCE(t.cantidad, 0) as cantidad,
+        COALESCE(t.tipo, '') as tipo,
+        COALESCE(t.desde, '') as desde,
+        COALESCE(t.hacia, '') as hacia,
+        COALESCE(t.fecha, NOW()) as fecha,
+        COALESCE(p.nombre, 'Producto Desconocido') as producto_nombre,
+        COALESCE(p.tiene_parametros, false) as tiene_parametros,
         COALESCE(array_agg(pp.nombre) FILTER (WHERE pp.nombre IS NOT NULL), ARRAY[]::text[]) as nombres_parametros
       FROM transacciones t
       LEFT JOIN productos p ON CAST(split_part(t.producto::text, ':', 1) AS INTEGER) = p.id
@@ -160,30 +164,29 @@ export async function GET(request: NextRequest) {
 
     const result = await query(query_text, [productoId || vendedorId]);
 
-    console.log('Resultados de la consulta:', result.rows);
+    if (!result.rows || result.rows.length === 0) {
+      return NextResponse.json([]);
+    }
 
-    // Transformar los resultados
     const transformedRows = result.rows.map(row => {
-      // Asegurarse de que producto es una cadena y manejar el caso donde es null
-      const productoStr = (row.producto || '').toString();
+      const productoStr = String(row.producto || '');
       const [productId = '', parametrosValores = ''] = productoStr.split(':');
       
-      let nombreCompleto = row.producto_nombre || 'Producto Desconocido';
+      let nombreCompleto = String(row.producto_nombre || 'Producto Desconocido');
       
-      // Asegurarse de que nombres_parametros es un array
-      const parametrosArray = Array.isArray(row.nombres_parametros) ? row.nombres_parametros : [];
+      const parametrosArray = Array.isArray(row.nombres_parametros) ? 
+        row.nombres_parametros.filter(Boolean) : [];
       
-      // Solo procesar parámetros si el producto los tiene y hay valores
       if (row.tiene_parametros && parametrosValores) {
-        const valoresArray = parametrosValores.split(',');
+        const valoresArray = parametrosValores.split(',').filter(Boolean);
         
         const parametrosFormateados = parametrosArray
           .map((nombre: string, index: number) => {
-            const nombreParam = String(nombre || '');
+            if (!nombre) return '';
             const valor = valoresArray[index] || 'N/A';
-            return `${nombreParam}: ${valor}`;
+            return `${nombre}: ${valor}`;
           })
-          .filter((param: string): boolean => Boolean(param)) // Eliminar elementos vacíos
+          .filter(Boolean)
           .join(', ');
         
         if (parametrosFormateados) {
@@ -192,18 +195,17 @@ export async function GET(request: NextRequest) {
       }
 
       return {
-        id: row.id || 0,
-        producto_id: productId || '',
+        id: Number(row.id) || 0,
+        producto_id: String(productId || ''),
         nombre: nombreCompleto,
-        cantidad: row.cantidad || 0,
-        tipo: row.tipo || '',
-        desde: row.desde || '',
-        hacia: row.hacia || '',
-        fecha: row.fecha || new Date()
+        cantidad: Number(row.cantidad) || 0,
+        tipo: String(row.tipo || ''),
+        desde: String(row.desde || ''),
+        hacia: String(row.hacia || ''),
+        fecha: row.fecha ? new Date(row.fecha) : new Date()
       };
     });
 
-    console.log('Datos transformados:', transformedRows);
     return NextResponse.json(transformedRows);
 
   } catch (error) {
