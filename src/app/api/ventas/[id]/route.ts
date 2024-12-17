@@ -1,20 +1,16 @@
-// app/api/ventas/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken, DecodedToken } from '@/lib/auth';
 import { query } from '@/lib/db';
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const token = request.cookies.get('token')?.value;
-  const decoded = verifyToken(token) as DecodedToken | null;
-
-  if (!decoded || (decoded.rol !== 'Vendedor' && decoded.rol !== 'Almacen')) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
-
   const ventaId = params.id;
+  const vendedorId = request.nextUrl.searchParams.get('vendedorId');
+
+  if (!vendedorId) {
+    return NextResponse.json({ error: 'Se requiere el ID del vendedor' }, { status: 400 });
+  }
 
   try {
     await query('BEGIN');
@@ -30,11 +26,6 @@ export async function DELETE(
     }
 
     const venta = ventaResult.rows[0];
-
-    if (decoded.rol !== 'Almacen' && venta.vendedor !== decoded.id) {
-      await query('ROLLBACK');
-      return NextResponse.json({ error: 'No autorizado para eliminar esta venta' }, { status: 403 });
-    }
 
     // Restaurar stock según parámetros
     if (venta.parametros) {
@@ -60,7 +51,6 @@ export async function DELETE(
     return NextResponse.json({ message: 'Venta eliminada con éxito' });
   } catch (error) {
     await query('ROLLBACK');
-    console.error('Error al eliminar venta:', error);
     return NextResponse.json({ error: 'Error al eliminar venta' }, { status: 500 });
   }
 }

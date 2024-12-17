@@ -4,23 +4,9 @@ import { Venta, Vendedor, Transaccion } from '@/types';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 const api = axios.create({
-  baseURL: API_URL,
-  withCredentials: true
+  baseURL: API_URL
 });
 
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      console.log('Sesión expirada o token inválido');
-      localStorage.removeItem('token');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/pages/LoginPage';
-      }
-    }
-    return Promise.reject(error);
-  }
-);
 interface User {
   id: string;
   nombre: string;
@@ -42,7 +28,6 @@ interface Producto {
   }>;
 }
 
-
 export const uploadImage = async (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
@@ -53,7 +38,6 @@ export const uploadImage = async (file: File) => {
   });
   return response.data;
 };
-
 export const getCurrentUser = async (): Promise<User> => {
   try {
     const response = await api.get<User>('/users/me');
@@ -109,7 +93,6 @@ export const getVendedores = async (): Promise<Vendedor[]> => {
 export const getInventario = async (): Promise<Producto[]> => {
   try {
     const response = await api.get<Producto[]>('/productos');
-    console.log('Raw inventory data:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching inventory:', error);
@@ -128,8 +111,6 @@ export const getProductosVendedor = async (vendedorId: string) => {
   }
   try {
     const response = await api.get(`/users/productos/${vendedorId}`);
-    console.log('Raw API response:', response);
-    console.log('Productos del vendedor:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error al obtener productos del vendedor:', error);
@@ -139,10 +120,8 @@ export const getProductosVendedor = async (vendedorId: string) => {
 
 export const agregarProducto = async (formData: FormData) => {
   try {
-    // Si hay parámetros, necesitamos asegurarnos de que se envíen correctamente
     const parametrosRaw = formData.get('parametros');
     if (parametrosRaw) {
-      // Asegurarnos de que los parámetros se envíen como string
       const parametros = JSON.parse(parametrosRaw as string);
       formData.set('parametros', JSON.stringify(parametros));
     }
@@ -155,9 +134,6 @@ export const agregarProducto = async (formData: FormData) => {
     return response.data;
   } catch (error) {
     console.error('Error al agregar producto:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      throw new Error(error.response.data.message || 'Error al agregar el producto');
-    }
     throw new Error('Error al agregar el producto');
   }
 };
@@ -165,39 +141,14 @@ export const agregarProducto = async (formData: FormData) => {
 
 export const editarProducto = async (id: string, formData: FormData) => {
   try {
-    // Obtener y verificar tieneParametros
-    const tieneParametros = formData.get('tiene_parametros');
-    console.log('tieneParametros antes de enviar:', tieneParametros);
-
-    // Si hay parámetros, asegurarnos de que se envíen correctamente
-    const parametrosRaw = formData.get('parametros');
-    if (parametrosRaw) {
-      // Asegurarnos de que los parámetros se envíen como string
-      const parametros = JSON.parse(parametrosRaw as string);
-      formData.set('parametros', JSON.stringify(parametros));
-    }
-
-    // Log de todos los datos que se están enviando
-    const formDataObj: any = {};
-    formData.forEach((value, key) => {
-      formDataObj[key] = value;
-    });
-    console.log('Datos que se envían al servidor:', formDataObj);
-
     const response = await api.put(`/productos/${id}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-
-    console.log('Respuesta del servidor:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error al editar producto:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('Respuesta de error del servidor:', error.response.data);
-      throw new Error(error.response.data.message || 'Error al editar el producto');
-    }
     throw new Error('Error al editar el producto');
   }
 };
@@ -215,14 +166,11 @@ export const entregarProducto = async (
       vendedorId, 
       cantidad,
       tipo: 'Entrega',
-      parametros: parametros // Agregamos los parámetros si existen
+      parametros
     });
     return response.data;
   } catch (error) {
     console.error('Error al entregar producto:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      throw new Error(error.response.data.message || 'Error al entregar el producto');
-    }
     throw new Error('Error al entregar el producto');
   }
 };
@@ -232,6 +180,7 @@ export const getTransacciones = async () => {
   const response = await api.get('/transacciones');
   return response.data;
 };
+
 
 export const eliminarProducto = async (productId: string) => {
   try {
@@ -265,15 +214,9 @@ export const realizarVenta = async (
   parametrosVenta?: { nombre: string; cantidad: number; }[]
 ) => {
   try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      throw new Error('No hay sesión activa');
-    }
-
     const fechaAjustada = new Date(fecha + 'T12:00:00');
     const fechaISO = fechaAjustada.toISOString();
 
-    // Removemos el header de autorización extra ya que el interceptor lo maneja
     const response = await api.post('/ventas', { 
       productoId, 
       cantidad, 
@@ -282,20 +225,11 @@ export const realizarVenta = async (
     });
     
     return response.data;
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('Error al realizar la venta:', error);
-    
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 401) {
-        localStorage.removeItem('token'); // Limpiamos el token si está expirado
-        throw new Error('Sesión expirada. Por favor, inicie sesión nuevamente.');
-      }
-      throw new Error(error.response?.data?.message || 'No se pudo realizar la venta');
-    }
     throw new Error('No se pudo realizar la venta');
   }
 };
-
 
 export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
   console.log('Solicitando todas las ventas para vendedor:', vendedorId);
@@ -353,31 +287,23 @@ export const reducirProductoVendedor = async (
       productoId, 
       vendedorId, 
       cantidad,
-      parametros // Agregamos los parámetros si existen
+      parametros
     });
     return response.data;
   } catch (error) {
     console.error('Error al reducir la cantidad del producto:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      throw new Error(error.response.data.message || 'Error al reducir la cantidad del producto');
-    }
     throw new Error('No se pudo reducir la cantidad del producto');
   }
 };
 
 
 export const getVentasVendedor = async (vendedorId: string): Promise<Venta[]> => {
-  console.log('Solicitando todas las ventas para vendedor:', vendedorId);
   try {
     const response = await api.get(`/ventas?vendedorId=${vendedorId}`);
-    console.log('Respuesta de ventas:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error al obtener ventas:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('Respuesta del servidor:', error.response.data);
-    }
-    throw new Error(`No se pudieron obtener las ventas: ${(error as Error).message}`);
+    throw new Error('No se pudieron obtener las ventas');
   }
 };
 
@@ -407,7 +333,7 @@ export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor 
   }
 };
 
-export default api;
+
 
 
 /*panel individual del vendedor*/
@@ -452,9 +378,8 @@ export const deleteSale = async (saleId: string): Promise<void> => {
     await api.delete(`/ventas/${saleId}`);
   } catch (error) {
     console.error('Error al eliminar la venta:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('Respuesta del servidor:', error.response.data);
-    }
-    throw new Error(`No se pudo eliminar la venta: ${(error as Error).message}`);
+    throw new Error('No se pudo eliminar la venta');
   }
 };
+
+export default api;

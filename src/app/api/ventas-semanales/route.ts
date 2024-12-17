@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken, DecodedToken } from '@/lib/auth';
 import { query } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
-  const decoded = verifyToken(token) as DecodedToken | null;
+  const { searchParams } = new URL(request.url);
+  const role = searchParams.get('role');
+  const userId = searchParams.get('userId');
 
-  if (!decoded || (decoded.rol !== 'Almacen' && decoded.rol !== 'Vendedor')) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (!role || (role !== 'Almacen' && role !== 'Vendedor')) {
+    return NextResponse.json({ error: 'Rol inválido' }, { status: 400 });
+  }
+
+  if (role === 'Vendedor' && !userId) {
+    return NextResponse.json({ error: 'Se requiere userId para vendedor' }, { status: 400 });
   }
 
   try {
     let result;
-    if (decoded.rol === 'Almacen') {
+    if (role === 'Almacen') {
       result = await query(
         `WITH weeks AS (
            SELECT 
@@ -60,7 +64,7 @@ export async function GET(request: NextRequest) {
            w.week_start,
            w.week_end,
            $1::uuid as vendedor_id,
-           $2::text as vendedor_nombre,
+           'Vendedor' as vendedor_nombre,
            COALESCE(SUM(v.total), 0) as total_ventas,
            json_agg(
              json_build_object(
@@ -78,13 +82,12 @@ export async function GET(request: NextRequest) {
            AND v.fecha <= w.week_end
          GROUP BY w.week_start, w.week_end
          ORDER BY w.week_start DESC`,
-        [decoded.id, decoded.rol]
+        [userId]
       );
     }
 
     return NextResponse.json(result.rows);
   } catch (error) {
-    console.error('Error al obtener ventas semanales:', error);
     return NextResponse.json({ error: 'Error al obtener ventas semanales' }, { status: 500 });
   }
 }

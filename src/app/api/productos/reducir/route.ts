@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { verifyToken, DecodedToken } from '@/lib/auth';
+
 
 export async function PUT(request: NextRequest) {
     try {
-        const token = request.cookies.get('token')?.value;
-        const decoded = verifyToken(token) as DecodedToken | null;
-        if (!decoded || decoded.rol !== 'Almacen') {
-            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-        }
 
         const body = await request.json();
         const { productoId, vendedorId, cantidad, parametros } = body;

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { query } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
 
 const obtenerProductoConParametros = async (productoId: string) => {
     const result = await query(`
@@ -27,12 +26,6 @@ const obtenerProductoConParametros = async (productoId: string) => {
 
 export async function POST(request: NextRequest) {
     try {
-        const token = request.cookies.get('token')?.value;
-        const decoded = verifyToken(token);
-        
-        if (!decoded || (decoded as { rol: string }).rol !== 'Almacen') {
-          return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-        }
   
         const formData = await request.formData();
         const nombre = formData.get('nombre') as string;
@@ -96,12 +89,6 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
     try {
-        const token = request.cookies.get('token')?.value;
-        const decoded = verifyToken(token);
-        
-        if (!decoded || (decoded as { rol: string }).rol !== 'Almacen') {
-          return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-        }
   
         const result = await query(`
             SELECT 

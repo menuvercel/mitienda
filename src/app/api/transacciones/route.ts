@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken, DecodedToken } from '@/lib/auth';
 import { query } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
-    const decoded = verifyToken(token) as DecodedToken | null;
-    if (!decoded || decoded.rol !== 'Almacen') {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
     const body = await request.json();
     const { productoId, vendedorId, cantidad, tipo, parametros } = body;
-    console.log('Datos de transacción recibidos:', { productoId, vendedorId, cantidad, tipo, parametros });
 
     if (!productoId || !vendedorId || !cantidad || !tipo) {
       return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 });
@@ -21,7 +13,6 @@ export async function POST(request: NextRequest) {
     await query('BEGIN');
 
     try {
-      // Verificar si el producto tiene parámetros
       const productoResult = await query(
         'SELECT tiene_parametros, cantidad as stock_actual FROM productos WHERE id = $1',
         [productoId]
@@ -33,18 +24,15 @@ export async function POST(request: NextRequest) {
 
       const { tiene_parametros, stock_actual } = productoResult.rows[0];
 
-      // Verificar stock disponible
       if (stock_actual < cantidad) {
         throw new Error('Stock insuficiente');
       }
 
-      // Insertar en la tabla transacciones
       const transactionResult = await query(
         'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [productoId, cantidad, tipo, decoded.id, vendedorId, new Date()]
+        [productoId, cantidad, tipo, null, vendedorId, new Date()]
       );
       
-      // Obtener el precio del producto
       const productResult = await query('SELECT precio FROM productos WHERE id = $1', [productoId]);
       const productPrice = productResult.rows[0]?.precio;
       
@@ -52,13 +40,11 @@ export async function POST(request: NextRequest) {
         throw new Error('No se pudo obtener el precio del producto');
       }
       
-      // Actualizar la tabla productos
       await query(
         'UPDATE productos SET cantidad = cantidad - $1 WHERE id = $2',
         [cantidad, productoId]
       );
       
-      // Insertar o actualizar la tabla usuario_productos
       await query(
         `INSERT INTO usuario_productos (usuario_id, producto_id, cantidad, precio) 
          VALUES ($1, $2, $3, $4) 
@@ -67,10 +53,8 @@ export async function POST(request: NextRequest) {
         [vendedorId, productoId, cantidad, productPrice]
       );
 
-      // Si el producto tiene parámetros, procesarlos
       if (tiene_parametros && parametros && parametros.length > 0) {
         for (const param of parametros) {
-          // Verificar el stock del parámetro
           const paramStockResult = await query(
             'SELECT cantidad FROM producto_parametros WHERE producto_id = $1 AND nombre = $2',
             [productoId, param.nombre]
@@ -80,13 +64,11 @@ export async function POST(request: NextRequest) {
             throw new Error(`Stock insuficiente para el parámetro ${param.nombre}`);
           }
 
-          // Actualizar stock del parámetro en producto_parametros
           await query(
             'UPDATE producto_parametros SET cantidad = cantidad - $1 WHERE producto_id = $2 AND nombre = $3',
             [param.cantidad * cantidad, productoId, param.nombre]
           );
 
-          // Insertar o actualizar parámetros en usuario_producto_parametros
           await query(
             `INSERT INTO usuario_producto_parametros (usuario_id, producto_id, nombre, cantidad)
              VALUES ($1, $2, $3, $4)
@@ -106,11 +88,9 @@ export async function POST(request: NextRequest) {
 
     } catch (error) {
       await query('ROLLBACK');
-      console.error('Error durante la transacción:', error);
       throw error;
     }
   } catch (error) {
-    console.error('Error al entregar producto:', error);
     if (error instanceof Error) {
       return NextResponse.json({ error: 'Error al entregar producto', details: error.message }, { status: 500 });
     } else {
@@ -120,13 +100,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
-  const decoded = verifyToken(token) as DecodedToken | null;
-
-  if (!decoded) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
-
   const { searchParams } = new URL(request.url);
   const vendedorId = searchParams.get('vendedorId');
   const productoId = searchParams.get('productoId');
@@ -158,7 +131,6 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json(result.rows);
   } catch (error) {
-    console.error('Error al obtener transacciones:', error);
     if (error instanceof Error) {
       return NextResponse.json({ error: 'Error al obtener transacciones', details: error.message }, { status: 500 });
     } else {

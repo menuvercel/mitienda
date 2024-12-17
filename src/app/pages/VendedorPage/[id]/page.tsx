@@ -103,7 +103,6 @@ interface ParametrosDialogProps {
 
 const useVendedorData = (vendedorId: string) => {
   const router = useRouter()
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [productosDisponibles, setProductosDisponibles] = useState<Producto[]>([])
@@ -130,13 +129,7 @@ const useVendedorData = (vendedorId: string) => {
     }
   
     try {
-      // Verificar autenticación actual
-      const user = await getCurrentUser();
-      if (!user || user.rol !== 'Vendedor' || user.id.toString() !== vendedorId.toString()) {
-        throw new Error('Sesión no válida');
-      }
-  
-      console.log('Iniciando proceso de venta para vendedor:', user.id);
+      console.log('Iniciando proceso de venta');
       console.log('Productos seleccionados:', productosSeleccionados);
       console.log('Fecha seleccionada:', fecha);
   
@@ -163,8 +156,7 @@ const useVendedorData = (vendedorId: string) => {
       alert('Venta realizada con éxito');
     } catch (error) {
       console.error('Error al realizar la venta:', error);
-      setError(error instanceof Error ? error.message : 'Error de autenticación desconocido');
-      router.push('/pages/LoginPage');
+      setError(error instanceof Error ? error.message : 'Error al realizar la venta');
     }
   };
 
@@ -299,36 +291,23 @@ const useVendedorData = (vendedorId: string) => {
   }, [vendedorId]);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const loadData = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const user = await getCurrentUser();
-        console.log('Usuario actual:', user.id);
-        if (user && user.rol === 'Vendedor') {
-          if (user.id.toString() === vendedorId.toString()) {
-            setIsAuthenticated(true);
-            await Promise.all([fetchProductos(), fetchVentasRegistro(), fetchTransacciones()]);
-          } else {
-            throw new Error('ID de vendedor no coincide');
-          }
-        } else {
-          throw new Error('Rol de usuario no autorizado');
-        }
+        await Promise.all([fetchProductos(), fetchVentasRegistro(), fetchTransacciones()]);
       } catch (error) {
-        console.error('Error de autenticación:', error);
-        setError(error instanceof Error ? error.message : 'Error de autenticación desconocido');
-        router.push('/pages/LoginPage');
+        console.error('Error loading data:', error);
+        setError(error instanceof Error ? error.message : 'Error loading data');
       } finally {
         setIsLoading(false);
       }
     };
   
-    checkAuth();
-  }, [vendedorId, fetchProductos, fetchVentasRegistro, fetchTransacciones, router]);
+    loadData();
+  }, [vendedorId, fetchProductos, fetchVentasRegistro, fetchTransacciones]);
 
   return { 
-    isAuthenticated, 
     isLoading, 
     error, 
     productosDisponibles, 
@@ -788,7 +767,6 @@ export default function VendedorPage() {
   const params = useParams()
   const vendedorId = params.id as string
   const { 
-    isAuthenticated, 
     isLoading, 
     error, 
     productosDisponibles, 
@@ -964,15 +942,6 @@ export default function VendedorPage() {
       <Alert variant="destructive">
         <AlertTitle>Error de autenticación</AlertTitle>
         <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    )
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <Alert>
-        <AlertTitle>No autenticado</AlertTitle>
-        <AlertDescription>Por favor, inicia sesión para acceder a esta página.</AlertDescription>
       </Alert>
     )
   }

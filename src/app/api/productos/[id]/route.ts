@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { verifyToken, DecodedToken } from '@/lib/auth';
 import { put } from '@vercel/blob';
 
 const obtenerProductoConParametros = async (productoId: string) => {
@@ -27,13 +26,6 @@ const obtenerProductoConParametros = async (productoId: string) => {
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
     try {
-        const token = request.cookies.get('token')?.value;
-        const decoded = verifyToken(token) as DecodedToken | null;
-
-        if (!decoded || decoded.rol !== 'Almacen') {
-            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-        }
-
         const { id } = params;
         const formData = await request.formData();
 
@@ -140,12 +132,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
     try {
-        const token = request.cookies.get('token')?.value;
-        const decoded = verifyToken(token) as DecodedToken | null;
-
-        if (!decoded || decoded.rol !== 'Almacen') {
-            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-        }
 
         const { id } = params;
         
@@ -219,12 +205,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
     try {
-        const token = request.cookies.get('token')?.value;
-        const decoded = verifyToken(token) as DecodedToken | null;
-
-        if (!decoded) {
-            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-        }
 
         const { id } = params;
 

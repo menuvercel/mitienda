@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken, DecodedToken } from '@/lib/auth';
 import { query } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
-  const decoded = verifyToken(token) as DecodedToken | null;
-
-  if (!decoded || decoded.rol !== 'Almacen') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
 
   const body = await request.json();
   const { nombre, password, telefono, rol } = body;

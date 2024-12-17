@@ -12,8 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
-import { OptimizedImage } from '@/components/OptimizedImage'
-import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet  } from "lucide-react"
+import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet } from "lucide-react"
 import { 
   getVendedores, 
   getCurrentUser, 

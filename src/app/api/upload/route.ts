@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
-import { verifyToken } from '@/lib/auth';
 import sharp from 'sharp';
 
 export async function POST(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
-  const decoded = verifyToken(token);
-
-  if (!decoded) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
 
   const formData = await request.formData();
   const file = formData.get('file') as File;
