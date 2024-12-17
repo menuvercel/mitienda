@@ -48,15 +48,16 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
   const obtenerVentasDelDia = useCallback(async (fecha: Date) => {
     setIsLoading(true)
     setError(null)
-
+  
     try {
       const formattedDate = format(fecha, 'yyyy-MM-dd')
-      const response = await fetch(`/api/ventas-diarias?fecha=${formattedDate}`)
+      // Agregar el parámetro role a la URL
+      const response = await fetch(`/api/ventas-diarias?fecha=${formattedDate}&role=${userRole}`)
       
       if (!response.ok) {
         throw new Error('Error al obtener las ventas diarias')
       }
-
+  
       const data: VentaDiaria[] = await response.json()
       setVentasDiarias(data)
     } catch (error) {
@@ -65,7 +66,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [userRole]) // Agregar userRole a las dependencias
 
   const agruparVentasPorSemana = useCallback((ventas: VentaSemanal[]) => {
     const weekMap = new Map<string, VentasSemana>()
@@ -107,14 +108,15 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
   const obtenerVentasSemanales = useCallback(async () => {
     setIsLoading(true)
     setError(null)
-
+  
     try {
-      const response = await fetch('/api/ventas-semanales')
+      // Agregar el parámetro role a la URL
+      const response = await fetch(`/api/ventas-semanales?role=${userRole}`)
       
       if (!response.ok) {
         throw new Error('Error al obtener las ventas semanales')
       }
-
+  
       const data: VentaSemanal[] = await response.json()
       const ventasAgrupadasPorSemana = agruparVentasPorSemana(data)
       
@@ -129,7 +131,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [selectedWeek, agruparVentasPorSemana])
+  }, [selectedWeek, agruparVentasPorSemana, userRole])
 
   useEffect(() => {
     obtenerVentasSemanales()
