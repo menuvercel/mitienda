@@ -38,19 +38,39 @@ export const uploadImage = async (file: File) => {
   });
   return response.data;
 };
+
 export const getCurrentUser = async (): Promise<User> => {
   try {
     const response = await api.get<User>('/users/me');
     console.log('Raw user data:', response.data);
+    
+    // Verificar que response.data existe y tiene un id
+    if (!response.data || !response.data.id) {
+      throw new Error('Respuesta inválida del servidor: datos de usuario incompletos');
+    }
+
     return {
       ...response.data,
       id: response.data.id.toString() // Ensure ID is always a string
     };
   } catch (error) {
     console.error('Error al obtener el usuario actual:', error);
+    
+    // Mejorar el mensaje de error basado en el tipo de error
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      } else if (error.response?.status === 404) {
+        throw new Error('Usuario no encontrado. Por favor, inicia sesión nuevamente.');
+      } else if (!error.response) {
+        throw new Error('Error de conexión. Por favor, verifica tu conexión a internet.');
+      }
+    }
+    
     throw new Error('No se pudo obtener la información del usuario. Por favor, inicia sesión nuevamente.');
   }
 };
+
 
 export const login = async (nombre: string, password: string): Promise<User> => {
   try {

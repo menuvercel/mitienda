@@ -82,7 +82,11 @@ const useAlmacenData = () => {
       console.log('Lista de vendedores cargada:', data)
     } catch (error) {
       console.error('Error al obtener vendedores:', error)
-      alert('No se pudieron cargar los vendedores. Por favor, inténtalo de nuevo.')
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los vendedores. Por favor, inténtalo de nuevo.",
+        variant: "destructive",
+      })
     }
   }, [])
 
@@ -92,6 +96,11 @@ const useAlmacenData = () => {
       setInventario(data as Producto[])
     } catch (error) {
       console.error('Error al obtener inventario:', error)
+      toast({
+        title: "Error",
+        description: "Error al obtener el inventario",
+        variant: "destructive",
+      })
     }
   }, [])
 
@@ -99,14 +108,22 @@ const useAlmacenData = () => {
     const checkAuth = async () => {
       try {
         const user = await getCurrentUser()
-        if (user.rol === 'Almacen') {
+        // Verificar que user y user.rol existan antes de comparar
+        if (user && user.rol === 'Almacen') {
           setIsAuthenticated(true)
           await Promise.all([fetchVendedores(), fetchInventario()])
         } else {
+          console.log('Usuario no autorizado o rol incorrecto:', user)
           router.push('/pages/LoginPage')
         }
       } catch (error) {
         console.error('Error de autenticación:', error)
+        // Usar toast en lugar de router.push para mostrar el error
+        toast({
+          title: "Error de autenticación",
+          description: "Por favor, inicia sesión nuevamente",
+          variant: "destructive",
+        })
         router.push('/pages/LoginPage')
       }
     }
