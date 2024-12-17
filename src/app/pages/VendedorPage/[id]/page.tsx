@@ -58,9 +58,10 @@ interface Transaccion {
   producto: string;
   cantidad: number;
   fecha: string;
-  tipo: string;
-  precio: number;
+  tipo: 'Entrega' | 'Baja';
+  precio?: number; // Hacer el precio opcional
 }
+
 
 interface Venta {
   id: string;
@@ -527,8 +528,8 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
             'border-blue-500';
   
           // Usar la función formatPrice para manejar undefined de manera segura
-          const precioFormateado = formatPrice(transaccion.precio);
-  
+          const precioFormateado = formatPrice(transaccion.precio ?? 0);
+          
           return (
             <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
               <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
