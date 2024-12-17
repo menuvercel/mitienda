@@ -79,12 +79,10 @@ const useAlmacenData = () => {
     try {
       const data = await getVendedores()
       setVendedores(data)
-      console.log('Lista de vendedores cargada:', data)
     } catch (error) {
-      console.error('Error al obtener vendedores:', error)
       toast({
         title: "Error",
-        description: "No se pudieron cargar los vendedores. Por favor, inténtalo de nuevo.",
+        description: "No se pudieron cargar los vendedores",
         variant: "destructive",
       })
     }
@@ -95,7 +93,6 @@ const useAlmacenData = () => {
       const data = await getInventario()
       setInventario(data as Producto[])
     } catch (error) {
-      console.error('Error al obtener inventario:', error)
       toast({
         title: "Error",
         description: "Error al obtener el inventario",
@@ -108,22 +105,13 @@ const useAlmacenData = () => {
     const checkAuth = async () => {
       try {
         const user = await getCurrentUser()
-        // Verificar que user y user.rol existan antes de comparar
-        if (user && user.rol === 'Almacen') {
+        if (user?.rol === 'Almacen') {
           setIsAuthenticated(true)
           await Promise.all([fetchVendedores(), fetchInventario()])
         } else {
-          console.log('Usuario no autorizado o rol incorrecto:', user)
           router.push('/pages/LoginPage')
         }
       } catch (error) {
-        console.error('Error de autenticación:', error)
-        // Usar toast en lugar de router.push para mostrar el error
-        toast({
-          title: "Error de autenticación",
-          description: "Por favor, inicia sesión nuevamente",
-          variant: "destructive",
-        })
         router.push('/pages/LoginPage')
       }
     }
@@ -133,6 +121,7 @@ const useAlmacenData = () => {
 
   return { isAuthenticated, vendedores, inventario, fetchVendedores, fetchInventario, setInventario }
 }
+
 
 export default function AlmacenPage() {
   const { isAuthenticated, vendedores, inventario, fetchVendedores, fetchInventario, setInventario } = useAlmacenData()
