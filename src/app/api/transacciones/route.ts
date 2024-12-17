@@ -137,8 +137,6 @@ export async function GET(request: NextRequest) {
   const vendedorId = searchParams.get('vendedorId');
   const productoId = searchParams.get('productoId');
 
-  console.log('Parámetros de búsqueda:', { vendedorId, productoId });
-
   try {
     let result;
     if (productoId) {
@@ -152,10 +150,14 @@ export async function GET(request: NextRequest) {
            t.desde,
            t.hacia,
            t.fecha,
-           p.nombre as producto_nombre
+           p.nombre as producto_nombre,
+           p.tiene_parametros,
+           array_agg(DISTINCT pp.nombre) as nombres_parametros
          FROM transacciones t
-         LEFT JOIN productos p ON CAST(split_part(t.producto, ':', 1) AS INTEGER) = p.id
-         WHERE split_part(t.producto, ':', 1) = $1
+         LEFT JOIN productos p ON CAST(split_part(t.producto::text, ':', 1) AS INTEGER) = p.id
+         LEFT JOIN producto_parametros pp ON pp.producto_id = p.id
+         WHERE split_part(t.producto::text, ':', 1) = $1
+         GROUP BY t.id, t.producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, p.nombre, p.tiene_parametros
          ORDER BY t.fecha DESC`,
         [productoId]
       );
@@ -170,10 +172,14 @@ export async function GET(request: NextRequest) {
            t.desde,
            t.hacia,
            t.fecha,
-           p.nombre as producto_nombre
+           p.nombre as producto_nombre,
+           p.tiene_parametros,
+           array_agg(DISTINCT pp.nombre) as nombres_parametros
          FROM transacciones t
-         LEFT JOIN productos p ON CAST(split_part(t.producto, ':', 1) AS INTEGER) = p.id
+         LEFT JOIN productos p ON CAST(split_part(t.producto::text, ':', 1) AS INTEGER) = p.id
+         LEFT JOIN producto_parametros pp ON pp.producto_id = p.id
          WHERE t.hacia = $1 OR t.desde = $1
+         GROUP BY t.id, t.producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, p.nombre, p.tiene_parametros
          ORDER BY t.fecha DESC`,
         [vendedorId]
       );
@@ -182,17 +188,36 @@ export async function GET(request: NextRequest) {
     console.log('Resultados de la consulta:', result.rows);
 
     // Transformar los resultados
-    const transformedRows = result.rows.map(row => ({
-      id: row.id,
-      producto: row.producto.includes(':') 
-        ? `${row.producto_nombre || 'Producto Desconocido'} - ${row.producto.split(':')[1]}`
-        : row.producto_nombre || 'Producto Desconocido',
-      cantidad: row.cantidad,
-      tipo: row.tipo,
-      desde: row.desde,
-      hacia: row.hacia,
-      fecha: row.fecha
-    }));
+    const transformedRows = result.rows.map(row => {
+      const [productId, parametrosValores] = (row.producto || '').toString().split(':');
+      
+      let nombreCompleto = row.producto_nombre || 'Producto Desconocido';
+      
+      // Si el producto tiene parámetros y hay valores de parámetros
+      if (row.tiene_parametros && parametrosValores) {
+        const valoresArray = parametrosValores.split(',');
+        const parametrosArray = row.nombres_parametros || [];
+        
+        const parametrosFormateados = parametrosArray
+          .map((nombre: string, index: number) => `${nombre}: ${valoresArray[index] || 'N/A'}`)
+          .join(', ');
+        
+        if (parametrosFormateados) {
+          nombreCompleto += ` (${parametrosFormateados})`;
+        }
+      }
+
+      return {
+        id: row.id,
+        producto_id: productId,
+        nombre: nombreCompleto,
+        cantidad: row.cantidad,
+        tipo: row.tipo,
+        desde: row.desde,
+        hacia: row.hacia,
+        fecha: row.fecha
+      };
+    });
 
     console.log('Datos transformados:', transformedRows);
     return NextResponse.json(transformedRows);
@@ -213,5 +238,3 @@ export async function GET(request: NextRequest) {
     }
   }
 }
-
-
