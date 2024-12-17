@@ -150,31 +150,38 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         }
 
         const { id } = params;
-        console.log('Attempting to delete product with ID:', id);
-
-        const checkProduct = await query('SELECT * FROM productos WHERE id = $1', [id]);
         
-        if (checkProduct.rows.length === 0) {
-            return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
-        }
-
         await query('BEGIN');
 
         try {
-            // Eliminar primero los parámetros asociados
-            await query('DELETE FROM producto_parametros WHERE producto_id = $1', [id]);
-            
-            // Eliminar el producto
-            const result = await query('DELETE FROM productos WHERE id = $1 RETURNING *', [id]);
+            // 1. Guardar información del producto antes de eliminarlo
+            const producto = await query(
+                'SELECT * FROM productos WHERE id = $1',
+                [id]
+            );
 
-            if (result.rowCount === 0) {
-                throw new Error('No se pudo eliminar el producto');
+            if (producto.rows.length === 0) {
+                return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
             }
 
+            // 2. Eliminar todas las transacciones relacionadas
+            await query('DELETE FROM transacciones WHERE producto_id = $1', [id]);
+
+            // 3. Eliminar parámetros del producto
+            await query('DELETE FROM producto_parametros WHERE producto_id = $1', [id]);
+
+            // 4. Eliminar el producto
+            await query('DELETE FROM productos WHERE id = $1', [id]);
+
             await query('COMMIT');
-            return NextResponse.json({ message: 'Producto eliminado exitosamente' });
+
+            return NextResponse.json({ 
+                message: 'Producto y sus transacciones eliminados exitosamente',
+                deletedProduct: producto.rows[0]
+            });
         } catch (error) {
             await query('ROLLBACK');
+            console.error('Error durante la eliminación:', error);
             throw error;
         }
     } catch (error) {
@@ -186,6 +193,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         }, { status: 500 });
     }
 }
+
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
     try {
