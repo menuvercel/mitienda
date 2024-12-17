@@ -30,7 +30,7 @@ export default function ProductDialog({
     ...product,
     tieneParametros: product.tiene_parametros,
     tiene_parametros: product.tiene_parametros,
-    parametros: product.parametros || [] // Aseguramos que los parámetros se inicialicen correctamente
+    parametros: product.parametros || []
   })
 
   useEffect(() => {
@@ -46,9 +46,11 @@ export default function ProductDialog({
     setEditedProduct({
       ...product,
       tieneParametros: product.tiene_parametros,
-      parametros: product.parametros
+      tiene_parametros: product.tiene_parametros,
+      parametros: product.parametros || []
     })
   }, [product])
+  
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -96,27 +98,35 @@ export default function ProductDialog({
     setEditedProduct(prev => ({
       ...prev,
       tieneParametros: checked,
-      tiene_parametros: checked, // Mantener ambas propiedades sincronizadas
-      parametros: checked ? [{ nombre: '', cantidad: 0 }] : []
+      tiene_parametros: checked, // Importante mantener ambas propiedades
+      parametros: checked ? (prev.parametros?.length ? prev.parametros : [{ nombre: '', cantidad: 0 }]) : []
     }))
   }
+  
 
   const handleEdit = async () => {
     const updatedProduct: Producto = {
       ...editedProduct,
-      tiene_parametros: Boolean(editedProduct.tieneParametros),
-      tieneParametros: Boolean(editedProduct.tieneParametros),
-      parametros: editedProduct.parametros // Aseguramos que los parámetros se incluyan
+      // Aseguramos que tiene_parametros se mantenga sincronizado con tieneParametros
+      tiene_parametros: editedProduct.tieneParametros || false,
+      tieneParametros: editedProduct.tieneParametros || false,
+      // Si tiene parámetros, aseguramos que se incluyan
+      parametros: editedProduct.tieneParametros ? editedProduct.parametros : []
     }
-
-    if (updatedProduct.tieneParametros && updatedProduct.parametros) {
+  
+    // Actualizar la cantidad total si tiene parámetros
+    if (updatedProduct.tiene_parametros && updatedProduct.parametros) {
       updatedProduct.cantidad = updatedProduct.parametros.reduce((sum, param) => sum + param.cantidad, 0)
     }
-
+  
+    // Verificación antes de enviar
+    console.log('Producto a actualizar:', updatedProduct)
+  
     await onEdit(updatedProduct, newImage)
     setMode('view')
     setNewImage(null)
   }
+  
 
   const handleDeliver = async () => {
     if (selectedVendedor && deliveryQuantity > 0 && deliveryQuantity <= getTotalCantidad()) {
