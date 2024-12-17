@@ -18,9 +18,11 @@ interface ProductDialogProps {
     productId: string, 
     vendedorId: string, 
     cantidad: number, 
+    tipo: 'Entrega' | 'Baja',
     parametros?: Array<{nombre: string, cantidad: number}>
   ) => Promise<void>
 }
+
 
 export default function ProductDialog({ 
   product, 
@@ -50,9 +52,13 @@ export default function ProductDialog({
 
   useEffect(() => {
     if (mode === 'deliver' && product.parametros) {
+      // Inicializar array de cantidades con ceros
       setDeliveryQuantities(new Array(product.parametros.length).fill(0));
+      // Resetear cantidad general si hay parámetros
+      setDeliveryQuantity(0);
     }
   }, [mode, product.parametros]);
+  
 
   useEffect(() => {
     setEditedProduct({
@@ -81,14 +87,16 @@ export default function ProductDialog({
     
     if (product.tiene_parametros && product.parametros) {
       // Verificar que al menos una cantidad sea mayor a 0 y ninguna exceda el disponible
-      return deliveryQuantities.some(qty => qty > 0) && 
-             product.parametros.every((param, index) => 
-               deliveryQuantities[index] <= param.cantidad
-             );
+      const hasValidQuantities = deliveryQuantities.some(qty => qty > 0);
+      const withinLimits = product.parametros.every((param, index) => 
+        deliveryQuantities[index] <= param.cantidad && deliveryQuantities[index] >= 0
+      );
+      return hasValidQuantities && withinLimits;
     }
     
     return deliveryQuantity > 0 && deliveryQuantity <= getTotalCantidad();
   };
+  
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -171,20 +179,28 @@ export default function ProductDialog({
   
     try {
       if (product.tiene_parametros && product.parametros) {
-        // Crear un objeto con las cantidades por parámetro
-        const parametrosEntrega = product.parametros.map((param, index) => ({
-          nombre: param.nombre,
-          cantidad: deliveryQuantities[index]
-        }));
+        // Filtrar solo los parámetros con cantidad mayor a 0
+        const parametrosEntrega = product.parametros
+          .map((param, index) => ({
+            nombre: param.nombre,
+            cantidad: deliveryQuantities[index]
+          }))
+          .filter(param => param.cantidad > 0);
   
         await onDeliver(
           product.id, 
           selectedVendedor, 
           getTotalDeliveryQuantity(),
-          parametrosEntrega // Necesitarás actualizar la firma de la función onDeliver
+          'Entrega',
+          parametrosEntrega
         );
       } else {
-        await onDeliver(product.id, selectedVendedor, deliveryQuantity);
+        await onDeliver(
+          product.id, 
+          selectedVendedor, 
+          deliveryQuantity,
+          'Entrega'
+        );
       }
   
       alert('Entrega realizada con éxito');
@@ -197,6 +213,7 @@ export default function ProductDialog({
       alert(error instanceof Error ? error.message : 'Error desconocido al entregar producto');
     }
   };
+  
 
   const handleDelete = async () => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
