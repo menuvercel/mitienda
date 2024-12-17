@@ -474,12 +474,16 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   }
 
   const filterItems = useCallback((items: any[], term: string) => {
-    return items.filter(item => 
-      Object.values(item).some(value => 
-        value && value.toString().toLowerCase().includes(term.toLowerCase())
-      )
-    )
-  }, [])
+    if (!items || !Array.isArray(items)) return [];
+    return items.filter(item => {
+      if (!item) return false;
+      return Object.values(item).some(value => {
+        if (!value) return false;
+        return value.toString().toLowerCase().includes(term.toLowerCase());
+      });
+    });
+  }, []);
+  
 
   const formatPrice = (price: number | string): string => {
     const numPrice = typeof price === 'string' ? parseFloat(price) : price
@@ -499,28 +503,38 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   };
 
   const renderVentasList = () => {
-    const filteredVentas = filterItems(ventas, searchTerm)
+    if (!ventas) return null;
+    
+    const filteredVentas = filterItems(ventas, searchTerm || '');
     return (
       <div className="space-y-2">
         {filteredVentas.length > 0 ? (
           filteredVentas.map(venta => (
-            <VentaItem key={venta.id} venta={venta} />
+            venta ? <VentaItem key={venta.id} venta={venta} /> : null
           ))
         ) : (
           <div className="text-center py-4">No hay ventas registradas</div>
         )}
       </div>
-    )
-  }
+    );
+  };
+  
+
+  const filteredTransacciones = transacciones.filter(t =>
+    t?.producto?.toLowerCase().includes(busqueda?.toLowerCase() || '') || false
+  );
 
   const renderTransaccionesList = () => {
+    if (!transacciones) return null;
+    
     const filteredTransacciones = transacciones.filter(t =>
-      t.producto.toLowerCase().includes(busqueda.toLowerCase())
+      t?.producto?.toLowerCase().includes(busqueda?.toLowerCase() || '') || false
     );
     
     return (
       <div className="space-y-2">
         {filteredTransacciones.map(transaccion => {
+          if (!transaccion) return null;
           const transactionType = transaccion.tipo || 'Normal';
           const borderColor = 
             transactionType === 'Baja' ? 'border-red-500' :
@@ -529,7 +543,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   
           // Usar la función formatPrice para manejar undefined de manera segura
           const precioFormateado = formatPrice(transaccion.precio ?? 0);
-          
+
           return (
             <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
               <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
@@ -781,8 +795,8 @@ export default function VendedorPage() {
   })
 
   const productosFiltrados = sortedProductos.filter(p => 
-    p.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  )
+    p?.nombre?.toLowerCase().includes(busqueda?.toLowerCase() || '') || false
+  );
 
   const renderTransaccionesList = () => {
     const filteredTransacciones = transacciones.filter(t =>
