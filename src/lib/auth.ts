@@ -18,10 +18,19 @@ export function generateToken(user: { id: string; nombre: string; rol: string })
 }
 
 export function verifyToken(token: string | undefined) {
-  if (!token) return null;
+  if (!token) {
+    throw new Error('Token no proporcionado');
+  }
+  
   try {
-    return jwt.verify(token, SECRET_KEY);
+    const decoded = jwt.verify(token, SECRET_KEY);
+    return decoded;
   } catch (error) {
-    return null;
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new Error('Token expirado');
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      throw new Error('Token inválido');
+    }
+    throw new Error('Error de verificación de token');
   }
 }
