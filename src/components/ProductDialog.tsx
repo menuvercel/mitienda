@@ -88,10 +88,11 @@ export default function ProductDialog({
   const handleEdit = async () => {
     const updatedProduct = {
       ...editedProduct,
-      tiene_parametros: editedProduct.tieneParametros, // Asegurar consistencia
+      tiene_parametros: Boolean(editedProduct.tieneParametros), // Forzamos un valor booleano
+      tieneParametros: Boolean(editedProduct.tieneParametros), // Mantenemos la consistencia
     }
 
-    if (updatedProduct.tieneParametros && updatedProduct.parametros) {
+    if (updatedProduct.tiene_parametros && updatedProduct.parametros) {
       updatedProduct.cantidad = updatedProduct.parametros.reduce((sum, param) => sum + param.cantidad, 0)
     }
 
@@ -99,6 +100,7 @@ export default function ProductDialog({
     setMode('view')
     setNewImage(null)
   }
+
 
   const handleDeliver = async () => {
     if (selectedVendedor && deliveryQuantity > 0 && deliveryQuantity <= getTotalCantidad()) {
