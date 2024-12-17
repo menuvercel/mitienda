@@ -34,6 +34,14 @@ export default function ProductDialog({
   const [selectedVendedor, setSelectedVendedor] = useState<string | null>(null)
   const [deliveryQuantity, setDeliveryQuantity] = useState<number>(0)
 
+  useEffect(() => {
+    setEditedProduct({
+      ...product,
+      tieneParametros: product.tiene_parametros,
+      parametros: product.parametros
+    })
+  }, [product])
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setEditedProduct(prev => ({
@@ -86,10 +94,11 @@ export default function ProductDialog({
   }
 
   const handleEdit = async () => {
-    const updatedProduct = {
+    const updatedProduct: Producto = {
       ...editedProduct,
-      tiene_parametros: Boolean(editedProduct.tieneParametros), // Forzamos un valor booleano
-      tieneParametros: Boolean(editedProduct.tieneParametros), // Mantenemos la consistencia
+      tiene_parametros: Boolean(editedProduct.tieneParametros),
+      tieneParametros: Boolean(editedProduct.tieneParametros),
+      parametros: editedProduct.parametros // Aseguramos que los parámetros se incluyan
     }
 
     if (updatedProduct.tiene_parametros && updatedProduct.parametros) {
@@ -99,7 +108,8 @@ export default function ProductDialog({
     await onEdit(updatedProduct, newImage)
     setMode('view')
     setNewImage(null)
-  }
+}
+
 
 
   const handleDeliver = async () => {
