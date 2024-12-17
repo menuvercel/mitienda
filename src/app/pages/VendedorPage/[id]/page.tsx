@@ -346,7 +346,11 @@ const useVendedorData = (vendedorId: string) => {
     setSortOrder,
     sortBy,
     setSortBy,
-    handleEnviarVenta
+    handleEnviarVenta,
+    productosSeleccionados,
+    setProductosSeleccionados,
+    fecha,
+    setFecha
   }
 }
 
@@ -798,12 +802,14 @@ export default function VendedorPage() {
     setSortOrder,
     sortBy,
     setSortBy,
-    handleEnviarVenta
+    handleEnviarVenta,
+    productosSeleccionados,
+    setProductosSeleccionados,
+    fecha,
+    setFecha
   } = useVendedorData(vendedorId)
 
   const [busqueda, setBusqueda] = useState('')
-  const [fecha, setFecha] = useState('')
-  const [productosSeleccionados, setProductosSeleccionados] = useState<ProductoVenta[]>([])
   const [seccionActual, setSeccionActual] = useState<'productos' | 'ventas' | 'registro'>('productos')
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
