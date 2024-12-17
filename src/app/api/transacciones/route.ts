@@ -126,32 +126,35 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
-  const decoded = verifyToken(token) as DecodedToken | null;
-
-  if (!decoded) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(request.url);
-  const vendedorId = searchParams.get('vendedorId');
-  const productoId = searchParams.get('productoId');
-
-  // Validación adicional para asegurarse de que los IDs son números válidos
-  if ((!vendedorId || vendedorId.trim() === '') && (!productoId || productoId.trim() === '')) {
-    return NextResponse.json({ error: 'Se requiere vendedorId o productoId válido' }, { status: 400 });
-  }
-
-  // Validar que los IDs son números
-  if (vendedorId && !/^\d+$/.test(vendedorId)) {
-    return NextResponse.json({ error: 'vendedorId debe ser un número' }, { status: 400 });
-  }
-
-  if (productoId && !/^\d+$/.test(productoId)) {
-    return NextResponse.json({ error: 'productoId debe ser un número' }, { status: 400 });
-  }
-
   try {
+    const token = request.cookies.get('token')?.value;
+    const decoded = verifyToken(token) as DecodedToken | null;
+
+    if (!decoded) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const vendedorId = searchParams.get('vendedorId');
+    const productoId = searchParams.get('productoId');
+
+    // Validación más estricta
+    if (vendedorId) {
+      if (!vendedorId.match(/^\d+$/)) {
+        return NextResponse.json({ error: 'vendedorId debe ser un número válido' }, { status: 400 });
+      }
+    }
+
+    if (productoId) {
+      if (!productoId.match(/^\d+$/)) {
+        return NextResponse.json({ error: 'productoId debe ser un número válido' }, { status: 400 });
+      }
+    }
+
+    if (!vendedorId && !productoId) {
+      return NextResponse.json({ error: 'Se requiere vendedorId o productoId' }, { status: 400 });
+    }
+
     const query_text = `
       SELECT 
         t.id,
@@ -165,19 +168,22 @@ export async function GET(request: NextRequest) {
         COALESCE(p.tiene_parametros, false) as tiene_parametros,
         COALESCE(array_agg(pp.nombre) FILTER (WHERE pp.nombre IS NOT NULL), ARRAY[]::text[]) as nombres_parametros
       FROM transacciones t
-      LEFT JOIN productos p ON CAST(split_part(t.producto::text, ':', 1) AS INTEGER) = p.id
+      LEFT JOIN productos p ON 
+        CASE 
+          WHEN t.producto ~ '^[0-9]+(:.*)?$' 
+          THEN CAST(NULLIF(split_part(t.producto::text, ':', 1), '') AS INTEGER)
+          ELSE NULL 
+        END = p.id
       LEFT JOIN producto_parametros pp ON pp.producto_id = p.id
-      WHERE ${productoId ? "split_part(t.producto::text, ':', 1) = $1" : "t.hacia = $1 OR t.desde = $1"}
+      WHERE ${productoId ? 
+        "CASE WHEN t.producto ~ '^[0-9]+(:.*)?$' THEN split_part(t.producto::text, ':', 1) = $1 ELSE false END" : 
+        "t.hacia = $1 OR t.desde = $1"}
       GROUP BY t.id, t.producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, p.nombre, p.tiene_parametros
       ORDER BY t.fecha DESC
     `;
 
     // Usar el ID validado
     const paramValue = productoId || vendedorId;
-    if (!paramValue) {
-      throw new Error('No se proporcionó un ID válido');
-    }
-
     const result = await query(query_text, [paramValue]);
 
     if (!result.rows || result.rows.length === 0) {
