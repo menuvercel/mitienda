@@ -138,9 +138,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 }
 
-
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-    console.log('DELETE function called');
     try {
         const token = request.cookies.get('token')?.value;
         const decoded = verifyToken(token) as DecodedToken | null;
@@ -151,7 +149,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
         const { id } = params;
         
-        await query('BEGIN');
+        await query('BEGIN'); // Iniciamos una transacción para asegurar que todo se ejecute o nada
 
         try {
             // 1. Verificar si el producto existe
@@ -165,35 +163,42 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
                 return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
             }
 
-            // 2. Eliminar los parámetros asociados si existen
+            // 2. Primero eliminamos todas las transacciones asociadas
+            const transaccionesEliminadas = await query(
+                'DELETE FROM transacciones WHERE producto = $1 RETURNING *',
+                [id]
+            );
+
+            // 3. Eliminamos los parámetros si existen
             if (producto.rows[0].tiene_parametros) {
                 await query('DELETE FROM producto_parametros WHERE producto_id = $1', [id]);
             }
 
-            // 3. Eliminar el producto
+            // 4. Finalmente eliminamos el producto
             await query('DELETE FROM productos WHERE id = $1', [id]);
 
             await query('COMMIT');
 
             return NextResponse.json({ 
-                message: 'Producto y sus parámetros eliminados exitosamente',
-                deletedProduct: producto.rows[0]
+                message: 'Producto eliminado exitosamente',
+                deletedProduct: producto.rows[0],
+                transaccionesEliminadas: transaccionesEliminadas.rows.length
             });
+
         } catch (error) {
-            await query('ROLLBACK');
+            await query('ROLLBACK'); // Si algo falla, revertimos todos los cambios
             console.error('Error durante la eliminación:', error);
             throw error;
         }
+
     } catch (error) {
         console.error('Error in DELETE function:', error);
         return NextResponse.json({ 
             error: 'Error interno del servidor', 
-            details: (error as Error).message
+            details: (error as Error).message 
         }, { status: 500 });
     }
 }
-
-
 
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
