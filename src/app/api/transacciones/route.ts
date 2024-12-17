@@ -138,7 +138,6 @@ export async function GET(request: NextRequest) {
   const productoId = searchParams.get('productoId');
 
   try {
-    let result;
     const query_text = `
       SELECT 
         t.id,
@@ -159,7 +158,7 @@ export async function GET(request: NextRequest) {
       ORDER BY t.fecha DESC
     `;
 
-    result = await query(query_text, [productoId || vendedorId]);
+    const result = await query(query_text, [productoId || vendedorId]);
 
     console.log('Resultados de la consulta:', result.rows);
 
