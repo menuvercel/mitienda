@@ -2,96 +2,75 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken, DecodedToken } from '@/lib/auth';
 import { query } from '@/lib/db';
 
+// app/api/ventas/route.ts
 export async function POST(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
-  const decoded = verifyToken(token) as DecodedToken | null;
-
-  if (!decoded || decoded.rol !== 'Vendedor') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
-
-  const body = await request.json();
-  const { productoId, cantidad, fecha, parametros } = body;
-
-  if (!productoId || !cantidad || !fecha) {
-    return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 });
-  }
-
   try {
-    const fechaVenta = new Date(fecha);
-    await query('BEGIN');
+      const token = request.cookies.get('token')?.value;
+      const decoded = verifyToken(token) as DecodedToken | null;
 
-    // Verificar si el producto tiene parámetros
-    const productoResult = await query(
-      `SELECT p.precio, p.tiene_parametros, up.cantidad as stock_vendedor 
-       FROM productos p 
-       JOIN usuario_productos up ON p.id = up.producto_id 
-       WHERE p.id = $1 AND up.usuario_id = $2`,
-      [productoId, decoded.id]
-    );
+      if (!decoded || decoded.rol !== 'Ventas') {
+          return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+      }
 
-    if (productoResult.rows.length === 0) {
-      await query('ROLLBACK');
-      return NextResponse.json({ error: 'Producto no encontrado o no asignado al vendedor' }, { status: 404 });
-    }
+      const body = await request.json();
+      const { producto: productoId, cantidad, precio_unitario } = body;
 
-    const { precio: precioUnitario, stock_vendedor, tiene_parametros } = productoResult.rows[0];
+      await query('BEGIN');
 
-    // Verificar stock según si tiene parámetros o no
-    if (tiene_parametros && parametros) {
-      // Verificar stock para cada parámetro
-      for (const param of parametros) {
-        const stockParam = await query(
-          `SELECT cantidad FROM usuario_producto_parametros 
-           WHERE usuario_id = $1 AND producto_id = $2 AND nombre = $3`,
-          [decoded.id, productoId, param.nombre]
-        );
+      try {
+          // 1. Verificar si el producto existe
+          const productoResult = await query(
+              'SELECT * FROM productos WHERE id = $1',
+              [productoId]
+          );
 
-        if (stockParam.rows[0].cantidad < param.cantidad) {
+          if (productoResult.rows.length === 0) {
+              await query('ROLLBACK');
+              return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
+          }
+
+          // 2. Verificar stock
+          if (productoResult.rows[0].stock < cantidad) {
+              await query('ROLLBACK');
+              return NextResponse.json({ error: 'Stock insuficiente' }, { status: 400 });
+          }
+
+          // 3. Calcular el total
+          const total = cantidad * precio_unitario;
+
+          // 4. Insertar la venta (solo con los campos que existen en la tabla)
+          const ventaResult = await query(
+              'INSERT INTO ventas (producto, cantidad, precio_unitario, total, vendedor, fecha) VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING *',
+              [productoId, cantidad, precio_unitario, total, decoded.id]
+          );
+
+          // 5. Actualizar el stock
+          await query(
+              'UPDATE productos SET stock = stock - $1 WHERE id = $2',
+              [cantidad, productoId]
+          );
+
+          await query('COMMIT');
+
+          return NextResponse.json({
+              message: 'Venta registrada exitosamente',
+              venta: ventaResult.rows[0]
+          });
+
+      } catch (error) {
           await query('ROLLBACK');
-          return NextResponse.json({ 
-            error: `Stock insuficiente para el parámetro ${param.nombre}` 
-          }, { status: 400 });
-        }
+          throw error;
       }
-    } else if (!tiene_parametros && stock_vendedor < cantidad) {
-      await query('ROLLBACK');
-      return NextResponse.json({ error: 'Stock insuficiente' }, { status: 400 });
-    }
 
-    // Actualizar stock
-    if (tiene_parametros && parametros) {
-      for (const param of parametros) {
-        await query(
-          `UPDATE usuario_producto_parametros 
-           SET cantidad = cantidad - $1 
-           WHERE usuario_id = $2 AND producto_id = $3 AND nombre = $4`,
-          [param.cantidad, decoded.id, productoId, param.nombre]
-        );
-      }
-    } else {
-      await query(
-        'UPDATE usuario_productos SET cantidad = cantidad - $1 WHERE producto_id = $2 AND usuario_id = $3',
-        [cantidad, productoId, decoded.id]
-      );
-    }
-
-    // Crear venta
-    const ventaResult = await query(
-      `INSERT INTO ventas (producto, cantidad, precio_unitario, total, vendedor, fecha, parametros) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [productoId, cantidad, precioUnitario, precioUnitario * cantidad, decoded.id, fechaVenta, 
-       parametros ? JSON.stringify(parametros) : null]
-    );
-
-    await query('COMMIT');
-    return NextResponse.json(ventaResult.rows[0]);
   } catch (error) {
-    await query('ROLLBACK');
-    console.error('Error al crear venta:', error);
-    return NextResponse.json({ error: 'Error al crear venta' }, { status: 500 });
+      console.error('Error in POST function:', error);
+      return NextResponse.json({ 
+          error: 'Error interno del servidor', 
+          details: (error as Error).message 
+      }, { status: 500 });
   }
 }
+
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
