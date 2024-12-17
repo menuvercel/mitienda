@@ -36,13 +36,35 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
         const { id } = params;
         const formData = await request.formData();
+
+            // Log todos los campos del FormData para debug
+            console.log('FormData fields:');
+            Array.from(formData.entries()).forEach(([key, value]) => {
+                console.log(`${key}: ${value}`);
+            });
+
+
         const nombre = formData.get('nombre') as string;
         const precio = formData.get('precio') as string;
         const cantidad = formData.get('cantidad') as string;
         const foto = formData.get('foto') as File | null;
-        const tieneParametros = formData.get('tieneParametros') === 'true';
+        
+        // Cambiar aquí para aceptar ambas versiones del campo
+        const tieneParametros = 
+            formData.get('tiene_parametros') === 'true' || 
+            formData.get('tieneParametros') === 'true';
+            
         const parametrosRaw = formData.get('parametros') as string;
         const parametros = parametrosRaw ? JSON.parse(parametrosRaw) : [];
+
+        console.log('Parsed data:', {
+            nombre,
+            precio,
+            cantidad,
+            tieneParametros,
+            parametros,
+            foto: foto?.name
+        });
 
         const currentProduct = await query('SELECT * FROM productos WHERE id = $1', [id]);
         
@@ -69,10 +91,22 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         await query('BEGIN');
 
         try {
+            // Log de la consulta de actualización
+            console.log('Updating product with:', {
+                nombre,
+                precio: Number(precio),
+                cantidad: Number(cantidad),
+                fotoUrl,
+                tieneParametros,
+                id
+            });
+
             const result = await query(
                 'UPDATE productos SET nombre = $1, precio = $2, cantidad = $3, foto = $4, tiene_parametros = $5 WHERE id = $6 RETURNING *',
                 [nombre, Number(precio), Number(cantidad), fotoUrl, tieneParametros, id]
             );
+
+            console.log('Update result:', result.rows[0]);
 
             await query('DELETE FROM producto_parametros WHERE producto_id = $1', [id]);
 
@@ -88,16 +122,22 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
             await query('COMMIT');
 
             const productoActualizado = await obtenerProductoConParametros(id);
+            console.log('Producto actualizado:', productoActualizado);
             return NextResponse.json(productoActualizado);
         } catch (error) {
             await query('ROLLBACK');
+            console.error('Error en la transacción:', error);
             throw error;
         }
     } catch (error) {
         console.error('Error updating product:', error);
-        return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+        return NextResponse.json({ 
+            error: 'Error interno del servidor',
+            details: (error as Error).message
+        }, { status: 500 });
     }
 }
+
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
     console.log('DELETE function called');
