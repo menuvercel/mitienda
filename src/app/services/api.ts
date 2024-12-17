@@ -224,13 +224,33 @@ export const getTransacciones = async (filters?: {
   productoId?: string;
 }): Promise<Transaccion[]> => {
   try {
-    const response = await api.get('/transacciones', { params: filters });
+    // Validación de parámetros antes de hacer la llamada
+    const validatedFilters: Record<string, string> = {};
+    
+    if (filters?.vendedorId) {
+      // Solo incluir si no está vacío
+      if (filters.vendedorId.trim() !== '') {
+        validatedFilters.vendedorId = filters.vendedorId;
+      }
+    }
+    
+    if (filters?.productoId) {
+      // Solo incluir si no está vacío
+      if (filters.productoId.trim() !== '') {
+        validatedFilters.productoId = filters.productoId;
+      }
+    }
+
+    // Si no hay filtros válidos, enviar la petición sin parámetros
+    const response = await api.get('/transacciones', 
+      Object.keys(validatedFilters).length > 0 ? { params: validatedFilters } : undefined
+    );
+
     return response.data.map((transaccion: any) => ({
       ...transaccion,
-      // Si el producto incluye un parámetro (formato "id:parametro"), procesarlo
-      producto: transaccion.producto.includes(':') 
+      producto: transaccion.producto?.includes(':') 
         ? `${transaccion.producto_nombre} - ${transaccion.producto.split(':')[1]}`
-        : transaccion.producto_nombre
+        : transaccion.producto_nombre || ''
     }));
   } catch (error) {
     console.error('Error al obtener transacciones:', error);
@@ -238,6 +258,7 @@ export const getTransacciones = async (filters?: {
     throw new Error('No se pudieron obtener las transacciones');
   }
 };
+
 
 
 export const eliminarProducto = async (productId: string) => {
