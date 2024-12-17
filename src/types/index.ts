@@ -25,11 +25,8 @@ export interface Producto {
   precio: number;
   cantidad: number;
   foto?: string;
-  tieneParametros: boolean;
-  parametros?: Array<{
-    nombre: string;
-    cantidad: number;
-  }>;
+  tieneParametros: boolean  // Asegúrate que este campo existe
+  parametros?: Parametro[] 
 }
 
 export interface Venta {

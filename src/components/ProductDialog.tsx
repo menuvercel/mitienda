@@ -25,6 +25,11 @@ export default function ProductDialog({
   onDelete, 
   onDeliver 
 }: ProductDialogProps) {
+  console.log('Producto recibido:', product)
+  console.log('Parámetros del producto:', {
+    tieneParametros: product.tieneParametros,
+    parametros: product.parametros
+  })
   const [mode, setMode] = useState<'view' | 'edit' | 'deliver'>('view')
   const [editedProduct, setEditedProduct] = useState<Producto>(product)
   const [newImage, setNewImage] = useState<File | null>(null)
