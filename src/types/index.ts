@@ -14,6 +14,11 @@ interface VentaDia {
   total: number
 }
 
+export interface Parametro {
+  nombre: string;
+  cantidad: number;
+}
+
 export interface Producto {
   id: string;
   nombre: string;
