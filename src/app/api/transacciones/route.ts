@@ -170,13 +170,13 @@ export async function GET(request: NextRequest) {
       FROM transacciones t
       LEFT JOIN productos p ON 
         CASE 
-          WHEN t.producto ~ '^[0-9]+(:.*)?$' 
-          THEN CAST(NULLIF(split_part(t.producto::text, ':', 1), '') AS INTEGER)
+          WHEN COALESCE(t.producto::text, '') ~ '^\d+(:.*)?$'
+          THEN CAST(NULLIF(split_part(COALESCE(t.producto::text, ''), ':', 1), '') AS INTEGER)
           ELSE NULL 
         END = p.id
       LEFT JOIN producto_parametros pp ON pp.producto_id = p.id
       WHERE ${productoId ? 
-        "CASE WHEN t.producto ~ '^[0-9]+(:.*)?$' THEN split_part(t.producto::text, ':', 1) = $1 ELSE false END" : 
+        "CASE WHEN COALESCE(t.producto::text, '') ~ '^\d+(:.*)?$' THEN split_part(COALESCE(t.producto::text, ''), ':', 1) = $1 ELSE false END" : 
         "t.hacia = $1 OR t.desde = $1"}
       GROUP BY t.id, t.producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, p.nombre, p.tiene_parametros
       ORDER BY t.fecha DESC
