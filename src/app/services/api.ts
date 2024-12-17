@@ -156,7 +156,11 @@ export const agregarProducto = async (formData: FormData) => {
 
 export const editarProducto = async (id: string, formData: FormData) => {
   try {
-    // Si hay parámetros, necesitamos asegurarnos de que se envíen correctamente
+    // Obtener y verificar tieneParametros
+    const tieneParametros = formData.get('tiene_parametros');
+    console.log('tieneParametros antes de enviar:', tieneParametros);
+
+    // Si hay parámetros, asegurarnos de que se envíen correctamente
     const parametrosRaw = formData.get('parametros');
     if (parametrosRaw) {
       // Asegurarnos de que los parámetros se envíen como string
@@ -164,15 +168,25 @@ export const editarProducto = async (id: string, formData: FormData) => {
       formData.set('parametros', JSON.stringify(parametros));
     }
 
+    // Log de todos los datos que se están enviando
+    const formDataObj: any = {};
+    formData.forEach((value, key) => {
+      formDataObj[key] = value;
+    });
+    console.log('Datos que se envían al servidor:', formDataObj);
+
     const response = await api.put(`/productos/${id}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
+
+    console.log('Respuesta del servidor:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error al editar producto:', error);
     if (axios.isAxiosError(error) && error.response) {
+      console.error('Respuesta de error del servidor:', error.response.data);
       throw new Error(error.response.data.message || 'Error al editar el producto');
     }
     throw new Error('Error al editar el producto');
