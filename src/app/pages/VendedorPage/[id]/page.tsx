@@ -116,6 +116,57 @@ const useVendedorData = (vendedorId: string) => {
   const [ventasDiarias, setVentasDiarias] = useState<VentaDia[]>([]);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
+  const [productosSeleccionados, setProductosSeleccionados] = useState<ProductoVenta[]>([]);
+  const [fecha, setFecha] = useState('');
+
+  const handleEnviarVenta = async () => {
+    if (productosSeleccionados.length === 0) {
+      alert('Por favor, seleccione al menos un producto.');
+      return;
+    }
+    if (!fecha) {
+      alert('Por favor, seleccione una fecha.');
+      return;
+    }
+  
+    try {
+      // Verificar autenticación actual
+      const user = await getCurrentUser();
+      if (!user || user.rol !== 'Vendedor' || user.id.toString() !== vendedorId.toString()) {
+        throw new Error('Sesión no válida');
+      }
+  
+      console.log('Iniciando proceso de venta para vendedor:', user.id);
+      console.log('Productos seleccionados:', productosSeleccionados);
+      console.log('Fecha seleccionada:', fecha);
+  
+      await Promise.all(productosSeleccionados.map(async producto => {
+        try {
+          const response = await realizarVenta(
+            producto.id, 
+            producto.cantidadVendida, 
+            fecha,
+            producto.parametrosVenta
+          );
+          console.log(`Venta realizada para producto ${producto.id}:`, response);
+          return response;
+        } catch (error) {
+          console.error(`Error en venta de producto ${producto.id}:`, error);
+          throw error;
+        }
+      }));
+  
+      setProductosSeleccionados([]);
+      setFecha('');
+      await fetchProductos();
+      await fetchVentasRegistro();
+      alert('Venta realizada con éxito');
+    } catch (error) {
+      console.error('Error al realizar la venta:', error);
+      setError(error instanceof Error ? error.message : 'Error de autenticación desconocido');
+      router.push('/pages/LoginPage');
+    }
+  };
 
   const agruparVentasPorDia = useCallback((ventas: Venta[]) => {
     const ventasDiarias: VentaDia[] = [];
@@ -294,7 +345,8 @@ const useVendedorData = (vendedorId: string) => {
     sortOrder,
     setSortOrder,
     sortBy,
-    setSortBy
+    setSortBy,
+    handleEnviarVenta
   }
 }
 
@@ -746,6 +798,7 @@ export default function VendedorPage() {
     setSortOrder,
     sortBy,
     setSortBy,
+    handleEnviarVenta
   } = useVendedorData(vendedorId)
 
   const [busqueda, setBusqueda] = useState('')
@@ -885,39 +938,8 @@ export default function VendedorPage() {
       return [...acc, p];
     }, [] as ProductoVenta[]))
   }
-
-  const handleEnviarVenta = async () => {
-    if (productosSeleccionados.length === 0) {
-      alert('Por favor, seleccione al menos un producto.');
-      return;
-    }
-    if (!fecha) {
-      alert('Por favor, seleccione una fecha.');
-      return;
-    }
   
-    try {
-      await Promise.all(productosSeleccionados.map(producto => {
-        return realizarVenta(
-          producto.id, 
-          producto.cantidadVendida, 
-          fecha,
-          producto.parametrosVenta
-        );
-      }));
   
-      setProductosSeleccionados([]);
-      setFecha('');
-      await fetchProductos();
-      await fetchVentasRegistro();
-      alert('Venta realizada con éxito');
-    } catch (error) {
-      console.error('Error al realizar la venta:', error);
-      alert('Error al realizar la venta');
-    }
-  };
-  
-
   const productosAgotadosFiltrados = productosAgotados.filter(p => 
     p.nombre.toLowerCase().includes(busqueda.toLowerCase())
   )
