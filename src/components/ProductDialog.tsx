@@ -28,8 +28,16 @@ export default function ProductDialog({
   const [mode, setMode] = useState<'view' | 'edit' | 'deliver'>('view')
   const [editedProduct, setEditedProduct] = useState<Producto>({
     ...product,
-    tieneParametros: product.tiene_parametros // Aseguramos la consistencia
+    tieneParametros: product.tiene_parametros,
+    tiene_parametros: product.tiene_parametros,
+    parametros: product.parametros || [] // Aseguramos que los parámetros se inicialicen correctamente
   })
+
+  useEffect(() => {
+    console.log('Product recibido:', product)
+    console.log('Estado editedProduct:', editedProduct)
+  }, [product, editedProduct])
+  
   const [newImage, setNewImage] = useState<File | null>(null)
   const [selectedVendedor, setSelectedVendedor] = useState<string | null>(null)
   const [deliveryQuantity, setDeliveryQuantity] = useState<number>(0)
@@ -200,7 +208,7 @@ export default function ProductDialog({
                 {editedProduct.tieneParametros ? (
                   <div className="space-y-4">
                     <Label>Parámetros</Label>
-                    {editedProduct.parametros?.map((param, index) => (
+                    {(editedProduct.parametros || []).map((param, index) => (
                       <div key={index} className="flex gap-2 items-center">
                         <Input
                           value={param.nombre}
@@ -297,7 +305,7 @@ export default function ProductDialog({
                 <div className="space-y-2">
                   <p className="text-lg font-medium">Precio: ${product.precio}</p>
                   
-                  {(product.tiene_parametros || product.tieneParametros) && product.parametros ? (
+                  {(product.tiene_parametros || product.tieneParametros) && product.parametros && product.parametros.length > 0 ? (
                     <div className="space-y-2">
                       <h4 className="font-medium text-sm text-gray-700">Parámetros:</h4>
                       <div className="grid grid-cols-2 gap-2">
@@ -318,6 +326,7 @@ export default function ProductDialog({
                   ) : (
                     <p className="text-gray-700">Cantidad disponible: {product.cantidad}</p>
                   )}
+
                 </div>
 
                 <div className="flex justify-between gap-2">
