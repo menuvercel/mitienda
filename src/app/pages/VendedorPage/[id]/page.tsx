@@ -238,28 +238,19 @@ const useVendedorData = (vendedorId: string) => {
   }, [vendedorId, agruparVentas, agruparVentasPorSemana, agruparVentasPorDia]);
   
 
-// En el componente que hace la llamada
-const fetchTransacciones = async () => {
-  try {
-    // Asegurarse de que el ID existe y no está vacío
-    if (!vendedorId || vendedorId.trim() === '') {
-      console.warn('ID de vendedor no válido');
-      setTransacciones([]);
-      return;
+  const fetchTransacciones = useCallback(async () => {
+    try {
+      if (!vendedorId) {
+        throw new Error('ID de vendedor no válido');
+      }
+      const data = await getTransaccionesVendedor(vendedorId);
+      setTransacciones(data);
+    } catch (error) {
+      console.error('Error al obtener transacciones:', error);
+      setError('No se pudieron cargar las transacciones. Por favor, intenta de nuevo.');
     }
-
-    const response = await fetch(`/api/transacciones?vendedorId=${encodeURIComponent(vendedorId)}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    setTransacciones(data);
-  } catch (error) {
-    console.error('Error al obtener transacciones:', error);
-    setTransacciones([]);
-  }
-};
-
+  }, [vendedorId]);
+  
 
   useEffect(() => {
     const checkAuth = async () => {
