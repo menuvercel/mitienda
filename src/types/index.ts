@@ -25,7 +25,8 @@ export interface Producto {
   precio: number;
   cantidad: number;
   foto?: string;
-  tieneParametros: boolean  // Asegúrate que este campo existe
+  tiene_parametros: boolean;  // Propiedad del backend
+  tieneParametros?: boolean;  // Propiedad del frontend
   parametros?: Parametro[] 
 }
 

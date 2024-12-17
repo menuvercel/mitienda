@@ -25,13 +25,11 @@ export default function ProductDialog({
   onDelete, 
   onDeliver 
 }: ProductDialogProps) {
-  console.log('Producto recibido:', product)
-  console.log('Parámetros del producto:', {
-    tieneParametros: product.tieneParametros,
-    parametros: product.parametros
-  })
   const [mode, setMode] = useState<'view' | 'edit' | 'deliver'>('view')
-  const [editedProduct, setEditedProduct] = useState<Producto>(product)
+  const [editedProduct, setEditedProduct] = useState<Producto>({
+    ...product,
+    tieneParametros: product.tiene_parametros // Aseguramos la consistencia
+  })
   const [newImage, setNewImage] = useState<File | null>(null)
   const [selectedVendedor, setSelectedVendedor] = useState<string | null>(null)
   const [deliveryQuantity, setDeliveryQuantity] = useState<number>(0)
@@ -82,23 +80,28 @@ export default function ProductDialog({
     setEditedProduct(prev => ({
       ...prev,
       tieneParametros: checked,
-      parametros: checked ? [{ nombre: '', cantidad: 0 }] : undefined
+      tiene_parametros: checked, // Mantener ambas propiedades sincronizadas
+      parametros: checked ? [{ nombre: '', cantidad: 0 }] : []
     }))
   }
 
   const handleEdit = async () => {
-    // Calcular cantidad total si tiene parámetros
-    if (editedProduct.tieneParametros && editedProduct.parametros) {
-      const cantidadTotal = editedProduct.parametros.reduce((sum, param) => sum + param.cantidad, 0)
-      editedProduct.cantidad = cantidadTotal
+    const updatedProduct = {
+      ...editedProduct,
+      tiene_parametros: editedProduct.tieneParametros, // Asegurar consistencia
     }
-    await onEdit(editedProduct, newImage)
+
+    if (updatedProduct.tieneParametros && updatedProduct.parametros) {
+      updatedProduct.cantidad = updatedProduct.parametros.reduce((sum, param) => sum + param.cantidad, 0)
+    }
+
+    await onEdit(updatedProduct, newImage)
     setMode('view')
     setNewImage(null)
   }
 
   const handleDeliver = async () => {
-    if (selectedVendedor && deliveryQuantity > 0 && deliveryQuantity <= product.cantidad) {
+    if (selectedVendedor && deliveryQuantity > 0 && deliveryQuantity <= getTotalCantidad()) {
       try {
         await onDeliver(product.id, selectedVendedor, deliveryQuantity)
         alert(`Se entregaron ${deliveryQuantity} unidades al vendedor seleccionado`)
@@ -116,7 +119,7 @@ export default function ProductDialog({
 
   const handleDelete = async () => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
-      await onDelete(product.id, '', product.cantidad)
+      await onDelete(product.id, '', getTotalCantidad())
       onClose()
     }
   }
@@ -126,7 +129,7 @@ export default function ProductDialog({
   }
 
   const getTotalCantidad = () => {
-    if (product.tieneParametros && product.parametros) {
+    if ((product.tiene_parametros || product.tieneParametros) && product.parametros) {
       return product.parametros.reduce((sum, param) => sum + param.cantidad, 0)
     }
     return product.cantidad
@@ -282,7 +285,7 @@ export default function ProductDialog({
                 <div className="space-y-2">
                   <p className="text-lg font-medium">Precio: ${product.precio}</p>
                   
-                  {product.tieneParametros && product.parametros ? (
+                  {(product.tiene_parametros || product.tieneParametros) && product.parametros ? (
                     <div className="space-y-2">
                       <h4 className="font-medium text-sm text-gray-700">Parámetros:</h4>
                       <div className="grid grid-cols-2 gap-2">
