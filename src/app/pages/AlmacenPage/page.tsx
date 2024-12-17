@@ -471,12 +471,23 @@ export default function AlmacenPage() {
       formData.append('nombre', editedProduct.nombre)
       formData.append('precio', editedProduct.precio.toString())
       formData.append('cantidad', editedProduct.cantidad.toString())
+      formData.append('tiene_parametros', editedProduct.tiene_parametros.toString())
+      
+      // Agregar los parámetros si existen
+      if (editedProduct.parametros) {
+        formData.append('parametros', JSON.stringify(editedProduct.parametros))
+      }
       
       if (foto) {
         formData.append('foto', foto)
       } else if (editedProduct.foto) {
         formData.append('fotoUrl', editedProduct.foto)
       }
+  
+      console.log('Enviando datos al servidor:', {
+        ...Object.fromEntries(formData),
+        parametros: editedProduct.parametros
+      })
   
       await editarProducto(editedProduct.id, formData)
       await fetchInventario()
@@ -486,6 +497,7 @@ export default function AlmacenPage() {
       alert('Error al editar el producto. Por favor, inténtelo de nuevo.')
     }
   }
+  
 
   const handleReduceVendorProduct = async (productId: string, vendorId: string, cantidad: number) => {
     try {
