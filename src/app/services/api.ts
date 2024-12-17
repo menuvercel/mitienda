@@ -8,32 +8,19 @@ const api = axios.create({
   withCredentials: true
 });
 
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    console.log('Token en interceptor:', token);
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      console.log('Sesión expirada o token inválido');
       localStorage.removeItem('token');
-      window.location.href = '/pages/LoginPage';
+      if (typeof window !== 'undefined') {
+        window.location.href = '/pages/LoginPage';
+      }
     }
     return Promise.reject(error);
   }
 );
-
-
 interface User {
   id: string;
   nombre: string;
@@ -83,35 +70,23 @@ export const getCurrentUser = async (): Promise<User> => {
 
 export const login = async (nombre: string, password: string): Promise<User> => {
   try {
-    console.log('Iniciando login para:', nombre);
     const response = await api.post('/auth/login', { nombre, password });
-    console.log('Respuesta del servidor:', response.data);
-
-    if (response.data && response.data.token) {
-      // Guarda el token
+    if (response.data.token) {
       localStorage.setItem('token', response.data.token);
-      
-      // Verifica inmediatamente que se guardó
-      const savedToken = localStorage.getItem('token');
-      console.log('Token guardado:', savedToken);
-      
-      // Configura el token en axios
       api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
-      
       return response.data;
     } else {
-      console.error('No se recibió token en la respuesta:', response.data);
       throw new Error('No se recibió el token de autenticación');
     }
   } catch (error) {
-    console.error('Error completo en login:', error);
     if (axios.isAxiosError(error)) {
-      console.error('Detalles del error:', error.response?.data);
+      console.error('Error en la solicitud de login:', error.response?.data || error.message);
+    } else {
+      console.error('Error en la solicitud de login:', error);
     }
     throw new Error('Error de autenticación. Por favor, verifica tus credenciales e intenta de nuevo.');
   }
 };
-
 
 
 export const logout = async (): Promise<void> => {
@@ -284,10 +259,10 @@ export const crearBajaTransaccion = async (productoId: string, vendedorId: strin
 };
 
 export const realizarVenta = async (
-  productoId: string,
-  cantidad: number,
+  productoId: string, 
+  cantidad: number, 
   fecha: string,
-  parametrosVenta?: { nombre: string; cantidad: number }[]
+  parametrosVenta?: { nombre: string; cantidad: number; }[]
 ) => {
   try {
     const token = localStorage.getItem('token');
@@ -295,26 +270,30 @@ export const realizarVenta = async (
       throw new Error('No hay sesión activa');
     }
 
-    console.log('Realizando venta con token:', token);
-    const response = await api.post('/ventas', {
-      productoId,
-      cantidad,
-      fecha,
+    const fechaAjustada = new Date(fecha + 'T12:00:00');
+    const fechaISO = fechaAjustada.toISOString();
+
+    // Removemos el header de autorización extra ya que el interceptor lo maneja
+    const response = await api.post('/ventas', { 
+      productoId, 
+      cantidad, 
+      fecha: fechaISO,
       parametrosVenta
     });
-
+    
     return response.data;
-  } catch (error) {
-    console.error('Error en realizarVenta:', error);
-    throw error;
+  } catch (error: unknown) {
+    console.error('Error al realizar la venta:', error);
+    
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token'); // Limpiamos el token si está expirado
+        throw new Error('Sesión expirada. Por favor, inicie sesión nuevamente.');
+      }
+      throw new Error(error.response?.data?.message || 'No se pudo realizar la venta');
+    }
+    throw new Error('No se pudo realizar la venta');
   }
-};
-
-
-export const verificarSesionActiva = (): boolean => {
-  const token = localStorage.getItem('token');
-  console.log('Verificando sesión - Token presente:', !!token);
-  return !!token;
 };
 
 
