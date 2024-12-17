@@ -126,108 +126,93 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
-  const decoded = verifyToken(token) as DecodedToken | null;
-
-  if (!decoded) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(request.url);
-  const vendedorId = searchParams.get('vendedorId');
-  const productoId = searchParams.get('productoId');
-
-  // Validación adicional para asegurarse de que los IDs son números válidos
-  if ((!vendedorId || vendedorId.trim() === '') && (!productoId || productoId.trim() === '')) {
-    return NextResponse.json({ error: 'Se requiere vendedorId o productoId válido' }, { status: 400 });
-  }
-
-  // Validar que los IDs son números
-  if (vendedorId && !/^\d+$/.test(vendedorId)) {
-    return NextResponse.json({ error: 'vendedorId debe ser un número' }, { status: 400 });
-  }
-
-  if (productoId && !/^\d+$/.test(productoId)) {
-    return NextResponse.json({ error: 'productoId debe ser un número' }, { status: 400 });
-  }
-
   try {
-    const query_text = `
+    const token = request.cookies.get('token')?.value;
+    const decoded = verifyToken(token) as DecodedToken | null;
+
+    if (!decoded) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+    
+
+    const { searchParams } = new URL(request.url);
+
+    console.log('Query params:', {
+      vendedorId: searchParams.get('vendedorId'),
+      productoId: searchParams.get('productoId'),
+      url: request.url // Agregamos la URL completa para más contexto
+    });
+
+    let vendedorId = searchParams.get('vendedorId');
+    let productoId = searchParams.get('productoId');
+
+    // Validación estricta de IDs
+    if (vendedorId === '') vendedorId = null;
+    if (productoId === '') productoId = null;
+
+    // Si no hay ningún ID válido, retornar error
+    if (!vendedorId && !productoId) {
+      return NextResponse.json({ 
+        error: 'Se requiere un vendedorId o productoId válido' 
+      }, { status: 400 });
+    }
+
+    // Construir la consulta de manera segura
+    let query_text = `
       SELECT 
         t.id,
-        COALESCE(t.producto, '') as producto,
-        COALESCE(t.cantidad, 0) as cantidad,
-        COALESCE(t.tipo, '') as tipo,
-        COALESCE(t.desde, '') as desde,
-        COALESCE(t.hacia, '') as hacia,
-        COALESCE(t.fecha, NOW()) as fecha,
-        COALESCE(p.nombre, 'Producto Desconocido') as producto_nombre,
-        COALESCE(p.tiene_parametros, false) as tiene_parametros,
-        COALESCE(array_agg(pp.nombre) FILTER (WHERE pp.nombre IS NOT NULL), ARRAY[]::text[]) as nombres_parametros
+        t.producto,
+        t.cantidad,
+        t.tipo,
+        t.desde,
+        t.hacia,
+        t.fecha,
+        p.nombre as producto_nombre,
+        p.tiene_parametros,
+        array_agg(pp.nombre) FILTER (WHERE pp.nombre IS NOT NULL) as nombres_parametros
       FROM transacciones t
-      LEFT JOIN productos p ON CAST(split_part(t.producto::text, ':', 1) AS INTEGER) = p.id
+      LEFT JOIN productos p ON CAST(NULLIF(split_part(t.producto::text, ':', 1), '') AS INTEGER) = p.id
       LEFT JOIN producto_parametros pp ON pp.producto_id = p.id
-      WHERE ${productoId ? "split_part(t.producto::text, ':', 1) = $1" : "t.hacia = $1 OR t.desde = $1"}
+    `;
+
+    const params: any[] = [];
+    
+    if (productoId) {
+      query_text += ` WHERE NULLIF(split_part(t.producto::text, ':', 1), '') = $1`;
+      params.push(productoId);
+    } else if (vendedorId) {
+      query_text += ` WHERE (t.hacia = $1 OR t.desde = $1)`;
+      params.push(vendedorId);
+    }
+
+    query_text += `
       GROUP BY t.id, t.producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, p.nombre, p.tiene_parametros
       ORDER BY t.fecha DESC
     `;
 
-    // Usar el ID validado
-    const paramValue = productoId || vendedorId;
-    if (!paramValue) {
-      throw new Error('No se proporcionó un ID válido');
-    }
+    const result = await query(query_text, params);
 
-    const result = await query(query_text, [paramValue]);
-
-    if (!result.rows || result.rows.length === 0) {
+    if (!result.rows) {
       return NextResponse.json([]);
     }
 
-    const transformedRows = result.rows.map(row => {
-      const productoStr = String(row.producto || '');
-      const [productId = '', parametrosValores = ''] = productoStr.split(':');
-      
-      let nombreCompleto = String(row.producto_nombre || 'Producto Desconocido');
-      
-      const parametrosArray = Array.isArray(row.nombres_parametros) ? 
-        row.nombres_parametros.filter(Boolean) : [];
-      
-      if (row.tiene_parametros && parametrosValores) {
-        const valoresArray = parametrosValores.split(',').filter(Boolean);
-        
-        const parametrosFormateados = parametrosArray
-          .map((nombre: string, index: number) => {
-            if (!nombre) return '';
-            const valor = valoresArray[index] || 'N/A';
-            return `${nombre}: ${valor}`;
-          })
-          .filter(Boolean)
-          .join(', ');
-        
-        if (parametrosFormateados) {
-          nombreCompleto += ` (${parametrosFormateados})`;
-        }
-      }
-
-      return {
-        id: Number(row.id) || 0,
-        producto_id: String(productId || ''),
-        nombre: nombreCompleto,
-        cantidad: Number(row.cantidad) || 0,
-        tipo: String(row.tipo || ''),
-        desde: String(row.desde || ''),
-        hacia: String(row.hacia || ''),
-        fecha: row.fecha ? new Date(row.fecha) : new Date()
-      };
-    });
+    const transformedRows = result.rows.map(row => ({
+      id: Number(row.id) || 0,
+      producto_id: row.producto ? String(row.producto).split(':')[0] : '',
+      nombre: row.producto_nombre || 'Producto Desconocido',
+      cantidad: Number(row.cantidad) || 0,
+      tipo: row.tipo || '',
+      desde: row.desde || '',
+      hacia: row.hacia || '',
+      fecha: row.fecha ? new Date(row.fecha) : new Date()
+    }));
 
     return NextResponse.json(transformedRows);
 
   } catch (error) {
     console.error('Error detallado al obtener transacciones:', error);
     return NextResponse.json({ 
-      error: 'Error al obtener transacciones', 
+      error: 'Error al obtener transacciones',
       details: error instanceof Error ? error.message : String(error)
     }, { status: 500 });
   }
