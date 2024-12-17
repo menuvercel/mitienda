@@ -37,7 +37,6 @@ export async function GET(request: NextRequest) {
                'producto_id', v.producto,
                'cantidad', v.cantidad,
                'total', v.total,
-               'parametros', v.parametros,
                'fecha', v.fecha
              )
            ) FILTER (WHERE v.id IS NOT NULL) as detalles_ventas
@@ -72,7 +71,6 @@ export async function GET(request: NextRequest) {
                'producto_id', v.producto,
                'cantidad', v.cantidad,
                'total', v.total,
-               'parametros', v.parametros,
                'fecha', v.fecha
              )
            ) FILTER (WHERE v.id IS NOT NULL) as detalles_ventas

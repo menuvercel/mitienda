@@ -32,8 +32,7 @@ export async function GET(request: NextRequest) {
                'id', v.id,
                'producto_id', v.producto,
                'cantidad', v.cantidad,
-               'total', v.total,
-               'parametros', v.parametros
+               'total', v.total
              )
            ) FILTER (WHERE v.id IS NOT NULL) as detalles_ventas
          FROM usuarios u
