@@ -139,67 +139,52 @@ export async function GET(request: NextRequest) {
 
   try {
     let result;
-    if (productoId) {
-      // Consulta para producto específico
-      result = await query(
-        `SELECT 
-           t.id,
-           t.producto,
-           t.cantidad,
-           t.tipo,
-           t.desde,
-           t.hacia,
-           t.fecha,
-           p.nombre as producto_nombre,
-           p.tiene_parametros,
-           array_agg(DISTINCT pp.nombre) as nombres_parametros
-         FROM transacciones t
-         LEFT JOIN productos p ON CAST(split_part(t.producto::text, ':', 1) AS INTEGER) = p.id
-         LEFT JOIN producto_parametros pp ON pp.producto_id = p.id
-         WHERE split_part(t.producto::text, ':', 1) = $1
-         GROUP BY t.id, t.producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, p.nombre, p.tiene_parametros
-         ORDER BY t.fecha DESC`,
-        [productoId]
-      );
-    } else {
-      // Consulta para vendedor específico
-      result = await query(
-        `SELECT 
-           t.id,
-           t.producto,
-           t.cantidad,
-           t.tipo,
-           t.desde,
-           t.hacia,
-           t.fecha,
-           p.nombre as producto_nombre,
-           p.tiene_parametros,
-           array_agg(DISTINCT pp.nombre) as nombres_parametros
-         FROM transacciones t
-         LEFT JOIN productos p ON CAST(split_part(t.producto::text, ':', 1) AS INTEGER) = p.id
-         LEFT JOIN producto_parametros pp ON pp.producto_id = p.id
-         WHERE t.hacia = $1 OR t.desde = $1
-         GROUP BY t.id, t.producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, p.nombre, p.tiene_parametros
-         ORDER BY t.fecha DESC`,
-        [vendedorId]
-      );
-    }
+    const query_text = `
+      SELECT 
+        t.id,
+        t.producto,
+        t.cantidad,
+        t.tipo,
+        t.desde,
+        t.hacia,
+        t.fecha,
+        p.nombre as producto_nombre,
+        p.tiene_parametros,
+        COALESCE(array_agg(pp.nombre) FILTER (WHERE pp.nombre IS NOT NULL), ARRAY[]::text[]) as nombres_parametros
+      FROM transacciones t
+      LEFT JOIN productos p ON CAST(split_part(t.producto::text, ':', 1) AS INTEGER) = p.id
+      LEFT JOIN producto_parametros pp ON pp.producto_id = p.id
+      WHERE ${productoId ? "split_part(t.producto::text, ':', 1) = $1" : "t.hacia = $1 OR t.desde = $1"}
+      GROUP BY t.id, t.producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, p.nombre, p.tiene_parametros
+      ORDER BY t.fecha DESC
+    `;
+
+    result = await query(query_text, [productoId || vendedorId]);
 
     console.log('Resultados de la consulta:', result.rows);
 
     // Transformar los resultados
     const transformedRows = result.rows.map(row => {
-      const [productId, parametrosValores] = (row.producto || '').toString().split(':');
+      // Asegurarse de que producto es una cadena y manejar el caso donde es null
+      const productoStr = (row.producto || '').toString();
+      const [productId = '', parametrosValores = ''] = productoStr.split(':');
       
       let nombreCompleto = row.producto_nombre || 'Producto Desconocido';
       
-      // Si el producto tiene parámetros y hay valores de parámetros
+      // Asegurarse de que nombres_parametros es un array
+      const parametrosArray = Array.isArray(row.nombres_parametros) ? row.nombres_parametros : [];
+      
+      // Solo procesar parámetros si el producto los tiene y hay valores
       if (row.tiene_parametros && parametrosValores) {
         const valoresArray = parametrosValores.split(',');
-        const parametrosArray = row.nombres_parametros || [];
         
         const parametrosFormateados = parametrosArray
-          .map((nombre: string, index: number) => `${nombre}: ${valoresArray[index] || 'N/A'}`)
+          .map((nombre: string, index: number) => {
+            const nombreParam = String(nombre || '');
+            const valor = valoresArray[index] || 'N/A';
+            return `${nombreParam}: ${valor}`;
+          })
+          .filter((param: string): boolean => Boolean(param)) // Eliminar elementos vacíos
           .join(', ');
         
         if (parametrosFormateados) {
@@ -208,14 +193,14 @@ export async function GET(request: NextRequest) {
       }
 
       return {
-        id: row.id,
-        producto_id: productId,
+        id: row.id || 0,
+        producto_id: productId || '',
         nombre: nombreCompleto,
-        cantidad: row.cantidad,
-        tipo: row.tipo,
-        desde: row.desde,
-        hacia: row.hacia,
-        fecha: row.fecha
+        cantidad: row.cantidad || 0,
+        tipo: row.tipo || '',
+        desde: row.desde || '',
+        hacia: row.hacia || '',
+        fecha: row.fecha || new Date()
       };
     });
 
@@ -224,17 +209,9 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error detallado al obtener transacciones:', error);
-    if (error instanceof Error) {
-      return NextResponse.json({ 
-        error: 'Error al obtener transacciones', 
-        details: error.message,
-        stack: error.stack
-      }, { status: 500 });
-    } else {
-      return NextResponse.json({ 
-        error: 'Error desconocido al obtener transacciones',
-        details: String(error)
-      }, { status: 500 });
-    }
+    return NextResponse.json({ 
+      error: 'Error al obtener transacciones', 
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
