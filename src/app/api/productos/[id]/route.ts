@@ -154,31 +154,29 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         await query('BEGIN');
 
         try {
-            // 1. Guardar información del producto antes de eliminarlo
+            // 1. Verificar si el producto existe
             const producto = await query(
                 'SELECT * FROM productos WHERE id = $1',
                 [id]
             );
 
             if (producto.rows.length === 0) {
+                await query('ROLLBACK');
                 return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
             }
 
-            // 2. Eliminar todas las transacciones relacionadas
-            await query('DELETE FROM transacciones WHERE producto = $1', [id]);
-
-            // 3. Si tienes una tabla de parámetros, eliminarlos
+            // 2. Eliminar los parámetros asociados si existen
             if (producto.rows[0].tiene_parametros) {
-                await query('DELETE FROM producto_parametros WHERE producto = $1', [id]);
+                await query('DELETE FROM producto_parametros WHERE producto_id = $1', [id]);
             }
 
-            // 4. Eliminar el producto
+            // 3. Eliminar el producto
             await query('DELETE FROM productos WHERE id = $1', [id]);
 
             await query('COMMIT');
 
             return NextResponse.json({ 
-                message: 'Producto y sus transacciones eliminados exitosamente',
+                message: 'Producto y sus parámetros eliminados exitosamente',
                 deletedProduct: producto.rows[0]
             });
         } catch (error) {
@@ -194,6 +192,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         }, { status: 500 });
     }
 }
+
 
 
 
