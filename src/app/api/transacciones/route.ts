@@ -137,62 +137,81 @@ export async function GET(request: NextRequest) {
   const vendedorId = searchParams.get('vendedorId');
   const productoId = searchParams.get('productoId');
 
-  if (!vendedorId && !productoId) {
-    return NextResponse.json({ error: 'Se requiere el ID del vendedor o el ID del producto' }, { status: 400 });
-  }
+  console.log('Parámetros de búsqueda:', { vendedorId, productoId });
 
   try {
     let result;
     if (productoId) {
+      // Consulta para producto específico
       result = await query(
         `SELECT 
-           t.id, 
-           CASE 
-             WHEN t.producto LIKE $1::text || ':%' THEN 
-               p.nombre || ' - ' || split_part(t.producto, ':', 2)
-             ELSE p.nombre 
-           END as producto,
-           t.cantidad, 
-           t.tipo, 
-           t.desde, 
-           t.hacia, 
-           t.fecha, 
-           p.precio
-         FROM transacciones t 
-         JOIN productos p ON split_part(t.producto, ':', 1)::integer = p.id 
-         WHERE split_part(t.producto, ':', 1)::integer = $1
+           t.id,
+           t.producto,
+           t.cantidad,
+           t.tipo,
+           t.desde,
+           t.hacia,
+           t.fecha,
+           p.nombre as producto_nombre
+         FROM transacciones t
+         LEFT JOIN productos p ON CAST(split_part(t.producto, ':', 1) AS INTEGER) = p.id
+         WHERE split_part(t.producto, ':', 1) = $1
          ORDER BY t.fecha DESC`,
         [productoId]
       );
     } else {
+      // Consulta para vendedor específico
       result = await query(
         `SELECT 
-           t.id, 
-           CASE 
-             WHEN t.producto LIKE '%:%' THEN 
-               p.nombre || ' - ' || split_part(t.producto, ':', 2)
-             ELSE p.nombre 
-           END as producto,
-           t.cantidad, 
-           t.tipo, 
-           t.desde, 
-           t.hacia, 
-           t.fecha, 
-           p.precio
-         FROM transacciones t 
-         JOIN productos p ON split_part(t.producto, ':', 1)::integer = p.id 
+           t.id,
+           t.producto,
+           t.cantidad,
+           t.tipo,
+           t.desde,
+           t.hacia,
+           t.fecha,
+           p.nombre as producto_nombre
+         FROM transacciones t
+         LEFT JOIN productos p ON CAST(split_part(t.producto, ':', 1) AS INTEGER) = p.id
          WHERE t.hacia = $1 OR t.desde = $1
          ORDER BY t.fecha DESC`,
         [vendedorId]
       );
     }
-    return NextResponse.json(result.rows);
+
+    console.log('Resultados de la consulta:', result.rows);
+
+    // Transformar los resultados
+    const transformedRows = result.rows.map(row => ({
+      id: row.id,
+      producto: row.producto.includes(':') 
+        ? `${row.producto_nombre || 'Producto Desconocido'} - ${row.producto.split(':')[1]}`
+        : row.producto_nombre || 'Producto Desconocido',
+      cantidad: row.cantidad,
+      tipo: row.tipo,
+      desde: row.desde,
+      hacia: row.hacia,
+      fecha: row.fecha
+    }));
+
+    console.log('Datos transformados:', transformedRows);
+    return NextResponse.json(transformedRows);
+
   } catch (error) {
-    console.error('Error al obtener transacciones:', error);
+    console.error('Error detallado al obtener transacciones:', error);
     if (error instanceof Error) {
-      return NextResponse.json({ error: 'Error al obtener transacciones', details: error.message }, { status: 500 });
+      return NextResponse.json({ 
+        error: 'Error al obtener transacciones', 
+        details: error.message,
+        stack: error.stack
+      }, { status: 500 });
     } else {
-      return NextResponse.json({ error: 'Error desconocido al obtener transacciones' }, { status: 500 });
+      return NextResponse.json({ 
+        error: 'Error desconocido al obtener transacciones',
+        details: String(error)
+      }, { status: 500 });
     }
   }
 }
+
+
