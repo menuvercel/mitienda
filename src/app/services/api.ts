@@ -256,21 +256,39 @@ export const realizarVenta = async (
   parametrosVenta?: { nombre: string; cantidad: number; }[]
 ) => {
   try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No hay sesión activa');
+    }
+
     const fechaAjustada = new Date(fecha + 'T12:00:00');
     const fechaISO = fechaAjustada.toISOString();
 
-    const response = await api.post('/ventas', { 
-      productoId, 
-      cantidad, 
-      fecha: fechaISO,
-      parametrosVenta // incluir los parámetros en la petición
-    });
+    const response = await api.post('/ventas', 
+      { 
+        productoId, 
+        cantidad, 
+        fecha: fechaISO,
+        parametrosVenta
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
     return response.data;
-  } catch (error) {
+  } catch (error:any) {
     console.error('Error al realizar la venta:', error);
+    if (error.response?.status === 401) {
+      throw new Error('Sesión expirada. Por favor, inicie sesión nuevamente.');
+    }
     throw new Error('No se pudo realizar la venta');
   }
 };
+
 
 
 export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
