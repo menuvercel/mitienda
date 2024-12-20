@@ -95,11 +95,29 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
 // En el componente VendorDialog
 const handleDeleteSale = async (saleId: string) => {
   try {
-    // Añadir el vendedorId del vendedor actual
-    await onDeleteSale(saleId, vendor.id) // vendor.id es el ID del vendedor actual
+    await onDeleteSale(saleId, vendor.id)
     
-    // Actualizar el estado local
+    // Actualizar ventasLocales
     setVentasLocales(prevVentas => prevVentas.filter(v => v.id !== saleId))
+    
+    // Actualizar ventasDiariasLocales
+    setVentasDiariasLocales(prevVentasDiarias => 
+      prevVentasDiarias.map(ventaDia => ({
+        ...ventaDia,
+        ventas: ventaDia.ventas.filter(v => v.id !== saleId),
+        total: ventaDia.ventas
+          .filter(v => v.id !== saleId)
+          .reduce((sum, v) => sum + parseFloat(v.total.toString()), 0)
+      })).filter(ventaDia => ventaDia.ventas.length > 0)
+    )
+
+    // Recalcular ventas semanales
+    const nuevasVentasLocales = ventasLocales.filter(v => v.id !== saleId)
+    const nuevasVentasSemanales = agruparVentasPorSemana(nuevasVentasLocales)
+    setVentasSemanales(nuevasVentasSemanales)
+
+    // Recalcular ventas específicas
+    calcularVentasEspecificas()
     
     toast({
       title: "Éxito",
@@ -114,6 +132,7 @@ const handleDeleteSale = async (saleId: string) => {
     })
   }
 }
+
 
 
 
@@ -255,7 +274,7 @@ const calcularVentasEspecificas = useCallback(() => {
     return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
   }
 
-  const VentaDiaDesplegable = ({ venta, onVentaDeleted }: { venta: VentaDia, onVentaDeleted: () => void }) => {
+  const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
     const [isOpen, setIsOpen] = useState(false)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [saleToDelete, setSaleToDelete] = useState<string | null>(null)
@@ -271,8 +290,6 @@ const calcularVentasEspecificas = useCallback(() => {
           await handleDeleteSale(saleToDelete)
           setDeleteDialogOpen(false)
           setSaleToDelete(null)
-          // Llamar a la función de actualización
-          onVentaDeleted()
         } catch (error) {
           console.error('Error al eliminar la venta:', error)
           toast({
@@ -406,7 +423,6 @@ const calcularVentasEspecificas = useCallback(() => {
                           ventas: ventasDia, 
                           total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
                         }} 
-                        onVentaDeleted={actualizarDatosVentas} // Añade esta línea
                       />
                     )
                   }
@@ -564,7 +580,6 @@ const calcularVentasEspecificas = useCallback(() => {
                 <VentaDiaDesplegable 
                   key={venta.fecha} 
                   venta={venta} 
-                  onVentaDeleted={actualizarDatosVentas}
                 />
               ))
             ) : (
@@ -683,6 +698,7 @@ const calcularVentasEspecificas = useCallback(() => {
   useEffect(() => {
     setVentasSemanales(agruparVentasPorSemana(ventasLocales))
   }, [ventasLocales, agruparVentasPorSemana])
+  
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
