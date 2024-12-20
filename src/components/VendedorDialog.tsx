@@ -22,7 +22,7 @@ interface VendorDialogProps {
   ventasSemanales: VentaSemana[]
   ventasDiarias: VentaDia[]
   onProductReduce: (productId: string, vendorId: string, cantidad: number) => Promise<void>
-  onDeleteSale: (saleId: string) => Promise<void>
+  onDeleteSale: (saleId: string, vendedorId: string) => Promise<void>
 }
 
 interface VentaSemana {
@@ -92,26 +92,29 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }, [ventasLocales, ventasDiariasLocales])
 
 
-  const handleDeleteSale = async (saleId: string) => {
-    try {
-      await onDeleteSale(saleId)
-      
-      // Actualizar el estado local
-      setVentasLocales(prevVentas => prevVentas.filter(v => v.id !== saleId))
-      
-      toast({
-        title: "Éxito",
-        description: "La venta se ha eliminado correctamente.",
-      })
-    } catch (error) {
-      console.error('Error al eliminar la venta:', error)
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
-        variant: "destructive",
-      })
-    }
+// En el componente VendorDialog
+const handleDeleteSale = async (saleId: string) => {
+  try {
+    // Añadir el vendedorId del vendedor actual
+    await onDeleteSale(saleId, vendor.id) // vendor.id es el ID del vendedor actual
+    
+    // Actualizar el estado local
+    setVentasLocales(prevVentas => prevVentas.filter(v => v.id !== saleId))
+    
+    toast({
+      title: "Éxito",
+      description: "La venta se ha eliminado correctamente.",
+    })
+  } catch (error) {
+    console.error('Error al eliminar la venta:', error)
+    toast({
+      title: "Error",
+      description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
+      variant: "destructive",
+    })
   }
+}
+
 
 
 const calcularVentasEspecificas = useCallback(() => {

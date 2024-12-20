@@ -398,13 +398,17 @@ export const getVentasProducto = async (productoId: string, startDate: string, e
 
 //ultimo edit
 
-export const deleteSale = async (saleId: string): Promise<void> => {
+export const deleteSale = async (saleId: string, vendedorId: string): Promise<void> => {
   if (!saleId) {
     throw new Error('El ID de la venta es requerido');
   }
+
+  if (!vendedorId) {
+    throw new Error('El ID del vendedor es requerido');
+  }
   
   try {
-    await api.delete(`/ventas/${saleId}`);
+    await api.delete(`/ventas/${saleId}?vendedorId=${vendedorId}`);
   } catch (error) {
     console.error('Error al eliminar la venta:', error);
     throw new Error('No se pudo eliminar la venta');
