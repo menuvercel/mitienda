@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
-
 export async function PUT(request: NextRequest) {
     try {
-
         const body = await request.json();
         const { productoId, vendedorId, cantidad, parametros } = body;
 
@@ -56,57 +54,62 @@ export async function PUT(request: NextRequest) {
                 }
             }
 
-            // Actualizar cantidad principal
+            // Actualizar cantidad principal del vendedor
             await query(
                 'UPDATE usuario_productos SET cantidad = cantidad - $1 WHERE usuario_id = $2 AND producto_id = $3',
-                  [cantidad, vendedorId, productoId]
-                );
-    
-                // Actualizar cantidad en almacén
-                await query(
-                    'UPDATE productos SET cantidad = cantidad + $1 WHERE id = $2',
-                    [cantidad, productoId]
-                );
-    
-                await query('COMMIT');
-    
-                // Obtener datos actualizados
-                const updatedData = await query(`
-                    SELECT 
-                        up.producto_id as id,
-                        p.nombre,
-                        p.precio,
-                        up.cantidad,
-                        p.foto,
-                        p.tiene_parametros,
-                        COALESCE(
-                            json_agg(
-                                json_build_object(
-                                    'nombre', upp.nombre,
-                                    'cantidad', upp.cantidad
-                                )
-                            ) FILTER (WHERE upp.id IS NOT NULL),
-                            '[]'::json
-                        ) as parametros
-                    FROM usuario_productos up
-                    JOIN productos p ON up.producto_id = p.id
-                    LEFT JOIN usuario_producto_parametros upp ON up.producto_id = upp.producto_id AND up.usuario_id = upp.usuario_id
-                    WHERE up.usuario_id = $1 AND up.producto_id = $2
-                    GROUP BY up.producto_id, p.nombre, p.precio, up.cantidad, p.foto, p.tiene_parametros
-                `, [vendedorId, productoId]);
-    
-                return NextResponse.json(updatedData.rows[0]);
-            } catch (error) {
-                await query('ROLLBACK');
-                console.error('Error en la transacción:', error);
-                return NextResponse.json({ 
-                    error: 'Error al procesar la reducción', 
-                    details: (error as Error).message 
-                }, { status: 400 });
-            }
+                [cantidad, vendedorId, productoId]
+            );
+
+            // Actualizar cantidad en almacén
+            await query(
+                'UPDATE productos SET cantidad = cantidad + $1 WHERE id = $2',
+                [cantidad, productoId]
+            );
+
+            // Registrar transacción de tipo "Baja"
+            await query(
+                'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6)',
+                [productoId, cantidad, 'Baja', vendedorId, null, new Date()]
+            );
+
+            await query('COMMIT');
+
+            // Obtener datos actualizados
+            const updatedData = await query(`
+                SELECT 
+                    up.producto_id as id,
+                    p.nombre,
+                    p.precio,
+                    up.cantidad,
+                    p.foto,
+                    p.tiene_parametros,
+                    COALESCE(
+                        json_agg(
+                            json_build_object(
+                                'nombre', upp.nombre,
+                                'cantidad', upp.cantidad
+                            )
+                        ) FILTER (WHERE upp.id IS NOT NULL),
+                        '[]'::json
+                    ) as parametros
+                FROM usuario_productos up
+                JOIN productos p ON up.producto_id = p.id
+                LEFT JOIN usuario_producto_parametros upp ON up.producto_id = upp.producto_id AND up.usuario_id = upp.usuario_id
+                WHERE up.usuario_id = $1 AND up.producto_id = $2
+                GROUP BY up.producto_id, p.nombre, p.precio, up.cantidad, p.foto, p.tiene_parametros
+            `, [vendedorId, productoId]);
+
+            return NextResponse.json(updatedData.rows[0]);
         } catch (error) {
-            console.error('Error en la ruta de reducción:', error);
-            return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+            await query('ROLLBACK');
+            console.error('Error en la transacción:', error);
+            return NextResponse.json({ 
+                error: 'Error al procesar la reducción', 
+                details: (error as Error).message 
+            }, { status: 400 });
         }
+    } catch (error) {
+        console.error('Error en la ruta de reducción:', error);
+        return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
     }
-    
+}
