@@ -27,12 +27,14 @@ import {
   getTransaccionesVendedor,
   editarVendedor,
   eliminarProducto,
-  deleteSale
+  deleteSale,
+  createMerma,
+  getMermas
 } from '../../services/api'
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
 import SalesSection from '@/components/SalesSection'
-import { Producto, Vendedor, Venta, Transaccion } from '@/types'
+import { Producto, Vendedor, Venta, Transaccion, Merma } from '@/types'
 import { toast } from "@/hooks/use-toast";
 
 interface VentaSemana {
@@ -159,6 +161,24 @@ export default function AlmacenPage() {
   const [productSearchTerm, setProductSearchTerm] = useState("")
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
+  const [activeProductTab, setActiveProductTab] = useState<'inventario' | 'merma'>('inventario');
+  const [mermas, setMermas] = useState<Merma[]>([]);
+  
+
+  const fetchMermas = useCallback(async () => {
+    try {
+      // Llamamos a getMermas sin parámetro para obtener todas las mermas
+      const data = await getMermas()
+      setMermas(data)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Error al obtener las mermas",
+        variant: "destructive",
+      })
+    }
+  }, [])
+  
   
   const handleExportToExcel = () => {
     const header = ["Nombre", "Precio", "Cantidad"];
@@ -170,6 +190,34 @@ export default function AlmacenPage() {
 
     XLSX.writeFile(wb, "lista_productos.xlsx");
   };
+
+  const handleProductMerma = async (productId: string, vendorId: string, cantidad: number) => {
+    try {
+      await createMerma(productId, vendorId, cantidad);
+      
+      // Actualizar los productos del vendedor si hay uno seleccionado
+      if (vendedorSeleccionado) {
+        const updatedProducts = await getProductosVendedor(vendedorSeleccionado.id);
+        setProductosVendedor(updatedProducts);
+      }
+      
+      // Actualizar el inventario general
+      await fetchInventario();
+      
+      toast({
+        title: "Éxito",
+        description: "Merma registrada correctamente",
+      });
+    } catch (error) {
+      console.error('Error al registrar merma:', error);
+      toast({
+        title: "Error",
+        description: "Error al registrar la merma",
+        variant: "destructive",
+      });
+    }
+  };
+  
 
   const handleDeleteProduct = async (productId: string) => {
     try {
@@ -584,6 +632,8 @@ export default function AlmacenPage() {
         </Sheet>
       </div>
 
+
+
       {activeSection === 'productos' && (
         <div>
           <div className="flex flex-wrap justify-end gap-2 mb-4">
@@ -610,88 +660,161 @@ export default function AlmacenPage() {
               <FileSpreadsheet className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Exportar a Excel</span>
               <span className="sm:hidden">Exportar</span>
-            </Button>
+            </Button>      
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Lista de productos</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle>Lista de productos</CardTitle>
+                <div className="flex space-x-2">
+                  <Button
+                    variant={activeProductTab === 'inventario' ? "default" : "outline"}
+                    onClick={() => setActiveProductTab('inventario')}
+                    size="sm"
+                  >
+                    Inventario
+                  </Button>
+                  <Button
+                    variant={activeProductTab === 'merma' ? "default" : "outline"}
+                    onClick={() => setActiveProductTab('merma')}
+                    size="sm"
+                  >
+                    Merma
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="mb-4">
-                <Input
-                  placeholder="Buscar productos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="max-w-sm"
-                />
-              </div>
-              <div className="flex justify-start space-x-2 mb-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSort('nombre')}
-                  className="flex items-center text-xs px-2 py-1"
-                >
-                  Nombre
-                  <ArrowUpDown className="ml-1 h-3 w-3" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSort('cantidad')}
-                  className="flex items-center text-xs px-2 py-1"
-                >
-                  Cantidad
-                  <ArrowUpDown className="ml-1 h-3 w-3" />
-                </Button>
-              </div>
-              <div className="space-y-2">
-              {filteredInventario.map((producto) => (
-                <div 
-                  key={producto.id}
-                  onClick={() => setSelectedProduct(producto)}
-                  className="flex items-center p-3 rounded-lg border mb-2 bg-white hover:bg-gray-50 cursor-pointer"
-                >
-                  <div className="w-12 h-12 mr-3">
-                    <Image 
-                      src={producto.foto || '/placeholder.svg'}
-                      alt={producto.nombre}
-                      width={48}
-                      height={48}
-                      className="rounded-md object-cover"
+              {activeProductTab === 'inventario' ? (
+                <>
+                  <div className="mb-4">
+                    <Input
+                      placeholder="Buscar productos..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="max-w-sm"
                     />
                   </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium text-gray-900 truncate">
-                      {producto.nombre}
-                    </h3>
-                    <div className="flex flex-wrap gap-x-4 text-sm text-gray-500">
-                      <p>Precio: ${Number(producto.precio).toFixed(2)}</p>
-                      {producto.tieneParametros ? (
-                        <div className="text-xs">
-                          {producto.parametros?.map((param, index) => (
-                            <span key={index} className="mr-2">
-                              {param.nombre}: {param.cantidad}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className={`${producto.cantidad === 0 ? 'text-red-500' : ''}`}>
-                          Cantidad: {producto.cantidad}
-                        </p>
-                      )}
-                    </div>
+                  <div className="flex justify-start space-x-2 mb-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSort('nombre')}
+                      className="flex items-center text-xs px-2 py-1"
+                    >
+                      Nombre
+                      <ArrowUpDown className="ml-1 h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSort('cantidad')}
+                      className="flex items-center text-xs px-2 py-1"
+                    >
+                      Cantidad
+                      <ArrowUpDown className="ml-1 h-3 w-3" />
+                    </Button>
                   </div>
+                  <div className="space-y-2">
+                    {filteredInventario.map((producto) => (
+                      <div 
+                        key={producto.id}
+                        onClick={() => setSelectedProduct(producto)}
+                        className="flex items-center p-3 rounded-lg border mb-2 bg-white hover:bg-gray-50 cursor-pointer"
+                      >
+                        <div className="w-12 h-12 mr-3">
+                          <Image 
+                            src={producto.foto || '/placeholder.svg'}
+                            alt={producto.nombre}
+                            width={48}
+                            height={48}
+                            className="rounded-md object-cover"
+                          />
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-medium text-gray-900 truncate">
+                            {producto.nombre}
+                          </h3>
+                          <div className="flex flex-wrap gap-x-4 text-sm text-gray-500">
+                            <p>Precio: ${Number(producto.precio).toFixed(2)}</p>
+                            {producto.tieneParametros ? (
+                              <div className="text-xs">
+                                {producto.parametros?.map((param, index) => (
+                                  <span key={index} className="mr-2">
+                                    {param.nombre}: {param.cantidad}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className={`${producto.cantidad === 0 ? 'text-red-500' : ''}`}>
+                                Cantidad: {producto.cantidad}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  {mermas.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No hay productos en merma registrados
+                    </div>
+                  ) : (
+                    mermas.map((merma) => (
+                      <div
+                        key={merma.id}
+                        className="p-4 rounded-lg border bg-white hover:bg-gray-50 transition-all duration-200"
+                      >
+                        <div className="flex items-center space-x-4">
+                          <div className="w-16 h-16 relative">
+                            {merma.producto.foto ? (
+                              <Image
+                                src={merma.producto.foto}
+                                alt={merma.producto.nombre}
+                                width={64}
+                                height={64}
+                                className="rounded-md object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
+                                <span className="text-gray-400">Sin imagen</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-medium text-lg">{merma.producto.nombre}</h3>
+                            <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                              <div>
+                                <p>Cantidad: {merma.cantidad}</p>
+                                <p>Fecha: {new Date(merma.fecha).toLocaleDateString()}</p>
+                              </div>
+                              <div>
+                                <p>Precio: ${Number(merma.producto.precio).toFixed(2)}</p>
+                                {merma.motivo && <p>Motivo: {merma.motivo}</p>}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ))}
-
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
       )}
+
+
+
+
+
+
 
       {activeSection === 'vendedores' && (
         <div>
@@ -1017,6 +1140,7 @@ export default function AlmacenPage() {
             transacciones={transaccionesVendedor}
             onProductReduce={handleReduceVendorProduct}
             onDeleteSale={deleteSale}
+            onProductMerma={handleProductMerma}
           />
         )}
     </div>

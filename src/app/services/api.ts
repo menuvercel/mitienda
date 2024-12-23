@@ -416,3 +416,36 @@ export const deleteSale = async (saleId: string, vendedorId: string): Promise<vo
 };
 
 export default api;
+
+// api.ts
+export const createMerma = async (
+  producto_id: string,
+  usuario_id: string,
+  cantidad: number
+) => {
+  const response = await fetch('/api/merma', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      producto_id,
+      usuario_id,
+      cantidad
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Error al crear merma');
+  }
+
+  return response.json();
+};
+
+export const getMermas = async (usuario_id?: string) => {
+  const response = await fetch(`/api/merma${usuario_id ? `?usuario_id=${usuario_id}` : ''}`);
+  if (!response.ok) {
+    throw new Error('Error al obtener mermas');
+  }
+  return response.json();
+};

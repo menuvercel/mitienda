@@ -76,3 +76,11 @@ export interface Entrega {
   cantidad: number;
   vendedor: Vendedor;
 }
+
+export interface Merma {
+  id: string;
+  producto: Producto;
+  cantidad: number;
+  fecha: string;
+  motivo?: string;
+}
