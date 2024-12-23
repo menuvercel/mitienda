@@ -61,10 +61,41 @@ export async function GET(request: Request) {
     const usuario_id = searchParams.get('usuario_id');
 
     const mermas = usuario_id
-      ? await sql`SELECT * FROM merma WHERE usuario_id = ${usuario_id} ORDER BY fecha DESC`
-      : await sql`SELECT * FROM merma ORDER BY fecha DESC`;
+      ? await sql`
+          SELECT 
+            m.*,
+            p.nombre,
+            p.precio,
+            p.descripcion
+          FROM merma m
+          INNER JOIN productos p ON m.producto_id = p.id
+          WHERE m.usuario_id = ${usuario_id} 
+          ORDER BY m.fecha DESC`
+      : await sql`
+          SELECT 
+            m.*,
+            p.nombre,
+            p.precio,
+            p.descripcion
+          FROM merma m
+          INNER JOIN productos p ON m.producto_id = p.id
+          ORDER BY m.fecha DESC`;
 
-    return NextResponse.json(mermas.rows);
+    const mermasFormateadas = mermas.rows.map(merma => ({
+      id: merma.id,
+      cantidad: merma.cantidad,
+      fecha: merma.fecha,
+      usuario_id: merma.usuario_id,
+      usuario_nombre: merma.usuario_nombre,
+      producto: {
+        id: merma.producto_id,
+        nombre: merma.nombre,
+        precio: merma.precio,
+        descripcion: merma.descripcion
+      }
+    }));
+
+    return NextResponse.json(mermasFormateadas);
   } catch (error) {
     console.error('Error al obtener mermas:', error);
     return NextResponse.json(
@@ -73,3 +104,4 @@ export async function GET(request: Request) {
     );
   }
 }
+
