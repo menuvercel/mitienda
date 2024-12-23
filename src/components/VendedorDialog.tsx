@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion } from '@/types'
-import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, ArrowUpDown, FileDown, X} from 'lucide-react'
+import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, ArrowUpDown, FileDown, X } from 'lucide-react'
 import { format, parseISO, startOfWeek, endOfWeek, isValid, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import * as XLSX from 'xlsx'
@@ -23,7 +23,7 @@ interface VendorDialogProps {
   ventasDiarias: VentaDia[]
   onProductReduce: (productId: string, vendorId: string, cantidad: number) => Promise<void>
   onDeleteSale: (saleId: string, vendedorId: string) => Promise<void>
-  onProductMerma: (productId: string, vendorId: string, cantidad: number, motivo?: string) => Promise<void>
+  onProductMerma: (productId: string, vendorId: string, cantidad: number) => Promise<void>
 }
 
 interface VentaSemana {
@@ -72,63 +72,63 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [showDestinationDialog, setShowDestinationDialog] = useState(false)
   const [selectedDestination, setSelectedDestination] = useState<'almacen' | 'merma' | 'vendedor' | null>(null)
 
-// En el componente VendorDialog
-const handleDeleteSale = async (saleId: string) => {
-  try {
-    await onDeleteSale(saleId, vendor.id)
-    
-    // Actualizar ventasLocales
-    setVentasLocales(prevVentas => prevVentas.filter(v => v.id !== saleId))
-    
-    // Actualizar ventasDiariasLocales
-    setVentasDiariasLocales(prevVentasDiarias => 
-      prevVentasDiarias.map(ventaDia => ({
-        ...ventaDia,
-        ventas: ventaDia.ventas.filter(v => v.id !== saleId),
-        total: ventaDia.ventas
-          .filter(v => v.id !== saleId)
-          .reduce((sum, v) => sum + parseFloat(v.total.toString()), 0)
-      })).filter(ventaDia => ventaDia.ventas.length > 0)
-    )
+  // En el componente VendorDialog
+  const handleDeleteSale = async (saleId: string) => {
+    try {
+      await onDeleteSale(saleId, vendor.id)
 
-    // Recalcular ventas semanales
-    const nuevasVentasLocales = ventasLocales.filter(v => v.id !== saleId)
-    const nuevasVentasSemanales = agruparVentasPorSemana(nuevasVentasLocales)
-    setVentasSemanales(nuevasVentasSemanales)
+      // Actualizar ventasLocales
+      setVentasLocales(prevVentas => prevVentas.filter(v => v.id !== saleId))
 
-    // Recalcular ventas específicas
-    calcularVentasEspecificas()
-    
-    toast({
-      title: "Éxito",
-      description: "La venta se ha eliminado correctamente.",
-    })
-  } catch (error) {
-    console.error('Error al eliminar la venta:', error)
-    toast({
-      title: "Error",
-      description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
-      variant: "destructive",
-    })
-  }
-}
+      // Actualizar ventasDiariasLocales
+      setVentasDiariasLocales(prevVentasDiarias =>
+        prevVentasDiarias.map(ventaDia => ({
+          ...ventaDia,
+          ventas: ventaDia.ventas.filter(v => v.id !== saleId),
+          total: ventaDia.ventas
+            .filter(v => v.id !== saleId)
+            .reduce((sum, v) => sum + parseFloat(v.total.toString()), 0)
+        })).filter(ventaDia => ventaDia.ventas.length > 0)
+      )
 
-const calcularVentasEspecificas = useCallback(() => {
-  const ventasPorProducto = ventasLocales.reduce((acc, venta) => {
-    if (!acc[venta.producto_nombre]) {
-      acc[venta.producto_nombre] = 0
+      // Recalcular ventas semanales
+      const nuevasVentasLocales = ventasLocales.filter(v => v.id !== saleId)
+      const nuevasVentasSemanales = agruparVentasPorSemana(nuevasVentasLocales)
+      setVentasSemanales(nuevasVentasSemanales)
+
+      // Recalcular ventas específicas
+      calcularVentasEspecificas()
+
+      toast({
+        title: "Éxito",
+        description: "La venta se ha eliminado correctamente.",
+      })
+    } catch (error) {
+      console.error('Error al eliminar la venta:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la venta. Por favor, inténtelo de nuevo.",
+        variant: "destructive",
+      })
     }
-    acc[venta.producto_nombre] += venta.cantidad
-    return acc
-  }, {} as Record<string, number>)
+  }
 
-  const ventasEspecificasArray = Object.entries(ventasPorProducto).map(([producto, cantidad]) => ({
-    producto,
-    cantidad
-  }))
+  const calcularVentasEspecificas = useCallback(() => {
+    const ventasPorProducto = ventasLocales.reduce((acc, venta) => {
+      if (!acc[venta.producto_nombre]) {
+        acc[venta.producto_nombre] = 0
+      }
+      acc[venta.producto_nombre] += venta.cantidad
+      return acc
+    }, {} as Record<string, number>)
 
-  setVentasEspecificas(ventasEspecificasArray)
-}, [ventasLocales])
+    const ventasEspecificasArray = Object.entries(ventasPorProducto).map(([producto, cantidad]) => ({
+      producto,
+      cantidad
+    }))
+
+    setVentasEspecificas(ventasEspecificasArray)
+  }, [ventasLocales])
 
   useEffect(() => {
     calcularVentasEspecificas()
@@ -136,8 +136,8 @@ const calcularVentasEspecificas = useCallback(() => {
 
   const sortVentasEspecificas = () => {
     setSortByVentas(prev => prev === 'asc' ? 'desc' : 'asc')
-    setVentasEspecificas(prev => 
-      [...prev].sort((a, b) => 
+    setVentasEspecificas(prev =>
+      [...prev].sort((a, b) =>
         sortByVentas === 'asc' ? a.cantidad - b.cantidad : b.cantidad - a.cantidad
       )
     )
@@ -221,7 +221,7 @@ const calcularVentasEspecificas = useCallback(() => {
       .filter(p => p.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
       .sort((a, b) => {
         if (sortBy === 'nombre') {
-          return sortOrder === 'asc' 
+          return sortOrder === 'asc'
             ? a.nombre.localeCompare(b.nombre)
             : b.nombre.localeCompare(a.nombre)
         } else {
@@ -255,12 +255,12 @@ const calcularVentasEspecificas = useCallback(() => {
     const [isOpen, setIsOpen] = useState(false)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [saleToDelete, setSaleToDelete] = useState<string | null>(null)
-  
+
     const handleDeleteClick = (saleId: string) => {
       setSaleToDelete(saleId)
       setDeleteDialogOpen(true)
     }
-  
+
     const confirmDelete = async () => {
       if (saleToDelete) {
         try {
@@ -277,11 +277,11 @@ const calcularVentasEspecificas = useCallback(() => {
         }
       }
     }
-  
-  
+
+
     return (
       <div className="border rounded-lg mb-2">
-        <div 
+        <div
           className="flex justify-between items-center p-4 cursor-pointer"
           onClick={() => setIsOpen(!isOpen)}
         >
@@ -325,7 +325,7 @@ const calcularVentasEspecificas = useCallback(() => {
             ))}
           </div>
         )}
-  
+
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <DialogContent>
             <DialogHeader>
@@ -367,7 +367,7 @@ const calcularVentasEspecificas = useCallback(() => {
 
     return (
       <div className="border rounded-lg mb-2">
-        <div 
+        <div
           className="flex justify-between items-center p-4 cursor-pointer"
           onClick={() => setIsOpen(!isOpen)}
         >
@@ -379,34 +379,34 @@ const calcularVentasEspecificas = useCallback(() => {
           </div>
         </div>
         {isOpen && (
-            <div className="p-4 bg-gray-50">
-              {Object.entries(ventasPorDia)
-                .sort(([dateA], [dateB]) => {
-                  const a = parseISO(dateA)
-                  const b = parseISO(dateB)
-                  return isValid(a) && isValid(b) ? a.getTime() - b.getTime() : 0
-                })
-                .map(([fecha, ventasDia]) => {
-                  const fechaVenta = parseISO(fecha)
-                  const fechaInicio = parseISO(venta.fechaInicio)
-                  const fechaFin = parseISO(venta.fechaFin)
-                  if (isValid(fechaVenta) && isValid(fechaInicio) && isValid(fechaFin) &&
-                      fechaVenta >= fechaInicio && fechaVenta <= fechaFin) {
-                    return (
-                      <VentaDiaDesplegable 
-                        key={fecha} 
-                        venta={{
-                          fecha, 
-                          ventas: ventasDia, 
-                          total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
-                        }} 
-                      />
-                    )
-                  }
-                  return null
-                })}
-            </div>
-          )}
+          <div className="p-4 bg-gray-50">
+            {Object.entries(ventasPorDia)
+              .sort(([dateA], [dateB]) => {
+                const a = parseISO(dateA)
+                const b = parseISO(dateB)
+                return isValid(a) && isValid(b) ? a.getTime() - b.getTime() : 0
+              })
+              .map(([fecha, ventasDia]) => {
+                const fechaVenta = parseISO(fecha)
+                const fechaInicio = parseISO(venta.fechaInicio)
+                const fechaFin = parseISO(venta.fechaFin)
+                if (isValid(fechaVenta) && isValid(fechaInicio) && isValid(fechaFin) &&
+                  fechaVenta >= fechaInicio && fechaVenta <= fechaFin) {
+                  return (
+                    <VentaDiaDesplegable
+                      key={fecha}
+                      venta={{
+                        fecha,
+                        ventas: ventasDia,
+                        total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
+                      }}
+                    />
+                  )
+                }
+                return null
+              })}
+          </div>
+        )}
 
       </div>
     )
@@ -495,8 +495,8 @@ const calcularVentasEspecificas = useCallback(() => {
   }
 
   const filterItems = useCallback((items: any[], term: string) => {
-    return items.filter(item => 
-      Object.values(item).some(value => 
+    return items.filter(item =>
+      Object.values(item).some(value =>
         value && value.toString().toLowerCase().includes(term.toLowerCase())
       )
     )
@@ -554,9 +554,9 @@ const calcularVentasEspecificas = useCallback(() => {
             </div>
             {ventasDiariasLocales.length > 0 ? (
               ventasDiariasLocales.map((venta) => (
-                <VentaDiaDesplegable 
-                  key={venta.fecha} 
-                  venta={venta} 
+                <VentaDiaDesplegable
+                  key={venta.fecha}
+                  venta={venta}
                 />
               ))
             ) : (
@@ -597,14 +597,14 @@ const calcularVentasEspecificas = useCallback(() => {
       <div className="space-y-2">
         {filteredTransacciones.map(transaccion => {
           const transactionType = transaccion.tipo || 'Normal'
-          const borderColor = 
+          const borderColor =
             transactionType === 'Baja' ? 'border-red-500' :
-            transactionType === 'Entrega' ? 'border-green-500' :
-            'border-blue-500'
-            
+              transactionType === 'Entrega' ? 'border-green-500' :
+                'border-blue-500'
+
           // Convertimos el precio a número y validamos
           const precioFormateado = parseFloat(transaccion.precio || 0).toFixed(2)
-  
+
           return (
             <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
               <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
@@ -675,7 +675,7 @@ const calcularVentasEspecificas = useCallback(() => {
   useEffect(() => {
     setVentasSemanales(agruparVentasPorSemana(ventasLocales))
   }, [ventasLocales, agruparVentasPorSemana])
-  
+
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -686,51 +686,51 @@ const calcularVentasEspecificas = useCallback(() => {
         <div className="flex-grow overflow-y-auto p-4">
           {mode === 'edit' ? (
             <div className="space-y-4">
-            <Input
-              name="nombre"
-              value={editedVendor.nombre}
-              onChange={handleInputChange}
-              placeholder="Nombre del vendedor"
-            />
-            <Input
-              name="telefono"
-              value={editedVendor.telefono}
-              onChange={handleInputChange}
-              placeholder="Teléfono"
-            />
-            <Input
-              type="password"
-              name="newPassword"
-              value={newPassword}
-              onChange={handleInputChange}
-              placeholder="Nueva contraseña (dejar en blanco para no cambiar)"
-            />
-            <Input
-              type="password"
-              name="confirmPassword"
-              value={confirmPassword}
-              onChange={handleInputChange}
-              placeholder="Confirmar nueva contraseña"
-            />
-            <Button onClick={handleEdit} disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                'Guardar cambios'
-              )}
-            </Button>
-          </div>
-          ) : mode === 'productos' ? (
-            <Tabs defaultValue="disponibles" className="w-full">
-            <div className="flex justify-center mb-4">
-              <Button onClick={exportToExcel} className="bg-green-500 hover:bg-green-600 text-white">
-                <FileDown className="mr-2 h-4 w-4" />
-                Exportar
+              <Input
+                name="nombre"
+                value={editedVendor.nombre}
+                onChange={handleInputChange}
+                placeholder="Nombre del vendedor"
+              />
+              <Input
+                name="telefono"
+                value={editedVendor.telefono}
+                onChange={handleInputChange}
+                placeholder="Teléfono"
+              />
+              <Input
+                type="password"
+                name="newPassword"
+                value={newPassword}
+                onChange={handleInputChange}
+                placeholder="Nueva contraseña (dejar en blanco para no cambiar)"
+              />
+              <Input
+                type="password"
+                name="confirmPassword"
+                value={confirmPassword}
+                onChange={handleInputChange}
+                placeholder="Confirmar nueva contraseña"
+              />
+              <Button onClick={handleEdit} disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  'Guardar cambios'
+                )}
               </Button>
             </div>
+          ) : mode === 'productos' ? (
+            <Tabs defaultValue="disponibles" className="w-full">
+              <div className="flex justify-center mb-4">
+                <Button onClick={exportToExcel} className="bg-green-500 hover:bg-green-600 text-white">
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Exportar
+                </Button>
+              </div>
               <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
                 <TabsTrigger value="agotados">Agotados</TabsTrigger>
@@ -811,125 +811,118 @@ const calcularVentasEspecificas = useCallback(() => {
       </DialogContent>
 
       <Dialog open={reduceDialogOpen} onOpenChange={setReduceDialogOpen}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Reducir cantidad de producto</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <p>Especifique la cantidad a reducir para {productToReduce?.nombre}</p>
-          <Input
-            type="number"
-            value={quantityToReduce}
-            onChange={(e) => setQuantityToReduce(Math.max(0, Math.min(Number(e.target.value), productToReduce?.cantidad || 0)))}
-            max={productToReduce?.cantidad}
-            min={0}
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setReduceDialogOpen(false)} disabled={isLoading}>
-            Cancelar
-          </Button>
-          <Button 
-            onClick={() => {
-              if (quantityToReduce > 0) {
-                setShowDestinationDialog(true)
-                setReduceDialogOpen(false)
-              }
-            }} 
-            disabled={isLoading || quantityToReduce <= 0}
-          >
-            Siguiente
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reducir cantidad de producto</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>Especifique la cantidad a reducir para {productToReduce?.nombre}</p>
+            <Input
+              type="number"
+              value={quantityToReduce}
+              onChange={(e) => setQuantityToReduce(Math.max(0, Math.min(Number(e.target.value), productToReduce?.cantidad || 0)))}
+              max={productToReduce?.cantidad}
+              min={0}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReduceDialogOpen(false)} disabled={isLoading}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (quantityToReduce > 0) {
+                  setShowDestinationDialog(true)
+                  setReduceDialogOpen(false)
+                }
+              }}
+              disabled={isLoading || quantityToReduce <= 0}
+            >
+              Siguiente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-    <Dialog open={showDestinationDialog} onOpenChange={setShowDestinationDialog}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Enviar a:</DialogTitle>
-        </DialogHeader>
-        <div className="grid grid-cols-3 gap-4">
-          <Button 
-            variant="outline" 
-            className={`p-4 ${selectedDestination === 'almacen' ? 'border-blue-500 bg-blue-50' : ''}`}
-            onClick={() => setSelectedDestination('almacen')}
-          >
-            Almacén
-          </Button>
-          <Button 
-            variant="outline" 
-            className={`p-4 ${selectedDestination === 'merma' ? 'border-red-500 bg-red-50' : ''}`}
-            onClick={() => setSelectedDestination('merma')}
-          >
-            Merma
-          </Button>
-          <Button 
-            variant="outline" 
-            className={`p-4 ${selectedDestination === 'vendedor' ? 'border-green-500 bg-green-50' : ''}`}
-            onClick={() => setSelectedDestination('vendedor')}
-            disabled
-          >
-            Vendedor
-          </Button>
-        </div>
-        <DialogFooter>
-          <Button 
-            variant="outline" 
-            onClick={() => {
+      <Dialog open={showDestinationDialog} onOpenChange={setShowDestinationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar a:</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-3 gap-4">
+            <Button
+              variant={selectedDestination === 'almacen' ? 'default' : 'outline'}
+              onClick={() => setSelectedDestination('almacen')}
+            >
+              Almacén
+            </Button>
+            <Button
+              variant={selectedDestination === 'merma' ? 'default' : 'outline'}
+              onClick={() => setSelectedDestination('merma')}
+            >
+              Merma
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
               setShowDestinationDialog(false)
               setSelectedDestination(null)
-            }}
-            disabled={isLoading}
-          >
-            Cancelar
-          </Button>
-          <Button 
-            onClick={async () => {
-              if (!productToReduce || !selectedDestination) return
+            }}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!productToReduce || !selectedDestination) return
 
-              setIsLoading(true)
-              try {
-                if (selectedDestination === 'almacen') {
-                  await onProductReduce(productToReduce.id.toString(), vendor.id, quantityToReduce)
-                } else if (selectedDestination === 'merma') {
-                  await onProductMerma(productToReduce.id.toString(), vendor.id, quantityToReduce)
+                setIsLoading(true)
+                try {
+                  if (selectedDestination === 'almacen') {
+                    await onProductReduce(productToReduce.id.toString(), vendor.id, quantityToReduce)
+                  } else if (selectedDestination === 'merma') {
+                    // Primero reducimos la cantidad del producto
+                    await onProductReduce(productToReduce.id.toString(), vendor.id, quantityToReduce)
+                    // Luego registramos la merma
+                    await onProductMerma(
+                      productToReduce.id.toString(),
+                      vendor.id,
+                      quantityToReduce
+                    )
+                  }
+
+                  setShowDestinationDialog(false)
+                  setSelectedDestination(null)
+                  setProductToReduce(null)
+                  setQuantityToReduce(0)
+
+                  toast({
+                    title: "Éxito",
+                    description: `Producto ${selectedDestination === 'merma' ? 'enviado a merma' : 'reducido'} correctamente.`,
+                  })
+                } catch (error) {
+                  console.error('Error al procesar la operación:', error)
+                  toast({
+                    title: "Error",
+                    description: `No se pudo ${selectedDestination === 'merma' ? 'enviar a merma' : 'reducir'} el producto. Por favor, inténtelo de nuevo.`,
+                    variant: "destructive",
+                  })
+                } finally {
+                  setIsLoading(false)
                 }
-                
-                setShowDestinationDialog(false)
-                setSelectedDestination(null)
-                setProductToReduce(null)
-                setQuantityToReduce(0)
-                
-                toast({
-                  title: "Éxito",
-                  description: `Producto ${selectedDestination === 'merma' ? 'enviado a merma' : 'reducido'} correctamente.`,
-                })
-              } catch (error) {
-                console.error('Error al procesar la operación:', error)
-                toast({
-                  title: "Error",
-                  description: `No se pudo ${selectedDestination === 'merma' ? 'enviar a merma' : 'reducir'} el producto. Por favor, inténtelo de nuevo.`,
-                  variant: "destructive",
-                })
-              } finally {
-                setIsLoading(false)
-              }
-            }}
-            disabled={isLoading || !selectedDestination}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Procesando...
-              </>
-            ) : (
-              'Confirmar'
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+              }}
+              disabled={isLoading || !selectedDestination}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Procesando...
+                </>
+              ) : (
+                'Confirmar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }
