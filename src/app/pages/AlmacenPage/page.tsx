@@ -167,18 +167,26 @@ export default function AlmacenPage() {
 
   const fetchMermas = useCallback(async () => {
     try {
-      // Llamamos a getMermas sin parámetro para obtener todas las mermas
-      const data = await getMermas()
-      setMermas(data)
+      console.log('Fetching mermas...');
+      const data = await getMermas();
+      console.log('Mermas received:', data);
+      setMermas(data);
     } catch (error) {
+      console.error('Error al obtener las mermas:', error);
       toast({
         title: "Error",
         description: "Error al obtener las mermas",
         variant: "destructive",
-      })
+      });
     }
-  }, [])
+  }, []);
   
+  
+  useEffect(() => {
+    if (activeProductTab === 'merma') {
+      fetchMermas();
+    }
+  }, [activeProductTab, fetchMermas]);
   
   const handleExportToExcel = () => {
     const header = ["Nombre", "Precio", "Cantidad"];
@@ -203,6 +211,8 @@ export default function AlmacenPage() {
       
       // Actualizar el inventario general
       await fetchInventario();
+      // Actualizar la lista de mermas
+      await fetchMermas();
       
       toast({
         title: "Éxito",
@@ -217,6 +227,7 @@ export default function AlmacenPage() {
       });
     }
   };
+  
   
 
   const handleDeleteProduct = async (productId: string) => {
