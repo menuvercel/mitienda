@@ -13,8 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet } from "lucide-react"
-import { Image as ImageIcon } from 'lucide-react';
-
 import {
   getVendedores,
   getCurrentUser,
@@ -772,7 +770,7 @@ export default function AlmacenPage() {
                   </div>
                 </>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {mermas.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                       No hay productos en merma registrados
@@ -781,37 +779,43 @@ export default function AlmacenPage() {
                     mermas.map((merma) => (
                       <div
                         key={merma.id}
-                        className="merma-card"
+                        className="p-3 rounded-lg border bg-white hover:bg-gray-50 transition-all duration-200"
                       >
-                        <div className="merma-image">
-                          {merma.producto.foto ? (
-                            <Image
-                              src={merma.producto.foto}
-                              alt={merma.producto.nombre}
-                              width={48}
-                              height={48}
-                              className="rounded object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gray-100 rounded flex items-center justify-center">
-                              <ImageIcon className="w-6 h-6 text-gray-400" />
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 relative">
+                            {merma.producto.foto ? (
+                              <Image
+                                src={merma.producto.foto}
+                                alt={merma.producto.nombre}
+                                width={48}
+                                height={48}
+                                className="rounded-md object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
+                                <span className="text-gray-400 text-xs">Sin imagen</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-medium text-base">{merma.producto.nombre}</h3>
+                            <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                              <div>
+                                <p>Cantidad: {merma.cantidad}</p>
+                                <p>Fecha: {new Date(merma.fecha).toLocaleDateString()}</p>
+                              </div>
+                              <div>
+                                <p>Precio: ${Number(merma.producto.precio).toFixed(2)}</p>
+                                {merma.motivo && <p>Motivo: {merma.motivo}</p>}
+                              </div>
                             </div>
-                          )}
-                        </div>
-                        <div className="merma-content">
-                          <h3 className="merma-title">{merma.producto.nombre}</h3>
-                          <div className="merma-details">
-                            <span>Cantidad: {merma.cantidad}</span>
-                            <span>Precio: ${Number(merma.producto.precio).toFixed(2)}</span>
-                            <span>Fecha: {new Date(merma.fecha).toLocaleDateString()}</span>
-                            {merma.motivo && <span>Motivo: {merma.motivo}</span>}
                           </div>
                         </div>
                       </div>
+
                     ))
                   )}
                 </div>
-
               )}
             </CardContent>
           </Card>
