@@ -66,7 +66,8 @@ export async function GET(request: Request) {
             m.*,
             p.nombre,
             p.precio,
-            p.descripcion
+            p.cantidad,
+            p.tiene_parametros
           FROM merma m
           INNER JOIN productos p ON m.producto_id = p.id
           WHERE m.usuario_id = ${usuario_id} 
@@ -76,7 +77,8 @@ export async function GET(request: Request) {
             m.*,
             p.nombre,
             p.precio,
-            p.descripcion
+            p.cantidad,
+            p.tiene_parametros
           FROM merma m
           INNER JOIN productos p ON m.producto_id = p.id
           ORDER BY m.fecha DESC`;
@@ -91,7 +93,8 @@ export async function GET(request: Request) {
         id: merma.producto_id,
         nombre: merma.nombre,
         precio: merma.precio,
-        descripcion: merma.descripcion
+        cantidad: merma.cantidad,
+        tiene_parametros: merma.tiene_parametros
       }
     }));
 
@@ -104,4 +107,3 @@ export async function GET(request: Request) {
     );
   }
 }
-
