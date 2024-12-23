@@ -13,11 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet } from "lucide-react"
-import { 
-  getVendedores, 
-  getCurrentUser, 
-  getInventario, 
-  registerUser, 
+import { Image as ImageIcon } from 'lucide-react';
+
+import {
+  getVendedores,
+  getCurrentUser,
+  getInventario,
+  registerUser,
   getProductosVendedor,
   getVentasVendedor,
   agregarProducto,
@@ -156,14 +158,14 @@ export default function AlmacenPage() {
   const [activeSection, setActiveSection] = useState('productos')
   const [showMassDeliveryDialog, setShowMassDeliveryDialog] = useState(false)
   const [massDeliveryStep, setMassDeliveryStep] = useState(1)
-  const [selectedProducts, setSelectedProducts] = useState<{[key: string]: number}>({})
+  const [selectedProducts, setSelectedProducts] = useState<{ [key: string]: number }>({})
   const [selectedVendors, setSelectedVendors] = useState<string[]>([])
   const [productSearchTerm, setProductSearchTerm] = useState("")
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
   const [activeProductTab, setActiveProductTab] = useState<'inventario' | 'merma'>('inventario');
   const [mermas, setMermas] = useState<Merma[]>([]);
-  
+
 
   const fetchMermas = useCallback(async () => {
     try {
@@ -180,14 +182,14 @@ export default function AlmacenPage() {
       });
     }
   }, []);
-  
-  
+
+
   useEffect(() => {
     if (activeProductTab === 'merma') {
       fetchMermas();
     }
   }, [activeProductTab, fetchMermas]);
-  
+
   const handleExportToExcel = () => {
     const header = ["Nombre", "Precio", "Cantidad"];
     const data = inventario.map(producto => [producto.nombre, producto.precio, producto.cantidad]);
@@ -202,18 +204,18 @@ export default function AlmacenPage() {
   const handleProductMerma = async (productId: string, vendorId: string, cantidad: number) => {
     try {
       await createMerma(productId, vendorId, cantidad);
-      
+
       // Actualizar los productos del vendedor si hay uno seleccionado
       if (vendedorSeleccionado) {
         const updatedProducts = await getProductosVendedor(vendedorSeleccionado.id);
         setProductosVendedor(updatedProducts);
       }
-      
+
       // Actualizar el inventario general
       await fetchInventario();
       // Actualizar la lista de mermas
       await fetchMermas();
-      
+
       toast({
         title: "Éxito",
         description: "Merma registrada correctamente",
@@ -227,8 +229,8 @@ export default function AlmacenPage() {
       });
     }
   };
-  
-  
+
+
 
   const handleDeleteProduct = async (productId: string) => {
     try {
@@ -250,7 +252,7 @@ export default function AlmacenPage() {
           await entregarProducto(productId, vendorId, quantity)
         }
       }
-      
+
       await fetchInventario()
       setShowMassDeliveryDialog(false)
       setMassDeliveryStep(1)
@@ -274,7 +276,7 @@ export default function AlmacenPage() {
 
   const sortedInventario = [...inventario].sort((a, b) => {
     if (sortBy === 'nombre') {
-      return sortOrder === 'asc' 
+      return sortOrder === 'asc'
         ? a.nombre.localeCompare(b.nombre)
         : b.nombre.localeCompare(a.nombre)
     } else {
@@ -287,17 +289,17 @@ export default function AlmacenPage() {
   const filteredInventarioForMassDelivery = inventario.filter((producto) =>
     producto.nombre.toLowerCase().includes(productSearchTerm.toLowerCase())
   )
-  
+
   const handleProductQuantityChange = (productId: string, value: string) => {
     const numValue = Number(value)
-    setSelectedProducts(prev => ({...prev, [productId]: numValue}))
+    setSelectedProducts(prev => ({ ...prev, [productId]: numValue }))
   }
 
   const handleProductQuantityBlur = (productId: string, maxQuantity: number) => {
     setSelectedProducts(prev => {
       const currentValue = prev[productId] || 0
       const adjustedValue = Math.max(1, Math.min(currentValue, Math.floor(maxQuantity / selectedVendors.length)))
-      return {...prev, [productId]: adjustedValue}
+      return { ...prev, [productId]: adjustedValue }
     })
   }
 
@@ -332,17 +334,17 @@ export default function AlmacenPage() {
       if (!ventasPorDia[fecha]) ventasPorDia[fecha] = [];
       ventasPorDia[fecha].push(venta);
     });
-  
+
     return Object.entries(ventasPorDia).map(([fecha, ventasDelDia]) => ({
       fecha,
       ventas: ventasDelDia,
       total: ventasDelDia.reduce((sum, venta) => sum + parseFloat(venta.total.toString()), 0)
     }));
   };
-  
+
   const calcularVentasSemanales = (ventas: Venta[]): VentaSemana[] => {
     const weekMap = new Map();
-  
+
     const getWeekKey = (date: Date) => {
       // Asegúrate de que la semana empiece en lunes
       const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 });
@@ -351,18 +353,18 @@ export default function AlmacenPage() {
       // Y termina el domingo
       return `${format(mondayOfWeek, 'yyyy-MM-dd')}_${format(sundayOfWeek, 'yyyy-MM-dd')}`;
     };
-  
+
     ventas.forEach((venta) => {
       const ventaDate = new Date(venta.fecha);
-  
+
       // Validar que la fecha sea válida
       if (isNaN(ventaDate.getTime())) {
         console.error(`Fecha inválida en la venta: ${venta.fecha}`);
         return;
       }
-  
+
       const weekKey = getWeekKey(ventaDate);
-  
+
       // Si la semana no existe en el Map, se agrega
       if (!weekMap.has(weekKey)) {
         const mondayOfWeek = startOfWeek(ventaDate, { weekStartsOn: 1 });
@@ -375,21 +377,21 @@ export default function AlmacenPage() {
           ganancia: 0,
         });
       }
-  
+
       // Obtener la semana y agregar una copia de la venta
       const currentWeek = weekMap.get(weekKey)!;
       currentWeek.ventas.push({ ...venta });
-  
+
       // Acumulación del total
       currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0;
-  
+
       // Calcular la ganancia
       currentWeek.ganancia = parseFloat((currentWeek.total * 0.08).toFixed(2));
     });
-  
+
     return Array.from(weekMap.values());
   };
-  
+
 
   const handleVerVendedor = async (vendedor: Vendedor) => {
     try {
@@ -398,13 +400,13 @@ export default function AlmacenPage() {
         getVentasVendedor(vendedor.id), // Ahora no es necesario pasar las fechas
         getTransaccionesVendedor(vendedor.id)
       ]);
-  
+
       // Calcular ventas diarias
       const ventasDiarias = calcularVentasDiarias(ventas);
-  
+
       // Calcular ventas semanales
       const ventasSemanales = calcularVentasSemanales(ventas);
-  
+
       setProductosVendedor(productos);
       setVentasVendedor(ventas);
       setVentasDiarias(ventasDiarias);
@@ -417,37 +419,37 @@ export default function AlmacenPage() {
       setVendedorSeleccionado(vendedor);
     }
   };
-  
+
 
   const handleProductInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target
-    
+
     if (type === 'file') {
       const fileList = e.target.files
       if (fileList && fileList.length > 0) {
         setNewProduct({ ...newProduct, [name]: fileList[0] })
       }
     } else if (type === 'checkbox' && name === 'tieneParametros') {
-      setNewProduct({ 
-        ...newProduct, 
+      setNewProduct({
+        ...newProduct,
         tieneParametros: e.target.checked,
         parametros: e.target.checked ? [{ nombre: '', cantidad: 0 }] : []
       })
     } else {
-      setNewProduct({ 
-        ...newProduct, 
-        [name]: type === 'number' ? parseFloat(value) : value 
+      setNewProduct({
+        ...newProduct,
+        [name]: type === 'number' ? parseFloat(value) : value
       })
     }
   }
-  
+
 
   const handleAddProduct = async () => {
     try {
       const formData = new FormData()
       formData.append('nombre', newProduct.nombre)
       formData.append('precio', newProduct.precio.toString())
-      
+
       // Si tiene parámetros, enviamos los parámetros y su cantidad total
       if (newProduct.tieneParametros) {
         formData.append('tieneParametros', 'true')
@@ -459,11 +461,11 @@ export default function AlmacenPage() {
         formData.append('tieneParametros', 'false')
         formData.append('cantidad', newProduct.cantidad.toString())
       }
-      
+
       if (newProduct.foto) {
         formData.append('foto', newProduct.foto)
       }
-  
+
       await agregarProducto(formData)
       setShowAddProductModal(false)
       setNewProduct({
@@ -475,7 +477,7 @@ export default function AlmacenPage() {
         parametros: []
       })
       await fetchInventario()
-      
+
       toast({
         title: "Éxito",
         description: "Producto agregado correctamente",
@@ -489,16 +491,16 @@ export default function AlmacenPage() {
       })
     }
   }
-  
+
 
   const handleProductDelivery = async (productId: string, vendedorId: string, cantidad: number) => {
     try {
       console.log(`Entregando producto: ID=${productId}, VendedorID=${vendedorId}, Cantidad=${cantidad}`)
       await entregarProducto(productId, vendedorId, cantidad)
-      
+
       await fetchInventario()
       setSelectedProduct(null)
-  
+
       alert('Producto entregado exitosamente')
     } catch (error) {
       console.error('Error entregando producto:', error)
@@ -520,23 +522,23 @@ export default function AlmacenPage() {
       formData.append('precio', editedProduct.precio.toString())
       formData.append('cantidad', editedProduct.cantidad.toString())
       formData.append('tiene_parametros', editedProduct.tiene_parametros.toString())
-      
+
       // Agregar los parámetros si existen
       if (editedProduct.parametros) {
         formData.append('parametros', JSON.stringify(editedProduct.parametros))
       }
-      
+
       if (foto) {
         formData.append('foto', foto)
       } else if (editedProduct.foto) {
         formData.append('fotoUrl', editedProduct.foto)
       }
-  
+
       console.log('Enviando datos al servidor:', {
         ...Object.fromEntries(formData),
         parametros: editedProduct.parametros
       })
-  
+
       await editarProducto(editedProduct.id, formData)
       await fetchInventario()
       setSelectedProduct(null)
@@ -545,7 +547,7 @@ export default function AlmacenPage() {
       alert('Error al editar el producto. Por favor, inténtelo de nuevo.')
     }
   }
-  
+
 
   const handleReduceVendorProduct = async (productId: string, vendorId: string, cantidad: number) => {
     try {
@@ -619,7 +621,7 @@ export default function AlmacenPage() {
               </Button>
               <Button
                 variant="ghost"
-                
+
                 className={activeSection === 'vendedores' ? 'bg-accent' : ''}
                 onClick={() => {
                   setActiveSection('vendedores')
@@ -652,7 +654,7 @@ export default function AlmacenPage() {
               onClick={() => setShowAddProductModal(true)}
               className="flex-grow sm:flex-grow-0 bg-green-500 hover:bg-green-600 text-white"
             >
-              <Plus className="mr-2 h-4 w-4" /> 
+              <Plus className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Agregar Producto</span>
               <span className="sm:hidden">Agregar</span>
             </Button>
@@ -671,7 +673,7 @@ export default function AlmacenPage() {
               <FileSpreadsheet className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Exportar a Excel</span>
               <span className="sm:hidden">Exportar</span>
-            </Button>      
+            </Button>
           </div>
 
           <Card>
@@ -729,13 +731,13 @@ export default function AlmacenPage() {
                   </div>
                   <div className="space-y-2">
                     {filteredInventario.map((producto) => (
-                      <div 
+                      <div
                         key={producto.id}
                         onClick={() => setSelectedProduct(producto)}
                         className="flex items-center p-3 rounded-lg border mb-2 bg-white hover:bg-gray-50 cursor-pointer"
                       >
                         <div className="w-12 h-12 mr-3">
-                          <Image 
+                          <Image
                             src={producto.foto || '/placeholder.svg'}
                             alt={producto.nombre}
                             width={48}
@@ -743,7 +745,7 @@ export default function AlmacenPage() {
                             className="rounded-md object-cover"
                           />
                         </div>
-                        
+
                         <div className="flex-1 min-w-0">
                           <h3 className="text-sm font-medium text-gray-900 truncate">
                             {producto.nombre}
@@ -770,7 +772,7 @@ export default function AlmacenPage() {
                   </div>
                 </>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {mermas.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                       No hay productos en merma registrados
@@ -779,42 +781,37 @@ export default function AlmacenPage() {
                     mermas.map((merma) => (
                       <div
                         key={merma.id}
-                        className="p-4 rounded-lg border bg-white hover:bg-gray-50 transition-all duration-200"
+                        className="merma-card"
                       >
-                        <div className="flex items-center space-x-4">
-                          <div className="w-16 h-16 relative">
-                            {merma.producto.foto ? (
-                              <Image
-                                src={merma.producto.foto}
-                                alt={merma.producto.nombre}
-                                width={64}
-                                height={64}
-                                className="rounded-md object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
-                                <span className="text-gray-400">Sin imagen</span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="font-medium text-lg">{merma.producto.nombre}</h3>
-                            <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                              <div>
-                                <p>Cantidad: {merma.cantidad}</p>
-                                <p>Fecha: {new Date(merma.fecha).toLocaleDateString()}</p>
-                              </div>
-                              <div>
-                                <p>Precio: ${Number(merma.producto.precio).toFixed(2)}</p>
-                                {merma.motivo && <p>Motivo: {merma.motivo}</p>}
-                              </div>
+                        <div className="merma-image">
+                          {merma.producto.foto ? (
+                            <Image
+                              src={merma.producto.foto}
+                              alt={merma.producto.nombre}
+                              width={48}
+                              height={48}
+                              className="rounded object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gray-100 rounded flex items-center justify-center">
+                              <ImageIcon className="w-6 h-6 text-gray-400" />
                             </div>
+                          )}
+                        </div>
+                        <div className="merma-content">
+                          <h3 className="merma-title">{merma.producto.nombre}</h3>
+                          <div className="merma-details">
+                            <span>Cantidad: {merma.cantidad}</span>
+                            <span>Precio: ${Number(merma.producto.precio).toFixed(2)}</span>
+                            <span>Fecha: {new Date(merma.fecha).toLocaleDateString()}</span>
+                            {merma.motivo && <span>Motivo: {merma.motivo}</span>}
                           </div>
                         </div>
                       </div>
                     ))
                   )}
                 </div>
+
               )}
             </CardContent>
           </Card>
@@ -868,100 +865,100 @@ export default function AlmacenPage() {
         <SalesSection userRole="Almacen" />
       )}
 
-    <Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Entrega Masiva</DialogTitle>
-        </DialogHeader>
-        {massDeliveryStep === 1 ? (
-          <div className="space-y-4">
-            <div className="max-h-[300px] overflow-y-auto space-y-2">
-              {vendedores.map((vendedor) => (
-                <div key={vendedor.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`vendor-${vendedor.id}`}
-                    checked={selectedVendors.includes(vendedor.id)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedVendors([...selectedVendors, vendedor.id])
-                      } else {
-                        setSelectedVendors(selectedVendors.filter(id => id !== vendedor.id))
-                      }
-                    }}
-                  />
-                  <label htmlFor={`vendor-${vendedor.id}`}>{vendedor.nombre}</label>
-                </div>
-              ))}
-            </div>
-            <Button onClick={() => setMassDeliveryStep(2)} 
-              disabled={selectedVendors.length === 0}>
-              Siguiente
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <Input
-              placeholder="Buscar productos..."
-              value={productSearchTerm}
-              onChange={(e) => setProductSearchTerm(e.target.value)}
-            />
-            <div className="max-h-[300px] overflow-y-auto space-y-2">
-              {filteredInventarioForMassDelivery.map((producto) => (
-                <div key={producto.id} className="flex items-center space-x-2 p-2 border rounded">
-                  <Checkbox
-                    id={`product-${producto.id}`}
-                    checked={!!selectedProducts[producto.id]}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedProducts({...selectedProducts, [producto.id]: 1})
-                      } else {
-                        const { [producto.id]: _, ...rest } = selectedProducts
-                        setSelectedProducts(rest)
-                      }
-                    }}
-                  />
-                  <div className="flex-grow flex items-center space-x-2">
-                    <Image
-                      src={producto.foto || '/placeholder.svg'}
-                      alt={producto.nombre}
-                      width={40}
-                      height={40}
-                      className="object-cover rounded"
+      <Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Entrega Masiva</DialogTitle>
+          </DialogHeader>
+          {massDeliveryStep === 1 ? (
+            <div className="space-y-4">
+              <div className="max-h-[300px] overflow-y-auto space-y-2">
+                {vendedores.map((vendedor) => (
+                  <div key={vendedor.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`vendor-${vendedor.id}`}
+                      checked={selectedVendors.includes(vendedor.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedVendors([...selectedVendors, vendedor.id])
+                        } else {
+                          setSelectedVendors(selectedVendors.filter(id => id !== vendedor.id))
+                        }
+                      }}
                     />
-                    <div>
-                      <label htmlFor={`product-${producto.id}`} className="font-medium">{producto.nombre}</label>
-                      <div className="text-sm text-gray-600">
-                        <span className="mr-2">Precio: ${producto.precio}</span>
-                        <span>Disponible: {producto.cantidad}</span>
+                    <label htmlFor={`vendor-${vendedor.id}`}>{vendedor.nombre}</label>
+                  </div>
+                ))}
+              </div>
+              <Button onClick={() => setMassDeliveryStep(2)}
+                disabled={selectedVendors.length === 0}>
+                Siguiente
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <Input
+                placeholder="Buscar productos..."
+                value={productSearchTerm}
+                onChange={(e) => setProductSearchTerm(e.target.value)}
+              />
+              <div className="max-h-[300px] overflow-y-auto space-y-2">
+                {filteredInventarioForMassDelivery.map((producto) => (
+                  <div key={producto.id} className="flex items-center space-x-2 p-2 border rounded">
+                    <Checkbox
+                      id={`product-${producto.id}`}
+                      checked={!!selectedProducts[producto.id]}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedProducts({ ...selectedProducts, [producto.id]: 1 })
+                        } else {
+                          const { [producto.id]: _, ...rest } = selectedProducts
+                          setSelectedProducts(rest)
+                        }
+                      }}
+                    />
+                    <div className="flex-grow flex items-center space-x-2">
+                      <Image
+                        src={producto.foto || '/placeholder.svg'}
+                        alt={producto.nombre}
+                        width={40}
+                        height={40}
+                        className="object-cover rounded"
+                      />
+                      <div>
+                        <label htmlFor={`product-${producto.id}`} className="font-medium">{producto.nombre}</label>
+                        <div className="text-sm text-gray-600">
+                          <span className="mr-2">Precio: ${producto.precio}</span>
+                          <span>Disponible: {producto.cantidad}</span>
+                        </div>
                       </div>
                     </div>
+                    {selectedProducts[producto.id] !== undefined && (
+                      <Input
+                        type="number"
+                        value={selectedProducts[producto.id]}
+                        onChange={(e) => handleProductQuantityChange(producto.id, e.target.value)}
+                        onBlur={() => handleProductQuantityBlur(producto.id, producto.cantidad)}
+                        className="w-20"
+                        min={1}
+                        max={Math.floor(producto.cantidad / selectedVendors.length)}
+                      />
+                    )}
                   </div>
-                  {selectedProducts[producto.id] !== undefined && (
-                    <Input
-                      type="number"
-                      value={selectedProducts[producto.id]}
-                      onChange={(e) => handleProductQuantityChange(producto.id, e.target.value)}
-                      onBlur={() => handleProductQuantityBlur(producto.id, producto.cantidad)}
-                      className="w-20"
-                      min={1}
-                      max={Math.floor(producto.cantidad / selectedVendors.length)}
-                    />
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setMassDeliveryStep(1)}>
+                  Atrás
+                </Button>
+                <Button onClick={handleMassDelivery} disabled={Object.keys(selectedProducts).length === 0}>
+                  Entregar
+                </Button>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setMassDeliveryStep(1)}>
-                Atrás
-              </Button>
-              <Button onClick={handleMassDelivery} disabled={Object.keys(selectedProducts).length === 0}>
-                Entregar
-              </Button>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showRegisterModal} onOpenChange={setShowRegisterModal}>
         <DialogContent>
@@ -1044,7 +1041,7 @@ export default function AlmacenPage() {
                 placeholder="Precio del producto"
               />
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="tieneParametros"
@@ -1070,7 +1067,7 @@ export default function AlmacenPage() {
                       onChange={(e) => {
                         const newParametros = [...newProduct.parametros];
                         newParametros[index].nombre = e.target.value;
-                        setNewProduct(prev => ({...prev, parametros: newParametros}));
+                        setNewProduct(prev => ({ ...prev, parametros: newParametros }));
                       }}
                     />
                     <Input
@@ -1080,7 +1077,7 @@ export default function AlmacenPage() {
                       onChange={(e) => {
                         const newParametros = [...newProduct.parametros];
                         newParametros[index].cantidad = parseInt(e.target.value);
-                        setNewProduct(prev => ({...prev, parametros: newParametros}));
+                        setNewProduct(prev => ({ ...prev, parametros: newParametros }));
                       }}
                     />
                   </div>
@@ -1130,7 +1127,7 @@ export default function AlmacenPage() {
 
       {selectedProduct && (
         <ProductDialog
-          product={{...selectedProduct, foto: selectedProduct.foto || ''}}
+          product={{ ...selectedProduct, foto: selectedProduct.foto || '' }}
           onClose={() => setSelectedProduct(null)}
           vendedores={vendedores}
           onEdit={handleEditProduct}
@@ -1139,21 +1136,21 @@ export default function AlmacenPage() {
         />
       )}
 
-        {vendedorSeleccionado && (
-          <VendorDialog
-            vendor={vendedorSeleccionado}
-            onClose={() => setVendedorSeleccionado(null)}
-            onEdit={handleEditVendedor}
-            productos={productosVendedor}
-            ventas={ventasVendedor}
-            ventasSemanales={ventasSemanales}
-            ventasDiarias={ventasDiarias}
-            transacciones={transaccionesVendedor}
-            onProductReduce={handleReduceVendorProduct}
-            onDeleteSale={deleteSale}
-            onProductMerma={handleProductMerma}
-          />
-        )}
+      {vendedorSeleccionado && (
+        <VendorDialog
+          vendor={vendedorSeleccionado}
+          onClose={() => setVendedorSeleccionado(null)}
+          onEdit={handleEditVendedor}
+          productos={productosVendedor}
+          ventas={ventasVendedor}
+          ventasSemanales={ventasSemanales}
+          ventasDiarias={ventasDiarias}
+          transacciones={transaccionesVendedor}
+          onProductReduce={handleReduceVendorProduct}
+          onDeleteSale={deleteSale}
+          onProductMerma={handleProductMerma}
+        />
+      )}
     </div>
   )
 } 
