@@ -29,7 +29,8 @@ import {
   eliminarProducto,
   deleteSale,
   createMerma,
-  getMermas
+  getMermas,
+  transferProduct
 } from '../../services/api'
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
@@ -567,6 +568,44 @@ export default function AlmacenPage() {
     }
   };
 
+  const handleProductTransfer = async (
+    productId: string,
+    fromVendorId: string,
+    toVendorId: string,
+    cantidad: number
+  ) => {
+    try {
+      await transferProduct({
+        productId,
+        fromVendorId,
+        toVendorId,
+        cantidad
+      });
+  
+      if (vendedorSeleccionado) {
+        const updatedProducts = await getProductosVendedor(vendedorSeleccionado.id);
+        setProductosVendedor(updatedProducts);
+        
+        const updatedTransactions = await getTransaccionesVendedor(vendedorSeleccionado.id);
+        setTransaccionesVendedor(updatedTransactions);
+      }
+  
+      await fetchInventario();
+  
+      toast({
+        title: "Transferencia exitosa",
+        description: "El producto ha sido transferido correctamente.",
+      });
+    } catch (error) {
+      console.error('Error en la transferencia:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al transferir el producto",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleEditVendedor = async (editedVendor: Vendedor & { newPassword?: string }) => {
     try {
       await editarVendedor(editedVendor.id, editedVendor);
@@ -801,7 +840,7 @@ export default function AlmacenPage() {
                             <h3 className="font-medium text-base">{merma.producto.nombre}</h3>
                             <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
                               <div>
-                                <p>Cantidad: {merma.cantidad}</p>
+                                <p>Cantidad: {merma.cantidad}</p> {/* Asegúrate de que esta cantidad provenga de la tabla de merma */}
                                 <p>Fecha: {new Date(merma.fecha).toLocaleDateString()}</p>
                               </div>
                               <div>
@@ -812,7 +851,6 @@ export default function AlmacenPage() {
                           </div>
                         </div>
                       </div>
-
                     ))
                   )}
                 </div>
@@ -864,6 +902,9 @@ export default function AlmacenPage() {
           </Card>
         </div>
       )}
+
+
+
 
       {activeSection === 'ventas' && (
         <SalesSection userRole="Almacen" />
@@ -1153,6 +1194,8 @@ export default function AlmacenPage() {
           onProductReduce={handleReduceVendorProduct}
           onDeleteSale={deleteSale}
           onProductMerma={handleProductMerma}
+          onProductTransfer={handleProductTransfer}
+          vendedores={vendedores}
         />
       )}
     </div>

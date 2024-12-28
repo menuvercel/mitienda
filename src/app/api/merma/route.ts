@@ -1,4 +1,3 @@
-// app/api/merma/route.ts
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 
@@ -66,7 +65,6 @@ export async function GET(request: Request) {
             m.*,
             p.nombre,
             p.precio,
-            p.cantidad,
             p.tiene_parametros
           FROM merma m
           INNER JOIN productos p ON m.producto_id = p.id
@@ -77,7 +75,6 @@ export async function GET(request: Request) {
             m.*,
             p.nombre,
             p.precio,
-            p.cantidad,
             p.tiene_parametros
           FROM merma m
           INNER JOIN productos p ON m.producto_id = p.id
@@ -85,7 +82,7 @@ export async function GET(request: Request) {
 
     const mermasFormateadas = mermas.rows.map(merma => ({
       id: merma.id,
-      cantidad: merma.cantidad,
+      cantidad: merma.cantidad, // Asegúrate de que esta cantidad provenga de la tabla de merma
       fecha: merma.fecha,
       usuario_id: merma.usuario_id,
       usuario_nombre: merma.usuario_nombre,
@@ -93,7 +90,6 @@ export async function GET(request: Request) {
         id: merma.producto_id,
         nombre: merma.nombre,
         precio: merma.precio,
-        cantidad: merma.cantidad,
         tiene_parametros: merma.tiene_parametros
       }
     }));

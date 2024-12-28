@@ -28,6 +28,13 @@ interface Producto {
   }>;
 }
 
+interface TransferProductParams {
+  productId: string;
+  fromVendorId: string;
+  toVendorId: string;
+  cantidad: number;
+}
+
 export const uploadImage = async (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
@@ -42,7 +49,6 @@ export const uploadImage = async (file: File) => {
 export const getCurrentUser = async (): Promise<User> => {
   try {
     const response = await api.get<User>('/users/me');
-    console.log('Raw user data:', response.data);
     
     // Verificar que response.data existe y tiene un id
     if (!response.data || !response.data.id) {
@@ -261,12 +267,10 @@ export const realizarVenta = async (
 
 
 export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
-  console.log('Solicitando todas las ventas para vendedor:', vendedorId);
 
   // Eliminamos el cálculo de fechas y los parámetros de fecha en la solicitud
   const response = await api.get(`/ventas?vendedorId=${vendedorId}`);
   
-  console.log('Respuesta de todas las ventas:', response.data);
   return response.data;
 };
 
@@ -350,7 +354,6 @@ export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor 
     delete (vendorData as any).newPassword;
 
     const response = await api.put(`/users/vendedores?id=${vendedorId}`, vendorData);
-    console.log('Vendedor actualizado:', response.data);
   } catch (error) {
     console.error('Error al editar vendedor:', error);
     if (axios.isAxiosError(error) && error.response) {
@@ -442,10 +445,44 @@ export const createMerma = async (
   return response.json();
 };
 
+// filepath: /d:/Programacion/web/punto/mitienda/src/app/services/api.ts
 export const getMermas = async (usuario_id?: string) => {
   const response = await fetch(`/api/merma${usuario_id ? `?usuario_id=${usuario_id}` : ''}`);
   if (!response.ok) {
     throw new Error('Error al obtener mermas');
   }
-  return response.json();
+  const data = await response.json();
+  return data;
+};
+
+
+// transferencia
+
+export const transferProduct = async ({
+  productId,
+  fromVendorId,
+  toVendorId,
+  cantidad
+}: TransferProductParams) => {
+  try {
+    const response = await api.post('/transacciones/transfer', {
+      productId,
+      fromVendorId,
+      toVendorId,
+      cantidad,
+      tipo: 'Transferencia'
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error al transferir producto:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        throw new Error(error.response.data.message || 'Error al transferir el producto');
+      } else if (error.request) {
+        throw new Error('No se recibió respuesta del servidor');
+      }
+    }
+    throw new Error('No se pudo completar la transferencia del producto');
+  }
 };

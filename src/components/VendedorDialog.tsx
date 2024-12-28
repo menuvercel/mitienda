@@ -24,6 +24,13 @@ interface VendorDialogProps {
   onProductReduce: (productId: string, vendorId: string, cantidad: number) => Promise<void>
   onDeleteSale: (saleId: string, vendedorId: string) => Promise<void>
   onProductMerma: (productId: string, vendorId: string, cantidad: number) => Promise<void>
+  vendedores: Vendedor[] // Añadido
+  onProductTransfer: ( // Añadido
+    productId: string,
+    fromVendorId: string,
+    toVendorId: string,
+    cantidad: number
+  ) => Promise<void>
 }
 
 interface VentaSemana {
@@ -52,7 +59,7 @@ interface Merma {
 
 
 
-export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce, onDeleteSale, onProductMerma }: VendorDialogProps) {
+export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce, onDeleteSale, onProductMerma, vendedores, onProductTransfer }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
   const [searchTerm, setSearchTerm] = useState('')
@@ -71,6 +78,10 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [ventasDiariasLocales, setVentasDiariasLocales] = useState<VentaDia[]>(ventasDiarias)
   const [showDestinationDialog, setShowDestinationDialog] = useState(false)
   const [selectedDestination, setSelectedDestination] = useState<'almacen' | 'merma' | 'vendedor' | null>(null)
+  const [showVendorSelectDialog, setShowVendorSelectDialog] = useState(false)
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null)
+
+
 
   // En el componente VendorDialog
   const handleDeleteSale = async (saleId: string) => {
@@ -468,31 +479,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     setReduceDialogOpen(true)
   }
 
-  const confirmReduce = async () => {
-    if (productToReduce && quantityToReduce > 0) {
-      setIsLoading(true)
-      try {
-        const productId = productToReduce.id.toString()
-        await onProductReduce(productId, vendor.id, quantityToReduce)
-        setReduceDialogOpen(false)
-        setProductToReduce(null)
-        setQuantityToReduce(0)
-        toast({
-          title: "Éxito",
-          description: "La cantidad del producto se ha reducido correctamente.",
-        })
-      } catch (error) {
-        console.error('Error al reducir la cantidad del producto:', error)
-        toast({
-          title: "Error",
-          description: "No se pudo reducir la cantidad del producto. Por favor, inténtelo de nuevo.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsLoading(false)
-      }
-    }
-  }
 
   const filterItems = useCallback((items: any[], term: string) => {
     return items.filter(item =>
@@ -862,6 +848,16 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             >
               Merma
             </Button>
+            <Button
+              variant={selectedDestination === 'vendedor' ? 'default' : 'outline'}
+              onClick={() => {
+                setSelectedDestination('vendedor')
+                setShowVendorSelectDialog(true)
+                setShowDestinationDialog(false)
+              }}
+            >
+              Vendedor
+            </Button>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
@@ -879,9 +875,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   if (selectedDestination === 'almacen') {
                     await onProductReduce(productToReduce.id.toString(), vendor.id, quantityToReduce)
                   } else if (selectedDestination === 'merma') {
-                    // Primero reducimos la cantidad del producto
                     await onProductReduce(productToReduce.id.toString(), vendor.id, quantityToReduce)
-                    // Luego registramos la merma
                     await onProductMerma(
                       productToReduce.id.toString(),
                       vendor.id,
@@ -909,7 +903,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   setIsLoading(false)
                 }
               }}
-              disabled={isLoading || !selectedDestination}
+              disabled={isLoading || !selectedDestination || selectedDestination === 'vendedor'}
             >
               {isLoading ? (
                 <>
@@ -918,6 +912,86 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 </>
               ) : (
                 'Confirmar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Nuevo diálogo para seleccionar vendedor */}
+      <Dialog open={showVendorSelectDialog} onOpenChange={setShowVendorSelectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Seleccionar Vendedor</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[50vh] overflow-y-auto space-y-2">
+            {vendedores
+              .filter((v: Vendedor) => v.id !== vendor.id)
+              .map((vendedor: Vendedor) => (
+                <Button
+                  key={vendedor.id}
+                  variant={selectedVendorId === vendedor.id ? 'default' : 'outline'}
+                  className="w-full justify-start"
+                  onClick={() => setSelectedVendorId(vendedor.id)}
+                >
+                  {vendedor.nombre}
+                </Button>
+              ))}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowVendorSelectDialog(false)
+                setSelectedVendorId(null)
+                setSelectedDestination(null)
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!productToReduce || !selectedVendorId) return
+
+                setIsLoading(true)
+                try {
+                  await onProductTransfer(
+                    productToReduce.id.toString(),
+                    vendor.id,
+                    selectedVendorId,
+                    quantityToReduce
+                  )
+
+                  setShowVendorSelectDialog(false)
+                  setSelectedVendorId(null)
+                  setSelectedDestination(null)
+                  setProductToReduce(null)
+                  setQuantityToReduce(0)
+
+                  toast({
+                    title: "Éxito",
+                    description: "Producto transferido correctamente.",
+                  })
+                } catch (error) {
+                  console.error('Error al transferir el producto:', error)
+                  toast({
+                    title: "Error",
+                    description: "No se pudo transferir el producto. Por favor, inténtelo de nuevo.",
+                    variant: "destructive",
+                  })
+                } finally {
+                  setIsLoading(false)
+                }
+              }}
+              disabled={isLoading || !selectedVendorId}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Procesando...
+                </>
+              ) : (
+                'Transferir'
               )}
             </Button>
           </DialogFooter>

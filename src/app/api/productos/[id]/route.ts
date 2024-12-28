@@ -132,7 +132,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
     try {
-
         const { id } = params;
         
         await query('BEGIN');
@@ -149,19 +148,25 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
                 return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
             }
 
-            // 2. Eliminar referencias en usuario_productos
+            // 2. Eliminar registros de merma primero
+            const mermaEliminada = await query(
+                'DELETE FROM merma WHERE producto_id = $1 RETURNING *',
+                [id]
+            );
+
+            // 3. Eliminar referencias en usuario_productos
             const usuarioProductosEliminados = await query(
                 'DELETE FROM usuario_productos WHERE producto_id = $1 RETURNING *',
                 [id]
             );
 
-            // 3. Eliminar transacciones asociadas
+            // 4. Eliminar transacciones asociadas
             const transaccionesEliminadas = await query(
                 'DELETE FROM transacciones WHERE producto = $1 RETURNING *',
                 [id]
             );
 
-            // 4. Eliminar parámetros si existen
+            // 5. Eliminar parámetros si existen
             let parametrosEliminados = 0;
             if (producto.rows[0].tiene_parametros) {
                 const result = await query(
@@ -171,7 +176,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
                 parametrosEliminados = result.rows.length;
             }
 
-            // 5. Finalmente eliminar el producto
+            // 6. Finalmente eliminar el producto
             await query('DELETE FROM productos WHERE id = $1', [id]);
 
             await query('COMMIT');
@@ -180,6 +185,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
                 message: 'Producto eliminado exitosamente',
                 deletedProduct: producto.rows[0],
                 deletedData: {
+                    merma: mermaEliminada.rows.length,
                     usuarioProductos: usuarioProductosEliminados.rows.length,
                     transacciones: transaccionesEliminadas.rows.length,
                     parametros: parametrosEliminados
@@ -200,6 +206,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         }, { status: 500 });
     }
 }
+
 
 
 
