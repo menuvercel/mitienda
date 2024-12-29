@@ -8,11 +8,12 @@ import { startOfWeek, endOfWeek, format } from 'date-fns';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet } from "lucide-react"
+import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2 } from "lucide-react"
 import {
   getVendedores,
   getCurrentUser,
@@ -30,7 +31,8 @@ import {
   deleteSale,
   createMerma,
   getMermas,
-  transferProduct
+  transferProduct,
+  deleteMerma
 } from '../../services/api'
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
@@ -164,6 +166,8 @@ export default function AlmacenPage() {
   const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
   const [activeProductTab, setActiveProductTab] = useState<'inventario' | 'merma'>('inventario');
   const [mermas, setMermas] = useState<Merma[]>([]);
+  const [mermaToDelete, setMermaToDelete] = useState<string | null>(null);
+
 
 
   const fetchMermas = useCallback(async () => {
@@ -229,8 +233,6 @@ export default function AlmacenPage() {
     }
   };
 
-
-
   const handleDeleteProduct = async (productId: string) => {
     try {
       await eliminarProducto(productId);
@@ -241,6 +243,51 @@ export default function AlmacenPage() {
       console.error('Error deleting product:', error);
       alert('Error al eliminar el producto. Por favor, inténtelo de nuevo.');
     }
+  };
+
+
+  const handleDeleteMerma = (productoId: string) => {
+    setMermaToDelete(productoId);
+  };
+
+
+  const confirmDeleteMerma = async () => {
+    if (!mermaToDelete) return;
+  
+    try {
+      await deleteMerma(mermaToDelete);
+      // En lugar de filtrar manualmente, volvemos a cargar todas las mermas
+      await fetchMermas();
+  
+      toast({
+        title: "Éxito",
+        description: "Merma eliminada correctamente",
+      });
+    } catch (error) {
+      console.error('Error al eliminar la merma:', error);
+      toast({
+        title: "Error",
+        description: "Error al eliminar la merma",
+        variant: "destructive",
+      });
+    } finally {
+      setMermaToDelete(null);
+    }
+  };
+  
+
+  const agruparMermas = (mermas: Merma[]) => {
+    return mermas.reduce((acc, merma) => {
+      const key = merma.producto.id;
+      if (!acc[key]) {
+        acc[key] = {
+          ...merma,
+          cantidad: 0
+        };
+      }
+      acc[key].cantidad += merma.cantidad;
+      return acc;
+    }, {} as { [key: string]: Merma });
   };
 
 
@@ -494,7 +541,6 @@ export default function AlmacenPage() {
 
   const handleProductDelivery = async (productId: string, vendedorId: string, cantidad: number) => {
     try {
-      console.log(`Entregando producto: ID=${productId}, VendedorID=${vendedorId}, Cantidad=${cantidad}`)
       await entregarProducto(productId, vendedorId, cantidad)
 
       await fetchInventario()
@@ -532,11 +578,6 @@ export default function AlmacenPage() {
       } else if (editedProduct.foto) {
         formData.append('fotoUrl', editedProduct.foto)
       }
-
-      console.log('Enviando datos al servidor:', {
-        ...Object.fromEntries(formData),
-        parametros: editedProduct.parametros
-      })
 
       await editarProducto(editedProduct.id, formData)
       await fetchInventario()
@@ -581,17 +622,17 @@ export default function AlmacenPage() {
         toVendorId,
         cantidad
       });
-  
+
       if (vendedorSeleccionado) {
         const updatedProducts = await getProductosVendedor(vendedorSeleccionado.id);
         setProductosVendedor(updatedProducts);
-        
+
         const updatedTransactions = await getTransaccionesVendedor(vendedorSeleccionado.id);
         setTransaccionesVendedor(updatedTransactions);
       }
-  
+
       await fetchInventario();
-  
+
       toast({
         title: "Transferencia exitosa",
         description: "El producto ha sido transferido correctamente.",
@@ -815,9 +856,9 @@ export default function AlmacenPage() {
                       No hay productos en merma registrados
                     </div>
                   ) : (
-                    mermas.map((merma) => (
+                    Object.values(agruparMermas(mermas)).map((merma) => (
                       <div
-                        key={merma.id}
+                        key={merma.producto.id}
                         className="p-3 rounded-lg border bg-white hover:bg-gray-50 transition-all duration-200"
                       >
                         <div className="flex items-center space-x-3">
@@ -840,15 +881,26 @@ export default function AlmacenPage() {
                             <h3 className="font-medium text-base">{merma.producto.nombre}</h3>
                             <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
                               <div>
-                                <p>Cantidad: {merma.cantidad}</p> {/* Asegúrate de que esta cantidad provenga de la tabla de merma */}
-                                <p>Fecha: {new Date(merma.fecha).toLocaleDateString()}</p>
+                                <p>${Number(merma.producto.precio).toFixed(2)}</p>
+                                <p>{new Date(merma.fecha).toLocaleDateString()}</p>
                               </div>
                               <div>
-                                <p>Precio: ${Number(merma.producto.precio).toFixed(2)}</p>
-                                {merma.motivo && <p>Motivo: {merma.motivo}</p>}
+                                <p>Cantidad: {merma.cantidad}</p>
                               </div>
                             </div>
                           </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteMerma(merma.producto.id); // Ahora usamos el ID del producto
+                            }}
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </Button>
+
                         </div>
                       </div>
                     ))
@@ -1168,6 +1220,29 @@ export default function AlmacenPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={mermaToDelete !== null} onOpenChange={(open) => !open && setMermaToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setMermaToDelete(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteMerma}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
 
       {selectedProduct && (

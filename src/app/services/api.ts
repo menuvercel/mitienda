@@ -420,7 +420,7 @@ export const deleteSale = async (saleId: string, vendedorId: string): Promise<vo
 
 export default api;
 
-// api.ts
+// merma
 export const createMerma = async (
   producto_id: string,
   usuario_id: string,
@@ -445,7 +445,7 @@ export const createMerma = async (
   return response.json();
 };
 
-// filepath: /d:/Programacion/web/punto/mitienda/src/app/services/api.ts
+
 export const getMermas = async (usuario_id?: string) => {
   const response = await fetch(`/api/merma${usuario_id ? `?usuario_id=${usuario_id}` : ''}`);
   if (!response.ok) {
@@ -454,6 +454,31 @@ export const getMermas = async (usuario_id?: string) => {
   const data = await response.json();
   return data;
 };
+
+
+// En api.ts, agregar la siguiente función:
+
+
+
+export const deleteMerma = async (productoId: string): Promise<void> => {
+  try {
+    const response = await fetch(`/api/merma?producto_id=${productoId}`, {  // <- Cambio aquí
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Error al eliminar las mermas');
+    }
+  } catch (error) {
+    console.error('Error en deleteMerma:', error);
+    throw error;
+  }
+};
+
 
 
 // transferencia
@@ -486,3 +511,4 @@ export const transferProduct = async ({
     throw new Error('No se pudo completar la transferencia del producto');
   }
 };
+

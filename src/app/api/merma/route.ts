@@ -82,7 +82,7 @@ export async function GET(request: Request) {
 
     const mermasFormateadas = mermas.rows.map(merma => ({
       id: merma.id,
-      cantidad: merma.cantidad, // Asegúrate de que esta cantidad provenga de la tabla de merma
+      cantidad: merma.cantidad,
       fecha: merma.fecha,
       usuario_id: merma.usuario_id,
       usuario_nombre: merma.usuario_nombre,
@@ -103,3 +103,37 @@ export async function GET(request: Request) {
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const productoId = searchParams.get('producto_id');
+
+    if (!productoId) {
+      return NextResponse.json(
+        { error: 'Se requiere producto_id' },
+        { status: 400 }
+      );
+    }
+
+    const resultado = await sql`
+      DELETE FROM merma 
+      WHERE producto_id = ${productoId}
+    `;
+
+    return NextResponse.json({ 
+      success: true,
+      message: 'Mermas eliminadas correctamente',
+      registrosEliminados: resultado.rowCount
+    });
+
+  } catch (error) {
+    console.error('Error al eliminar mermas:', error);
+    return NextResponse.json(
+      { error: 'Error al eliminar las mermas' },
+      { status: 500 }
+    );
+  }
+}
+
+

@@ -107,7 +107,6 @@ export async function GET(request: NextRequest) {
             GROUP BY p.id
         `);
   
-        console.log('Products with parameters:', result.rows);
   
         return NextResponse.json(result.rows);
     } catch (error) {

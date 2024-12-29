@@ -47,7 +47,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       })
     );
     
-    console.log('Productos con parámetros obtenidos para el vendedor:', productosConParametros);
 
     return NextResponse.json(productosConParametros);
   } catch (error) {
