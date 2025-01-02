@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -14,15 +13,14 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { MenuIcon, Search, X, ChevronDown, ChevronUp, ArrowLeftRight, Minus, Plus, DollarSign, ArrowUpDown } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { format, parseISO, isValid, startOfWeek, endOfWeek, addDays   } from 'date-fns'
+import { format, parseISO, isValid, startOfWeek, endOfWeek, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { OptimizedImage } from '@/components/OptimizedImage';
-import { 
+import {
   getTransaccionesVendedor,
-  getProductosVendedor, 
-  realizarVenta, 
+  getProductosVendedor,
+  realizarVenta,
   getVentasMes,
-  getCurrentUser,
   getTransaccionesProducto,
   getVentasProducto
 } from '../../../services/api'
@@ -46,11 +44,9 @@ interface ProductoParametro {
 
 interface ProductoVenta extends Producto {
   cantidadVendida: number;
-  parametrosVenta?: {
-    nombre: string;
-    cantidad: number;
-  }[];
+  parametrosVenta?: ProductoParametro[];
 }
+
 
 
 interface Transaccion {
@@ -60,6 +56,11 @@ interface Transaccion {
   fecha: string;
   tipo: string;
   precio: number;
+}
+
+interface VentaParametro {
+  nombre: string;
+  cantidad: number;
 }
 
 interface Venta {
@@ -72,6 +73,12 @@ interface Venta {
   total: number | string;
   vendedor: string;
   fecha: string;
+  parametros?: ProductoParametro[]; // Agregamos los parámetros
+}
+
+interface ProductoVenta extends Producto {
+  cantidadVendida: number;
+  parametrosVenta?: VentaParametro[];
 }
 
 interface VentaAgrupada {
@@ -131,21 +138,25 @@ const useVendedorData = (vendedorId: string) => {
       alert('No se pudo identificar el vendedor.');
       return;
     }
-  
+
     try {
       console.log('Iniciando proceso de venta');
-      console.log('Productos seleccionados:', productosSeleccionados);
-      console.log('Fecha seleccionada:', fecha);
-  
+
       await Promise.all(productosSeleccionados.map(async producto => {
         try {
+          // Calcular la cantidad total sumando los parámetros
+          const cantidadTotal = producto.parametrosVenta
+            ? producto.parametrosVenta.reduce((sum, param) => sum + param.cantidad, 0)
+            : producto.cantidadVendida;
+
           const response = await realizarVenta(
-            producto.id, 
-            producto.cantidadVendida, 
+            producto.id,
+            cantidadTotal, // Usar la cantidad total calculada
             fecha,
-            undefined, // Explícitamente pasamos undefined para los parámetros
+            producto.parametrosVenta,
             vendedorId
           );
+
           console.log(`Venta realizada para producto ${producto.id}:`, response);
           return response;
         } catch (error) {
@@ -153,7 +164,7 @@ const useVendedorData = (vendedorId: string) => {
           throw error;
         }
       }));
-  
+
       setProductosSeleccionados([]);
       setFecha('');
       await fetchProductos();
@@ -164,8 +175,8 @@ const useVendedorData = (vendedorId: string) => {
       setError(error instanceof Error ? error.message : 'Error al realizar la venta');
     }
   };
-  
-  
+
+
 
   const agruparVentasPorDia = useCallback((ventas: Venta[]) => {
     const ventasDiarias: VentaDia[] = [];
@@ -212,13 +223,13 @@ const useVendedorData = (vendedorId: string) => {
 
   const agruparVentasPorSemana = useCallback((ventas: Venta[]) => {
     const weekMap = new Map<string, VentaSemana>();
-  
+
     const getWeekKey = (date: Date) => {
       const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 });
       const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 });
       return `${format(mondayOfWeek, 'yyyy-MM-dd')}_${format(sundayOfWeek, 'yyyy-MM-dd')}`;
     };
-  
+
     ventas.forEach((venta) => {
       const ventaDate = parseISO(venta.fecha);
       if (!isValid(ventaDate)) {
@@ -226,7 +237,7 @@ const useVendedorData = (vendedorId: string) => {
         return;
       }
       const weekKey = getWeekKey(ventaDate);
-  
+
       if (!weekMap.has(weekKey)) {
         const mondayOfWeek = startOfWeek(ventaDate, { weekStartsOn: 1 });
         const sundayOfWeek = endOfWeek(ventaDate, { weekStartsOn: 1 });
@@ -238,15 +249,15 @@ const useVendedorData = (vendedorId: string) => {
           ganancia: 0,
         });
       }
-  
+
       const currentWeek = weekMap.get(weekKey)!;
       currentWeek.ventas.push(venta);
       currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0;
       currentWeek.ganancia = parseFloat((currentWeek.total * 0.08).toFixed(2));
     });
-  
+
     const ventasSemanales = Array.from(weekMap.values());
-  
+
     return ventasSemanales.sort((a, b) => {
       const dateA = parseISO(a.fechaInicio);
       const dateB = parseISO(b.fechaInicio);
@@ -285,7 +296,7 @@ const useVendedorData = (vendedorId: string) => {
       }
     }
   }, [vendedorId, agruparVentas, agruparVentasPorSemana, agruparVentasPorDia]);
-  
+
 
   const fetchTransacciones = useCallback(async () => {
     try {
@@ -310,22 +321,22 @@ const useVendedorData = (vendedorId: string) => {
         setIsLoading(false);
       }
     };
-  
+
     loadData();
   }, [vendedorId, fetchProductos, fetchVentasRegistro, fetchTransacciones]);
 
-  return { 
-    isLoading, 
-    error, 
-    productosDisponibles, 
-    productosAgotados, 
-    ventasRegistro, 
+  return {
+    isLoading,
+    error,
+    productosDisponibles,
+    productosAgotados,
+    ventasRegistro,
     transacciones,
     ventasDia,
     ventasAgrupadas,
     ventasSemanales,
     ventasDiarias,
-    fetchProductos, 
+    fetchProductos,
     fetchVentasRegistro,
     fetchTransacciones,
     sortOrder,
@@ -365,6 +376,20 @@ const formatPrice = (price: number | string | undefined): string => {
 const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
   const [isOpen, setIsOpen] = useState(false);
 
+  // Función para calcular el total de una venta individual
+  const calcularTotalVenta = (venta: Venta) => {
+    if (venta.parametros && venta.parametros.length > 0) {
+      const cantidadTotal = venta.parametros.reduce((sum, param) => sum + param.cantidad, 0);
+      return cantidadTotal * venta.precio_unitario;
+    }
+    return venta.cantidad * venta.precio_unitario;
+  };
+
+  // Función para calcular el total del día (suma de todas las ventas)
+  const calcularTotalDia = (ventaDia: VentaDia) => {
+    return ventaDia.ventas.reduce((total, venta) => total + calcularTotalVenta(venta), 0);
+  };
+
   return (
     <div className="border rounded-lg mb-2">
       <div
@@ -373,35 +398,59 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
       >
         <span>{formatDate(venta.fecha)}</span>
         <div className="flex items-center">
-          <span className="mr-2">${formatPrice(venta.total)}</span>
+          <span className="mr-2">${formatPrice(calcularTotalDia(venta))}</span>
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </div>
       </div>
       {isOpen && (
         <div className="p-4 bg-gray-50">
-            {venta.ventas.map((v) => (
-              <div key={v.id} className="flex items-center justify-between py-2">
-                <div className="flex items-center">
+          {venta.ventas.map((v) => (
+            <div key={v.id} className="flex flex-col border-b py-4 last:border-b-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
                   <Image
                     src={v.producto_foto || '/placeholder.svg'}
                     alt={v.producto_nombre}
                     width={40}
                     height={40}
-                    className="rounded-md mr-4"
+                    className="rounded-md"
                   />
-                  <span>{v.producto_nombre}</span>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{v.producto_nombre}</span>
+                    {v.parametros && v.parametros.length > 0 && (
+                      <div className="mt-1">
+                        {v.parametros.map((param, index) => (
+                          <div key={index} className="text-sm text-gray-600">
+                            • {param.nombre}: {param.cantidad}
+                          </div>
+                        ))}
+                        <div className="text-sm font-medium text-gray-700 mt-1">
+                          Cantidad total: {v.parametros.reduce((sum, param) => sum + param.cantidad, 0)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="text-right">
-                  <div>Cantidad: {v.cantidad}</div>
-                  <div>${formatPrice(v.precio_unitario)}</div>
+                  <div className="text-sm text-gray-600">
+                    Precio unitario: ${formatPrice(v.precio_unitario)}
+                  </div>
+                  <div className="font-medium text-green-600">
+                    Total: ${formatPrice(calcularTotalVenta(v))}
+                  </div>
                 </div>
               </div>
-            ))}
+            </div>
+          ))}
         </div>
       )}
     </div>
   );
 };
+
+
+
+
 
 const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -428,7 +477,7 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
 
   return (
     <div className="border rounded-lg mb-2">
-      <div 
+      <div
         className="flex justify-between items-center p-4 cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}
       >
@@ -452,15 +501,15 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
               const fechaInicio = parseISO(venta.fechaInicio)
               const fechaFin = parseISO(venta.fechaFin)
               if (isValid(fechaVenta) && isValid(fechaInicio) && isValid(fechaFin) &&
-                  fechaVenta >= fechaInicio && fechaVenta <= fechaFin) {
+                fechaVenta >= fechaInicio && fechaVenta <= fechaFin) {
                 return (
-                  <VentaDiaDesplegable 
-                    key={fecha} 
+                  <VentaDiaDesplegable
+                    key={fecha}
                     venta={{
-                      fecha, 
-                      ventas: ventasDia, 
+                      fecha,
+                      ventas: ventasDia,
                       total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
-                    }} 
+                    }}
                   />
                 )
               }
@@ -480,6 +529,11 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [busqueda, setBusqueda] = useState('')
+
+  const calcularCantidadTotal = (parametros?: ProductoParametro[]): number => {
+    if (!parametros) return 0;
+    return parametros.reduce((total, param) => total + param.cantidad, 0);
+  };
 
   const fetchProductData = useCallback(async () => {
     setIsLoading(true)
@@ -515,8 +569,8 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   }
 
   const filterItems = useCallback((items: any[], term: string) => {
-    return items.filter(item => 
-      Object.values(item).some(value => 
+    return items.filter(item =>
+      Object.values(item).some(value =>
         value && value.toString().toLowerCase().includes(term.toLowerCase())
       )
     )
@@ -558,19 +612,19 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
     const filteredTransacciones = transacciones.filter(t =>
       t.producto.toLowerCase().includes(busqueda.toLowerCase())
     );
-    
+
     return (
       <div className="space-y-2">
         {filteredTransacciones.map(transaccion => {
           const transactionType = transaccion.tipo || 'Normal';
-          const borderColor = 
+          const borderColor =
             transactionType === 'Baja' ? 'border-red-500' :
-            transactionType === 'Entrega' ? 'border-green-500' :
-            'border-blue-500';
-  
+              transactionType === 'Entrega' ? 'border-green-500' :
+                'border-blue-500';
+
           // Usar la función formatPrice para manejar undefined de manera segura
           const precioFormateado = formatPrice(transaccion.precio);
-  
+
           return (
             <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
               <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
@@ -602,43 +656,36 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
       >
         <CardContent className="p-4 flex items-center space-x-4">
           {producto.foto ? (
-            <Image
+            <OptimizedImage
               src={producto.foto}
+              fallbackSrc="/placeholder.svg"
               alt={producto.nombre}
               width={50}
               height={50}
               className="object-cover rounded"
-              onError={(e) => {
-                console.error(`Error loading image for ${producto.nombre}:`, e);
-                e.currentTarget.src = '/placeholder.svg';
-              }}
             />
           ) : (
             <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
               <span className="text-gray-500 text-xs">Sin imagen</span>
             </div>
           )}
-        <div>
-          <h3 className="font-semibold">{producto.nombre}</h3>
-          <p className="text-sm text-gray-600">
-            Precio: ${formatPrice(producto.precio)}
-          </p>
-          {producto.tiene_parametros ? (
-            <div className="text-sm text-gray-500">
-              {producto.parametros?.map(param => (
-                <div key={param.nombre}>
-                  {param.nombre}: {param.cantidad}
-                </div>
-              ))}
-            </div>
-          ) : (
+          <div>
+            <h3 className="font-semibold">{producto.nombre}</h3>
             <p className="text-sm text-gray-600">
-              {producto.cantidad > 0 ? `Cantidad: ${producto.cantidad}` : 'Agotado'}
+              Precio: ${formatPrice(producto.precio)}
             </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+            {producto.tiene_parametros ? (
+              <p className="text-sm text-gray-600">
+                Cantidad total: {calcularCantidadTotal(producto.parametros)}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-600">
+                {producto.cantidad > 0 ? `Cantidad: ${producto.cantidad}` : 'Agotado'}
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[800px]">
@@ -675,8 +722,23 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
                   <div className="text-center w-full p-4 bg-white rounded-lg">
                     <h3 className="text-xl font-semibold">{producto.nombre}</h3>
                     <p className="text-gray-600">Precio: ${formatPrice(producto.precio)}</p>
-                    <p className="text-gray-600">Cantidad disponible: {producto.cantidad}</p>
-                    {/* Add any additional product information here */}
+
+                    {/* Modificar esta parte para mostrar los parámetros */}
+                    {producto.tiene_parametros ? (
+                      <div className="mt-4">
+                        <h4 className="font-medium mb-2">Parámetros:</h4>
+                        <div className="space-y-2">
+                          {producto.parametros?.map((parametro) => (
+                            <div key={parametro.nombre} className="flex justify-between px-4">
+                              <span>{parametro.nombre}</span>
+                              <span>{parametro.cantidad}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-gray-600">Cantidad disponible: {producto.cantidad}</p>
+                    )}
                   </div>
                 </div>
               </TabsContent>
@@ -714,21 +776,36 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   )
 }
 
-const ParametrosDialog = ({ 
-  producto, 
-  open, 
-  onClose, 
-  onSubmit 
+const ParametrosDialog = ({
+  producto,
+  open,
+  onClose,
+  onSubmit
 }: ParametrosDialogProps) => {
-  const [parametros, setParametros] = useState<ProductoParametro[]>(
-    producto?.parametros?.map(p => ({ ...p, cantidad: 0 })) || []
+  const [parametros, setParametros] = useState<ProductoParametro[]>(() =>
+    producto?.parametros?.map(p => ({
+      nombre: p.nombre,
+      cantidad: 0
+    })) || []
   );
+
+  // Reiniciar los parámetros cuando cambia el producto
+  useEffect(() => {
+    if (producto?.parametros) {
+      setParametros(producto.parametros.map(p => ({
+        nombre: p.nombre,
+        cantidad: 0
+      })));
+    }
+  }, [producto]);
+
+  const hasSelectedParameters = parametros.some(p => p.cantidad > 0);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Seleccionar Cantidades</DialogTitle>
+          <DialogTitle>Seleccionar Parámetros de {producto?.nombre}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           {parametros.map((param, index) => (
@@ -761,27 +838,38 @@ const ParametrosDialog = ({
               </div>
             </div>
           ))}
-          <Button onClick={() => onSubmit(parametros)}>
-            Confirmar
-          </Button>
+          <div className="flex flex-col gap-2">
+            {!hasSelectedParameters && (
+              <p className="text-sm text-red-500">
+                Debes seleccionar al menos un parámetro
+              </p>
+            )}
+            <Button
+              onClick={() => onSubmit(parametros)}
+              disabled={!hasSelectedParameters}
+            >
+              Confirmar
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
   );
 };
 
+
 export default function VendedorPage() {
   const params = useParams()
   const vendedorId = params.id as string
-  const { 
-    isLoading, 
-    error, 
-    productosDisponibles, 
-    productosAgotados, 
+  const {
+    isLoading,
+    error,
+    productosDisponibles,
+    productosAgotados,
     transacciones,
     ventasSemanales,
     ventasDiarias,
-    fetchProductos, 
+    fetchProductos,
     fetchVentasRegistro,
     sortOrder,
     setSortOrder,
@@ -797,11 +885,14 @@ export default function VendedorPage() {
   const [busqueda, setBusqueda] = useState('')
   const [seccionActual, setSeccionActual] = useState<'productos' | 'ventas' | 'registro'>('productos')
   const [menuAbierto, setMenuAbierto] = useState(false)
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [parametrosDialogOpen, setParametrosDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null);
-  
+  const [productosConParametrosEnEspera, setProductosConParametrosEnEspera] = useState<ProductoVenta[]>([]);
+
+
+
   const handleSort = (key: 'nombre' | 'cantidad') => {
     if (sortBy === key) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
@@ -813,7 +904,7 @@ export default function VendedorPage() {
 
   const sortedProductos = [...productosDisponibles].sort((a, b) => {
     if (sortBy === 'nombre') {
-      return sortOrder === 'asc' 
+      return sortOrder === 'asc'
         ? a.nombre.localeCompare(b.nombre)
         : b.nombre.localeCompare(a.nombre)
     } else {
@@ -823,7 +914,7 @@ export default function VendedorPage() {
     }
   })
 
-  const productosFiltrados = sortedProductos.filter(p => 
+  const productosFiltrados = sortedProductos.filter(p =>
     p.nombre.toLowerCase().includes(busqueda.toLowerCase())
   )
 
@@ -831,19 +922,19 @@ export default function VendedorPage() {
     const filteredTransacciones = transacciones.filter(t =>
       t.producto.toLowerCase().includes(busqueda.toLowerCase())
     );
-    
+
     return (
       <div className="space-y-2">
         {filteredTransacciones.map(transaccion => {
           const transactionType = transaccion.tipo || 'Normal';
-          const borderColor = 
+          const borderColor =
             transactionType === 'Baja' ? 'border-red-500' :
-            transactionType === 'Entrega' ? 'border-green-500' :
-            'border-blue-500';
-  
+              transactionType === 'Entrega' ? 'border-green-500' :
+                'border-blue-500';
+
           // Usar la función formatPrice para manejar undefined de manera segura
           const precioFormateado = formatPrice(transaccion.precio);
-  
+
           return (
             <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
               <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
@@ -869,22 +960,33 @@ export default function VendedorPage() {
 
   const handleProductSelect = (producto: Producto) => {
     if (producto.tiene_parametros) {
-      // Abrir diálogo para seleccionar parámetros
-      setSelectedProduct(producto);
-      setParametrosDialogOpen(true);
+      // Si ya está seleccionado, lo quitamos
+      if (selectedProductIds.includes(producto.id)) {
+        setSelectedProductIds(prev => prev.filter(id => id !== producto.id));
+        setProductosConParametrosEnEspera(prev =>
+          prev.filter(p => p.id !== producto.id)
+        );
+      } else {
+        // Si no está seleccionado, abrimos el diálogo de parámetros
+        setSelectedProduct(producto);
+        setParametrosDialogOpen(true);
+      }
     } else {
-      setSelectedProductIds(prev => 
-        prev.includes(producto.id) 
+      // Lógica existente para productos sin parámetros
+      setSelectedProductIds(prev =>
+        prev.includes(producto.id)
           ? prev.filter(id => id !== producto.id)
           : [...prev, producto.id]
       );
     }
   };
-  
+
+
   const handleParametrosSubmit = (parametros: ProductoParametro[]) => {
     if (!selectedProduct) return;
-  
-    setProductosSeleccionados(prev => [
+
+    // Añadir el producto a productosConParametrosEnEspera
+    setProductosConParametrosEnEspera(prev => [
       ...prev,
       {
         ...selectedProduct,
@@ -892,30 +994,41 @@ export default function VendedorPage() {
         parametrosVenta: parametros
       }
     ]);
-    
+
+    // Añadir el ID del producto a selectedProductIds
+    setSelectedProductIds(prev => [...prev, selectedProduct.id]);
+
+    // Cerrar solo el diálogo de parámetros
     setParametrosDialogOpen(false);
     setSelectedProduct(null);
   };
-  
+
+
 
   const handleConfirmSelection = () => {
+    // Productos sin parámetros
     const newSelectedProducts = productosDisponibles
-      .filter(producto => selectedProductIds.includes(producto.id))
+      .filter(producto =>
+        selectedProductIds.includes(producto.id) &&
+        !producto.tiene_parametros
+      )
       .map(producto => ({
         ...producto,
         cantidadVendida: 1
-      }))
-    
+      }));
+
+    // Combinar productos normales y productos con parámetros
     setProductosSeleccionados(prev => [
       ...prev,
-      ...newSelectedProducts.filter(newProduct => 
-        !prev.some(existingProduct => existingProduct.id === newProduct.id)
-      )
-    ])
-    
-    setSelectedProductIds([])
-    setIsDialogOpen(false)
-  }
+      ...newSelectedProducts,
+      ...productosConParametrosEnEspera
+    ]);
+
+    // No limpiamos selectedProductIds aquí para mantener los checkboxes marcados
+    setIsDialogOpen(false);
+  };
+
+
 
   const handleAjustarCantidad = (id: string, incremento: number) => {
     setProductosSeleccionados(prev => prev.reduce((acc, p) => {
@@ -929,9 +1042,9 @@ export default function VendedorPage() {
       return [...acc, p];
     }, [] as ProductoVenta[]))
   }
-  
-  
-  const productosAgotadosFiltrados = productosAgotados.filter(p => 
+
+
+  const productosAgotadosFiltrados = productosAgotados.filter(p =>
     p.nombre.toLowerCase().includes(busqueda.toLowerCase())
   )
 
@@ -958,7 +1071,7 @@ export default function VendedorPage() {
       <Sheet open={menuAbierto} onOpenChange={setMenuAbierto}>
         <SheetTrigger asChild>
           <Button variant="outline" size="icon" className="fixed top-4 right-4 z-50">
-            <MenuIcon  className="h-4 w-4" />
+            <MenuIcon className="h-4 w-4" />
           </Button>
         </SheetTrigger>
         <SheetContent side="right" className="w-[200px]">
@@ -1074,7 +1187,7 @@ export default function VendedorPage() {
                       </div>
                     </div>
                     <ScrollArea className="h-[300px] pr-4">
-                      {productosDisponibles.filter(p => 
+                      {productosDisponibles.filter(p =>
                         p.nombre.toLowerCase().includes(busqueda.toLowerCase())
                       ).map((producto) => (
                         <Card key={producto.id} className="mb-2">
@@ -1099,6 +1212,20 @@ export default function VendedorPage() {
                                 </label>
                                 <p className="text-sm text-gray-500">Cantidad: {producto.cantidad}</p>
                                 <p className="text-sm text-gray-500">Precio: ${formatPrice(producto.precio)}</p>
+
+                                {/* Mostrar los parámetros si ya están configurados */}
+                                {producto.tiene_parametros && selectedProductIds.includes(producto.id) && (
+                                  <div className="mt-2 text-sm text-gray-600">
+                                    {productosConParametrosEnEspera
+                                      .find(p => p.id === producto.id)
+                                      ?.parametrosVenta?.map(param => (
+                                        <div key={param.nombre} className="flex justify-between">
+                                          <span>{param.nombre}:</span>
+                                          <span>{param.cantidad}</span>
+                                        </div>
+                                      ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </CardContent>
@@ -1114,30 +1241,57 @@ export default function VendedorPage() {
                   <h3 className="font-bold mb-2">Productos Seleccionados:</h3>
                   {productosSeleccionados.map((producto) => (
                     <div key={producto.id} className="flex justify-between items-center mb-2 p-2 bg-gray-100 rounded">
-                        <div className="flex flex-col">
-                          <span className="font-medium">{producto.nombre}</span>
-                          <span className="text-sm text-gray-600">Precio: ${formatPrice(producto.precio)}</span>
-                        </div>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{producto.nombre}</span>
+                        <span className="text-sm text-gray-600">Precio: ${formatPrice(producto.precio)}</span>
+                        {producto.parametrosVenta && producto.parametrosVenta.length > 0 && (
+                          <div className="text-sm text-gray-500">
+                            <p className="font-medium">Parámetros:</p>
+                            {producto.parametrosVenta.map(param => (
+                              <p key={param.nombre} className="ml-2">
+                                {param.nombre}: {param.cantidad}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleAjustarCantidad(producto.id, -1)}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                        <span>{producto.cantidadVendida}</span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleAjustarCantidad(producto.id, 1)}
-                          disabled={producto.cantidadVendida >= producto.cantidad}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
+                        {!producto.parametrosVenta ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleAjustarCantidad(producto.id, -1)}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <span>{producto.cantidadVendida}</span>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleAjustarCantidad(producto.id, 1)}
+                              disabled={producto.cantidadVendida >= producto.cantidad}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setProductosSeleccionados(prev =>
+                              prev.filter(p => p.id !== producto.id)
+                            )}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
+
+
                 </div>
                 <h2 className="text-xl font-semibold">3. Enviar el formulario de ventas</h2>
                 <Button onClick={handleEnviarVenta}>Enviar</Button>
@@ -1196,7 +1350,7 @@ export default function VendedorPage() {
             </TabsContent>
           </Tabs>
         )}
-       {seccionActual === 'registro' && (
+        {seccionActual === 'registro' && (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Registro de Actividades</h2>
             <div className="relative mb-4">

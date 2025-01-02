@@ -1,11 +1,13 @@
 import axios from 'axios';
-import { Venta, Vendedor, Transaccion } from '@/types';
+import { Venta, Vendedor, Transaccion, VentaParametro } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_URL
 });
+
+
 
 interface User {
   id: string;
@@ -237,9 +239,9 @@ export const realizarVenta = async (
   productoId: string, 
   cantidad: number, 
   fecha: string,
-  _parametrosVenta?: { nombre: string; cantidad: number; }[], // Lo mantenemos como parámetro opcional pero no lo usamos
+  parametros?: VentaParametro[],
   vendedorId?: string
-) => {
+): Promise<Venta> => {
   try {
     if (!vendedorId) {
       throw new Error('El ID del vendedor es requerido');
@@ -248,18 +250,29 @@ export const realizarVenta = async (
     const fechaAjustada = new Date(fecha + 'T12:00:00');
     const fechaISO = fechaAjustada.toISOString();
 
-    // Solo enviamos los campos necesarios
-    const response = await api.post('/ventas', { 
+    const response = await api.post<Venta>('/ventas', { 
       productoId, 
       cantidad, 
       fecha: fechaISO,
-      vendedorId
+      vendedorId,
+      parametros
     });
     
     return response.data;
   } catch (error) {
     console.error('Error al realizar la venta:', error);
-    throw new Error('Error al crear venta');
+    if (axios.isAxiosError(error)) {
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (error.response?.status === 400) {
+        throw new Error('Datos de venta inválidos');
+      }
+      if (error.response?.status === 404) {
+        throw new Error('Producto no encontrado o no disponible');
+      }
+    }
+    throw new Error('Error al crear la venta');
   }
 };
 
@@ -332,10 +345,17 @@ export const reducirProductoVendedor = async (
 
 export const getVentasVendedor = async (vendedorId: string): Promise<Venta[]> => {
   try {
-    const response = await api.get(`/ventas?vendedorId=${vendedorId}`);
+    const response = await api.get<Venta[]>(`/ventas`, {
+      params: { vendedorId }
+    });
     return response.data;
   } catch (error) {
     console.error('Error al obtener ventas:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        return []; // Retorna array vacío si no hay ventas
+      }
+    }
     throw new Error('No se pudieron obtener las ventas');
   }
 };
@@ -385,11 +405,17 @@ export const getTransaccionesProducto = async (productoId: string): Promise<Tran
   }
 };
 
-export const getVentasProducto = async (productoId: string, startDate: string, endDate: string): Promise<Venta[]> => {
+export const getVentasProducto = async (
+  productoId: string, 
+  startDate?: string, 
+  endDate?: string
+): Promise<Venta[]> => {
   try {
-    const response = await api.get<Venta[]>(`/ventas`, {
-      params: { productoId, startDate, endDate }
-    });
+    const params: Record<string, string> = { productoId };
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+
+    const response = await api.get<Venta[]>(`/ventas`, { params });
     return response.data;
   } catch (error) {
     console.error('Error al obtener las ventas del producto:', error);
@@ -411,14 +437,26 @@ export const deleteSale = async (saleId: string, vendedorId: string): Promise<vo
   }
   
   try {
-    await api.delete(`/ventas/${saleId}?vendedorId=${vendedorId}`);
+    await api.delete(`/ventas/${saleId}`, {
+      params: { vendedorId }
+    });
   } catch (error) {
     console.error('Error al eliminar la venta:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        throw new Error('Venta no encontrada');
+      }
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+    }
     throw new Error('No se pudo eliminar la venta');
   }
 };
 
 export default api;
+
+
 
 // merma
 export const createMerma = async (
@@ -454,9 +492,6 @@ export const getMermas = async (usuario_id?: string) => {
   const data = await response.json();
   return data;
 };
-
-
-// En api.ts, agregar la siguiente función:
 
 
 

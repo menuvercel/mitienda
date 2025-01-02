@@ -1,3 +1,4 @@
+// app/api/ventas/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
           [vendedorId, productoId, param.nombre]
         );
 
-        if (stockParam.rows[0].cantidad < param.cantidad) {
+        if (!stockParam.rows.length || stockParam.rows[0].cantidad < param.cantidad) {
           await query('ROLLBACK');
           return NextResponse.json({ 
             error: `Stock insuficiente para el parámetro ${param.nombre}` 
@@ -50,9 +51,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Stock insuficiente' }, { status: 400 });
     }
 
-    // Actualizar stock
+    // Crear venta
+    const ventaResult = await query(
+      `INSERT INTO ventas (producto, cantidad, precio_unitario, total, vendedor, fecha) 
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [
+        productoId, 
+        cantidad, 
+        precioUnitario, 
+        precioUnitario * cantidad, 
+        vendedorId, 
+        fechaVenta
+      ]
+    );
+
+    // Si hay parámetros, insertarlos en la tabla venta_parametros
     if (tiene_parametros && parametros) {
       for (const param of parametros) {
+        // Insertar parámetros de la venta
+        await query(
+          `INSERT INTO venta_parametros (venta_id, parametro, cantidad)
+           VALUES ($1, $2, $3)`,
+          [ventaResult.rows[0].id, param.nombre, param.cantidad]
+        );
+
+        // Actualizar stock de parámetros
         await query(
           `UPDATE usuario_producto_parametros 
            SET cantidad = cantidad - $1 
@@ -61,32 +84,18 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
+      // Actualizar stock normal
       await query(
         'UPDATE usuario_productos SET cantidad = cantidad - $1 WHERE producto_id = $2 AND usuario_id = $3',
         [cantidad, productoId, vendedorId]
       );
     }
 
-    // Crear venta
-// Crear venta
-const ventaResult = await query(
-  `INSERT INTO ventas (producto, cantidad, precio_unitario, total, vendedor, fecha) 
-   VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-  [
-    productoId, 
-    cantidad, 
-    precioUnitario, 
-    precioUnitario * cantidad, 
-    vendedorId, 
-    fechaVenta
-  ]
-);
-
-
     await query('COMMIT');
     return NextResponse.json(ventaResult.rows[0]);
   } catch (error) {
     await query('ROLLBACK');
+    console.error('Error al crear venta:', error);
     return NextResponse.json({ error: 'Error al crear venta' }, { status: 500 });
   }
 }
@@ -101,11 +110,19 @@ export async function GET(request: NextRequest) {
     let result;
     
     if (ventaId) {
+      // Obtener venta con sus parámetros
       result = await query(
-        `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario
+        `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, 
+                v.precio_unitario,
+                json_agg(json_build_object(
+                  'nombre', vp.parametro,
+                  'cantidad', vp.cantidad
+                )) FILTER (WHERE vp.parametro IS NOT NULL) as parametros
          FROM ventas v
          JOIN productos p ON v.producto = p.id
-         WHERE v.id = $1`,
+         LEFT JOIN venta_parametros vp ON v.id = vp.venta_id
+         WHERE v.id = $1
+         GROUP BY v.id, p.nombre, p.foto`,
         [ventaId]
       );
 
@@ -116,21 +133,32 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(result.rows[0]);
     }
     
+    // Consultas para listar ventas
+    const baseQuery = `
+      SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, 
+             v.precio_unitario,
+             json_agg(json_build_object(
+               'nombre', vp.parametro,
+               'cantidad', vp.cantidad
+             )) FILTER (WHERE vp.parametro IS NOT NULL) as parametros
+      FROM ventas v
+      JOIN productos p ON v.producto = p.id
+      LEFT JOIN venta_parametros vp ON v.id = vp.venta_id
+    `;
+
     if (productoId) {
       result = await query(
-        `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario
-         FROM ventas v
-         JOIN productos p ON v.producto = p.id
+        `${baseQuery}
          WHERE v.producto = $1
+         GROUP BY v.id, p.nombre, p.foto
          ORDER BY v.fecha DESC`,
         [productoId]
       );
     } else if (vendedorId) {
       result = await query(
-        `SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, v.precio_unitario
-         FROM ventas v
-         JOIN productos p ON v.producto = p.id
+        `${baseQuery}
          WHERE v.vendedor = $1
+         GROUP BY v.id, p.nombre, p.foto
          ORDER BY v.fecha DESC`,
         [vendedorId]
       );
@@ -140,6 +168,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result.rows);
   } catch (error) {
+    console.error('Error al obtener ventas:', error);
     return NextResponse.json({ error: 'Error al obtener ventas' }, { status: 500 });
   }
 }

@@ -45,11 +45,17 @@ export async function DELETE(
       );
     }
 
+    // Primero eliminar los registros en venta_parametros
+    await query('DELETE FROM venta_parametros WHERE venta_id = $1', [ventaId]);
+
+    // Luego eliminar la venta
     await query('DELETE FROM ventas WHERE id = $1', [ventaId]);
+    
     await query('COMMIT');
 
     return NextResponse.json({ message: 'Venta eliminada con éxito' });
   } catch (error) {
+    console.error('Error al eliminar venta:', error);
     await query('ROLLBACK');
     return NextResponse.json({ error: 'Error al eliminar venta' }, { status: 500 });
   }

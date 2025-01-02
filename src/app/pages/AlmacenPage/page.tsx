@@ -37,8 +37,9 @@ import {
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
 import SalesSection from '@/components/SalesSection'
-import { Producto, Vendedor, Venta, Transaccion, Merma } from '@/types'
+import { Producto, Vendedor, Venta, Transaccion, Merma, Parametro } from '@/types'
 import { toast } from "@/hooks/use-toast";
+
 
 interface VentaSemana {
   fechaInicio: string
@@ -159,7 +160,15 @@ export default function AlmacenPage() {
   const [activeSection, setActiveSection] = useState('productos')
   const [showMassDeliveryDialog, setShowMassDeliveryDialog] = useState(false)
   const [massDeliveryStep, setMassDeliveryStep] = useState(1)
-  const [selectedProducts, setSelectedProducts] = useState<{ [key: string]: number }>({})
+  const [selectedProducts, setSelectedProducts] = useState<{
+    [productId: string]: {
+      cantidad: number;
+      parametros?: {
+        [parametroId: string]: number;
+      };
+    };
+  }>({});
+
   const [selectedVendors, setSelectedVendors] = useState<string[]>([])
   const [productSearchTerm, setProductSearchTerm] = useState("")
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
@@ -167,6 +176,7 @@ export default function AlmacenPage() {
   const [activeProductTab, setActiveProductTab] = useState<'inventario' | 'merma'>('inventario');
   const [mermas, setMermas] = useState<Merma[]>([]);
   const [mermaToDelete, setMermaToDelete] = useState<string | null>(null);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
 
 
@@ -253,12 +263,12 @@ export default function AlmacenPage() {
 
   const confirmDeleteMerma = async () => {
     if (!mermaToDelete) return;
-  
+
     try {
       await deleteMerma(mermaToDelete);
       // En lugar de filtrar manualmente, volvemos a cargar todas las mermas
       await fetchMermas();
-  
+
       toast({
         title: "Éxito",
         description: "Merma eliminada correctamente",
@@ -274,7 +284,7 @@ export default function AlmacenPage() {
       setMermaToDelete(null);
     }
   };
-  
+
 
   const agruparMermas = (mermas: Merma[]) => {
     return mermas.reduce((acc, merma) => {
@@ -291,25 +301,111 @@ export default function AlmacenPage() {
   };
 
 
+  const calcularCantidadTotal = (producto: Producto) => {
+    if (producto.tiene_parametros && producto.parametros) {
+      return producto.parametros.reduce((sum, param) => sum + param.cantidad, 0);
+    }
+    return producto.cantidad; // Si no tiene parámetros, usar la cantidad directa
+  };
+
   const handleMassDelivery = async () => {
     try {
-      for (const [productId, quantity] of Object.entries(selectedProducts)) {
+      // Verificar si hay productos y vendedores seleccionados
+      if (Object.keys(selectedProducts).length === 0 || selectedVendors.length === 0) {
+        alert('Por favor, selecciona al menos un producto y un vendedor.');
+        return;
+      }
+  
+      // Actualizar el inventario antes de la entrega
+      await fetchInventario();
+      console.log('Inventario después de fetch:', inventario);
+  
+      // Validar que todos los productos seleccionados existan en el inventario
+      const filteredProducts = Object.entries(selectedProducts).filter(([productId]) => {
+        const exists = inventario.some((p) => p.id.toString() === productId.toString());
+        if (!exists) {
+          console.error(`Producto con ID ${productId} no encontrado en el inventario.`);
+        }
+        return exists;
+      });
+  
+      if (filteredProducts.length !== Object.keys(selectedProducts).length) {
+        console.error('Algunos productos seleccionados no existen en el inventario.');
+        alert('Algunos productos seleccionados no existen en el inventario. Por favor, verifica la selección.');
+        return;
+      }
+  
+      // Iterar sobre los productos seleccionados
+      for (const [productId, productData] of filteredProducts) {
+        const { cantidad, parametros } = productData;
+  
+        // Obtener el producto del inventario
+        const producto = inventario.find((p) => p.id.toString() === productId.toString());
+        if (!producto) {
+          console.error(`Producto con ID ${productId} no encontrado en el inventario.`);
+          continue; // Saltar este producto y continuar con el siguiente
+        }
+  
+        // Calcular la cantidad total a descontar
+        const cantidadTotal = parametros
+          ? Object.values(parametros).reduce((sum, val) => sum + val, 0)
+          : cantidad;
+  
+        // Validar que haya suficiente stock
+        if (producto.cantidad < cantidadTotal) {
+          alert(`Stock insuficiente para el producto ${producto.nombre}. Disponible: ${producto.cantidad}, Requerido: ${cantidadTotal}`);
+          continue; // Saltar este producto y continuar con el siguiente
+        }
+  
+        // Transformar y filtrar los parámetros al formato correcto
+        const parametrosArray = parametros
+          ? Object.entries(parametros)
+            .filter(([nombre]) => nombre !== '0' && nombre !== '1') // Filtrar nombres inválidos
+            .map(([nombre, cantidadParam]) => {
+              // Asegurarse de que `cantidadParam` sea un número
+              const cantidadNumerica = typeof cantidadParam === 'number' ? cantidadParam : 0;
+              return { nombre, cantidad: cantidadNumerica };
+            })
+          : undefined;
+  
+        // Iterar sobre los vendedores seleccionados
         for (const vendorId of selectedVendors) {
-          await entregarProducto(productId, vendorId, quantity)
+          try {
+            // Depurar la solicitud
+            console.log('Datos de entrega:', {
+              productId,
+              vendorId,
+              cantidadTotal,
+              parametrosArray,
+            });
+  
+            // Realizar la entrega del producto al vendedor
+            await entregarProducto(productId, vendorId, cantidadTotal, parametrosArray);
+          } catch (error) {
+            console.error(`Error al entregar el producto ${productId} al vendedor ${vendorId}:`, error);
+            alert(`Error al entregar el producto ${productId} al vendedor ${vendorId}. Por favor, inténtelo de nuevo.`);
+            continue; // Continuar con el siguiente producto/vendedor en caso de error
+          }
         }
       }
-
-      await fetchInventario()
-      setShowMassDeliveryDialog(false)
-      setMassDeliveryStep(1)
-      setSelectedProducts({})
-      setSelectedVendors([])
-      alert('Entrega masiva realizada con éxito')
+  
+      // Actualizar el inventario después de todas las entregas
+      await fetchInventario();
+  
+      // Limpiar el estado y cerrar el diálogo de entrega masiva
+      setShowMassDeliveryDialog(false);
+      setMassDeliveryStep(1);
+      setSelectedProducts({});
+      setSelectedVendors([]);
+  
+      alert('Entrega masiva realizada con éxito');
     } catch (error) {
-      console.error('Error en la entrega masiva:', error)
-      alert('Hubo un error al realizar la entrega masiva. Por favor, inténtelo de nuevo.')
+      console.error('Error en la entrega masiva:', error);
+      alert('Hubo un error al realizar la entrega masiva. Por favor, inténtelo de nuevo.');
     }
-  }
+  };
+
+
 
   const handleSort = (key: 'nombre' | 'cantidad') => {
     if (sortBy === key) {
@@ -336,18 +432,7 @@ export default function AlmacenPage() {
     producto.nombre.toLowerCase().includes(productSearchTerm.toLowerCase())
   )
 
-  const handleProductQuantityChange = (productId: string, value: string) => {
-    const numValue = Number(value)
-    setSelectedProducts(prev => ({ ...prev, [productId]: numValue }))
-  }
 
-  const handleProductQuantityBlur = (productId: string, maxQuantity: number) => {
-    setSelectedProducts(prev => {
-      const currentValue = prev[productId] || 0
-      const adjustedValue = Math.max(1, Math.min(currentValue, Math.floor(maxQuantity / selectedVendors.length)))
-      return { ...prev, [productId]: adjustedValue }
-    })
-  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewUser({ ...newUser, [e.target.name]: e.target.value })
@@ -539,13 +624,16 @@ export default function AlmacenPage() {
   }
 
 
-  const handleProductDelivery = async (productId: string, vendedorId: string, cantidad: number) => {
+  const handleProductDelivery = async (
+    productId: string,
+    vendedorId: string,
+    cantidad: number,
+    parametros?: Array<{ nombre: string; cantidad: number }>
+  ) => {
     try {
-      await entregarProducto(productId, vendedorId, cantidad)
-
+      await entregarProducto(productId, vendedorId, cantidad, parametros)
       await fetchInventario()
       setSelectedProduct(null)
-
       alert('Producto entregado exitosamente')
     } catch (error) {
       console.error('Error entregando producto:', error)
@@ -559,6 +647,7 @@ export default function AlmacenPage() {
       }
     }
   }
+
 
   const handleEditProduct = async (editedProduct: Producto, foto: File | null) => {
     try {
@@ -816,12 +905,19 @@ export default function AlmacenPage() {
                       >
                         <div className="w-12 h-12 mr-3">
                           <Image
-                            src={producto.foto || '/placeholder.svg'}
+                            src={imageErrors[producto.id] ? '/placeholder.svg' : (producto.foto || '/placeholder.svg')}
                             alt={producto.nombre}
                             width={48}
                             height={48}
                             className="rounded-md object-cover"
+                            onError={() => {
+                              setImageErrors(prev => ({
+                                ...prev,
+                                [producto.id]: true
+                              }));
+                            }}
                           />
+
                         </div>
 
                         <div className="flex-1 min-w-0">
@@ -830,19 +926,9 @@ export default function AlmacenPage() {
                           </h3>
                           <div className="flex flex-wrap gap-x-4 text-sm text-gray-500">
                             <p>Precio: ${Number(producto.precio).toFixed(2)}</p>
-                            {producto.tieneParametros ? (
-                              <div className="text-xs">
-                                {producto.parametros?.map((param, index) => (
-                                  <span key={index} className="mr-2">
-                                    {param.nombre}: {param.cantidad}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className={`${producto.cantidad === 0 ? 'text-red-500' : ''}`}>
-                                Cantidad: {producto.cantidad}
-                              </p>
-                            )}
+                            <p className={`${calcularCantidadTotal(producto) === 0 ? 'text-red-500' : ''}`}>
+                              Cantidad: {calcularCantidadTotal(producto)}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -865,12 +951,17 @@ export default function AlmacenPage() {
                           <div className="w-12 h-12 relative">
                             {merma.producto.foto ? (
                               <Image
-                                src={merma.producto.foto}
+                                src={merma.producto.foto || '/placeholder.svg'}
                                 alt={merma.producto.nombre}
                                 width={48}
                                 height={48}
                                 className="rounded-md object-cover"
+                                onError={(e) => {
+                                  const img = e.target as HTMLImageElement;
+                                  img.src = '/placeholder.svg';
+                                }}
                               />
+
                             ) : (
                               <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
                                 <span className="text-gray-400 text-xs">Sin imagen</span>
@@ -1000,49 +1091,133 @@ export default function AlmacenPage() {
                 onChange={(e) => setProductSearchTerm(e.target.value)}
               />
               <div className="max-h-[300px] overflow-y-auto space-y-2">
-                {filteredInventarioForMassDelivery.map((producto) => (
-                  <div key={producto.id} className="flex items-center space-x-2 p-2 border rounded">
-                    <Checkbox
-                      id={`product-${producto.id}`}
-                      checked={!!selectedProducts[producto.id]}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedProducts({ ...selectedProducts, [producto.id]: 1 })
-                        } else {
-                          const { [producto.id]: _, ...rest } = selectedProducts
-                          setSelectedProducts(rest)
-                        }
-                      }}
-                    />
-                    <div className="flex-grow flex items-center space-x-2">
-                      <Image
-                        src={producto.foto || '/placeholder.svg'}
-                        alt={producto.nombre}
-                        width={40}
-                        height={40}
-                        className="object-cover rounded"
-                      />
-                      <div>
-                        <label htmlFor={`product-${producto.id}`} className="font-medium">{producto.nombre}</label>
-                        <div className="text-sm text-gray-600">
-                          <span className="mr-2">Precio: ${producto.precio}</span>
-                          <span>Disponible: {producto.cantidad}</span>
+                {filteredInventarioForMassDelivery.map((producto) => {
+                  console.log('Producto:', producto); // Log 1: Verificar los datos del producto
+                  console.log('Selected Products:', selectedProducts); // Log 2: Verificar el estado actual de selectedProducts
+
+                  return (
+                    <div key={producto.id} className="flex flex-col space-y-2 p-2 border rounded">
+                      <div className="flex items-center space-x-4">
+                        {/* Checkbox a la izquierda */}
+                        <Checkbox
+                          id={`product-${producto.id}`}
+                          checked={!!selectedProducts[producto.id]}
+                          onCheckedChange={(checked) => {
+                            console.log('Checkbox changed:', checked); // Log 3: Verificar si el checkbox cambia
+                            if (checked) {
+                              setSelectedProducts((prev) => {
+                                const newState = {
+                                  ...prev,
+                                  [producto.id]: {
+                                    cantidad: 0,
+                                    parametros: producto.tiene_parametros ? (producto.parametros || {}) : undefined,
+                                  },
+                                };
+                                console.log('New Selected Products (after adding):', newState); // Log 4: Verificar el nuevo estado después de seleccionar
+                                return newState;
+                              });
+                            } else {
+                              setSelectedProducts((prev) => {
+                                const { [producto.id]: _, ...rest } = prev;
+                                console.log('New Selected Products (after removing):', rest); // Log 5: Verificar el nuevo estado después de deseleccionar
+                                return rest;
+                              });
+                            }
+                          }}
+                        />
+
+                        {/* Foto del producto */}
+                        <img
+                          src={producto.foto || '/placeholder.svg'}
+                          alt={producto.nombre}
+                          className="w-16 h-16 object-cover rounded"
+                          onError={(e) => {
+                            const img = e.target as HTMLImageElement;
+                            img.src = '/placeholder.svg';
+                          }}
+                        />
+
+
+                        <div className="flex-grow">
+                          {/* Nombre y detalles del producto */}
+                          <label htmlFor={`product-${producto.id}`} className="font-medium">{producto.nombre}</label>
+                          <div className="text-sm text-gray-600">
+                            <span className="mr-2">Precio: ${producto.precio}</span>
+                            <span>Disponible: {producto.cantidad}</span>
+                          </div>
                         </div>
+
+                        {/* Input para cantidad si no tiene parámetros */}
+                        {!producto.tiene_parametros && (
+                          <Input
+                            type="number"
+                            value={selectedProducts[producto.id]?.cantidad || ''}
+                            onChange={(e) =>
+                              setSelectedProducts((prev) => ({
+                                ...prev,
+                                [producto.id]: {
+                                  ...prev[producto.id],
+                                  cantidad: parseInt(e.target.value, 10) || 0,
+                                },
+                              }))
+                            }
+                            className="w-20"
+                            min={1}
+                            max={producto.cantidad}
+                          />
+                        )}
                       </div>
+
+                      {/* Mostrar parámetros si el producto los tiene */}
+                      {producto.tiene_parametros && selectedProducts[producto.id] && (
+                        <div className="ml-6 mt-2 space-y-2">
+                          <p className="text-sm font-medium text-gray-700"></p>
+                          {producto.parametros?.map((parametro) => {
+                            console.log('Rendering parameter:', parametro); // Log 6: Verificar los datos del parámetro
+
+                            return (
+                              <div key={parametro.nombre} className="flex items-center space-x-2">
+                                <label className="flex-grow text-sm">
+                                  {parametro.nombre} (Max: {parametro.cantidad})
+                                </label>
+                                <Input
+                                  type="number"
+                                  value={selectedProducts[producto.id]?.parametros?.[parametro.nombre] || ''}
+                                  onChange={(e) => {
+                                    const value = parseInt(e.target.value, 10) || 0;
+                                    console.log('Parameter value changed:', { parametro: parametro.nombre, value }); // Log 7: Verificar el valor del parámetro
+                                    setSelectedProducts((prev) => {
+                                      const newState = {
+                                        ...prev,
+                                        [producto.id]: {
+                                          ...prev[producto.id],
+                                          parametros: {
+                                            ...prev[producto.id]?.parametros,
+                                            [parametro.nombre]: value,
+                                          },
+                                        },
+                                      };
+                                      console.log('New Selected Products (after parameter change):', newState); // Log 8: Verificar el nuevo estado después de cambiar un parámetro
+                                      return newState;
+                                    });
+                                  }}
+                                  className="w-20"
+                                  min={0}
+                                  max={parametro.cantidad}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                    {selectedProducts[producto.id] !== undefined && (
-                      <Input
-                        type="number"
-                        value={selectedProducts[producto.id]}
-                        onChange={(e) => handleProductQuantityChange(producto.id, e.target.value)}
-                        onBlur={() => handleProductQuantityBlur(producto.id, producto.cantidad)}
-                        className="w-20"
-                        min={1}
-                        max={Math.floor(producto.cantidad / selectedVendors.length)}
-                      />
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
+
+
+
+
+
               </div>
               <div className="flex justify-between">
                 <Button variant="outline" onClick={() => setMassDeliveryStep(1)}>

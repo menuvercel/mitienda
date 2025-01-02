@@ -80,22 +80,26 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
         return
       }
   
-      // Add 1 day to the start and end dates to include the full week
-      const adjustedWeekStart = addDays(weekStart, 1);
-      const adjustedWeekEnd = addDays(weekEnd, 1);
-
-      const weekKey = `${format(adjustedWeekStart, 'yyyy-MM-dd')}_${format(adjustedWeekEnd, 'yyyy-MM-dd')}`
+      // Asegurarnos que la fecha de fin sea el final del día (23:59:59)
+      const weekEndWithTime = new Date(weekEnd)
+      weekEndWithTime.setHours(23, 59, 59, 999)
+  
+      const weekKey = `${format(weekStart, 'yyyy-MM-dd')}_${format(weekEnd, 'yyyy-MM-dd')}`
       
       if (!weekMap.has(weekKey)) {
         weekMap.set(weekKey, {
-          fechaInicio: format(adjustedWeekStart, 'yyyy-MM-dd'),
-          fechaFin: format(adjustedWeekEnd, 'yyyy-MM-dd'),
+          fechaInicio: format(weekStart, 'yyyy-MM-dd'),
+          fechaFin: format(weekEnd, 'yyyy-MM-dd'),
           ventas: []
         })
       }
   
       const currentWeek = weekMap.get(weekKey)!
-      currentWeek.ventas.push(venta)
+      currentWeek.ventas.push({
+        ...venta,
+        week_start: format(weekStart, 'yyyy-MM-dd'),
+        week_end: format(weekEndWithTime, 'yyyy-MM-dd')
+      })
     })
   
     return Array.from(weekMap.values()).sort((a, b) => {
@@ -104,14 +108,22 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
       return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0
     })
   }, [])
-
+  
+  
   const obtenerVentasSemanales = useCallback(async () => {
     setIsLoading(true)
     setError(null)
   
     try {
-      // Agregar el parámetro role a la URL
-      const response = await fetch(`/api/ventas-semanales?role=${userRole}`)
+      // Obtener la fecha actual y calcular el inicio y fin de la semana
+      const today = new Date()
+      const startDate = startOfWeek(today, { weekStartsOn: 1 }) // 1 = Lunes
+      const endDate = endOfWeek(today, { weekStartsOn: 1 })
+  
+      // Agregar los parámetros de fecha a la URL
+      const response = await fetch(
+        `/api/ventas-semanales?role=${userRole}&startDate=${format(startDate, 'yyyy-MM-dd')}&endDate=${format(endDate, 'yyyy-MM-dd')}`
+      )
       
       if (!response.ok) {
         throw new Error('Error al obtener las ventas semanales')
@@ -132,6 +144,7 @@ export default function SalesSection({ userRole }: SalesSectionProps) {
       setIsLoading(false)
     }
   }, [selectedWeek, agruparVentasPorSemana, userRole])
+  
 
   useEffect(() => {
     obtenerVentasSemanales()

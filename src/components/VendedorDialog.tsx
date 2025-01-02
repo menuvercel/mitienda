@@ -47,17 +47,6 @@ interface VentaDia {
   total: number
 }
 
-interface Merma {
-  id: number
-  producto_id: number
-  producto_nombre: string
-  cantidad: number
-  fecha: string
-  usuario_id: number
-  usuario_nombre: string
-}
-
-
 
 export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce, onDeleteSale, onProductMerma, vendedores, onProductTransfer }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
@@ -80,6 +69,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [selectedDestination, setSelectedDestination] = useState<'almacen' | 'merma' | 'vendedor' | null>(null)
   const [showVendorSelectDialog, setShowVendorSelectDialog] = useState(false)
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null)
+  const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({})
 
 
 
@@ -289,6 +279,27 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
       }
     }
 
+    const renderParametros = (venta: Venta) => {
+      if (!venta.parametros || venta.parametros.length === 0) return null
+
+      return (
+        <div className="mt-1 text-sm text-gray-600">
+          {venta.parametros.map((param, index) => (
+            <div key={index} className="flex space-x-2">
+              <span>{param.nombre}:</span>
+              <span>{param.cantidad}</span>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    const calcularCantidadTotal = (venta: Venta) => {
+      if (venta.parametros && venta.parametros.length > 0) {
+        return venta.parametros.reduce((acc, param) => acc + param.cantidad, 0)
+      }
+      return venta.cantidad
+    }
 
     return (
       <div className="border rounded-lg mb-2">
@@ -306,7 +317,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
           <div className="p-4 bg-gray-50">
             {venta.ventas.map((v) => (
               <div key={v.id} className="flex items-center justify-between py-2">
-                <div className="flex items-center">
+                <div className="flex items-center flex-grow">
                   <Image
                     src={v.producto_foto || '/placeholder.svg'}
                     alt={v.producto_nombre}
@@ -314,11 +325,14 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                     height={40}
                     className="rounded-md mr-4"
                   />
-                  <span>{v.producto_nombre}</span>
+                  <div>
+                    <span className="font-medium">{v.producto_nombre}</span>
+                    {renderParametros(v)}
+                  </div>
                 </div>
                 <div className="flex items-center">
                   <div className="text-right mr-4">
-                    <div>Cantidad: {v.cantidad}</div>
+                    <div>Cantidad: {calcularCantidadTotal(v)}</div>
                     <div>${formatPrice(v.precio_unitario)}</div>
                   </div>
                   <Button
@@ -360,6 +374,13 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
       if (typeof price === 'number') return price
       const parsed = parseFloat(price)
       return isNaN(parsed) ? 0 : parsed
+    }
+
+    const calcularTotalVenta = (venta: Venta) => {
+      const cantidadTotal = venta.parametros && venta.parametros.length > 0
+        ? venta.parametros.reduce((acc, param) => acc + param.cantidad, 0)
+        : venta.cantidad
+      return cantidadTotal * parsePrice(venta.precio_unitario)
     }
 
     const ventasPorDia = venta.ventas.reduce((acc: Record<string, Venta[]>, v) => {
@@ -409,7 +430,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                       venta={{
                         fecha,
                         ventas: ventasDia,
-                        total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
+                        total: ventasDia.reduce((sum, v) => sum + calcularTotalVenta(v), 0)
                       }}
                     />
                   )
@@ -418,10 +439,11 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
               })}
           </div>
         )}
-
       </div>
     )
   }
+
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -488,36 +510,93 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     )
   }, [])
 
-  const renderProductList = (products: Producto[]) => {
+  const toggleExpand = useCallback((productId: string) => {
+    setExpandedProducts(prev => ({
+      ...prev,
+      [productId]: !prev[productId]
+    }))
+  }, [])
+
+  const renderProductList = useCallback((products: Producto[]) => {
     const filteredAndSortedProducts = sortAndFilterProducts(products)
+
     return (
       <div className="space-y-2">
-        {filteredAndSortedProducts.map(producto => (
-          <div key={producto.id} className="flex items-center bg-white p-4 rounded-lg shadow">
-            <Image
-              src={producto.foto || '/placeholder.svg'}
-              alt={producto.nombre}
-              width={50}
-              height={50}
-              className="object-cover rounded mr-4"
-            />
-            <div className="flex-grow">
-              <h3 className="font-bold">{producto.nombre}</h3>
-              <p className="text-sm">${formatPrice(producto.precio)} - Cantidad: {producto.cantidad}</p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleReduceProduct(producto)}
-              disabled={isLoading}
+        {filteredAndSortedProducts.map(producto => {
+          const hasParameters = producto.parametros && producto.parametros.length > 0
+          const isExpanded = expandedProducts[producto.id] || false
+
+          return (
+            <div 
+              key={producto.id} 
+              className={`bg-white rounded-lg shadow overflow-hidden ${
+                hasParameters ? 'cursor-pointer hover:bg-gray-50' : ''
+              }`}
+              onClick={() => hasParameters && toggleExpand(producto.id)}
             >
-              <Minus className="h-4 w-4" />
-            </Button>
-          </div>
-        ))}
+              <div className="flex items-center p-4">
+                <Image
+                  src={producto.foto || '/placeholder.svg'}
+                  alt={producto.nombre}
+                  width={50}
+                  height={50}
+                  className="object-cover rounded mr-4"
+                />
+                <div className="flex-grow">
+                  <div className="flex items-center">
+                    <h3 className="font-bold">{producto.nombre}</h3>
+                    {hasParameters && (
+                      <ChevronDown 
+                        className={`ml-2 h-4 w-4 transition-transform ${
+                          isExpanded ? 'rotate-180' : ''
+                        }`}
+                      />
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    ${formatPrice(producto.precio)} - Cantidad total: {producto.cantidad}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleReduceProduct(producto)
+                  }}
+                  disabled={isLoading}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+              </div>
+              {isExpanded && producto.parametros && (
+                <div className="px-4 pb-4 bg-gray-50 border-t">
+                  <div className="space-y-2 mt-2">
+                    {producto.parametros.map((parametro, index) => (
+                      <div 
+                        key={index}
+                        className="flex justify-between items-center p-2 bg-white rounded-md"
+                      >
+                        <span className="font-medium text-sm">{parametro.nombre}</span>
+                        <div className="flex items-center space-x-4">
+                          <span className="text-sm text-gray-600">
+                            Cantidad: {parametro.cantidad}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     )
-  }
+  }, [expandedProducts, handleReduceProduct, isLoading, toggleExpand])
+  
+  
+
 
   const renderVentasList = () => {
     return (

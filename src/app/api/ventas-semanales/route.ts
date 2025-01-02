@@ -21,13 +21,13 @@ export async function GET(request: NextRequest) {
         `WITH weeks AS (
            SELECT 
              (DATE_TRUNC('week', fecha))::date as week_start,
-             (DATE_TRUNC('week', fecha) + INTERVAL '6 days')::date as week_end
+             (DATE_TRUNC('week', fecha) + INTERVAL '6 days' + INTERVAL '23 hours 59 minutes 59 seconds')::timestamp as week_end
            FROM ventas
            GROUP BY DATE_TRUNC('week', fecha)
          )
          SELECT 
            w.week_start,
-           w.week_end,
+           w.week_end::date as week_end,
            u.id as vendedor_id,
            u.nombre as vendedor_nombre,
            COALESCE(SUM(v.total), 0) as total_ventas,
@@ -54,14 +54,14 @@ export async function GET(request: NextRequest) {
         `WITH weeks AS (
            SELECT 
              (DATE_TRUNC('week', fecha))::date as week_start,
-             (DATE_TRUNC('week', fecha) + INTERVAL '6 days')::date as week_end
+             (DATE_TRUNC('week', fecha) + INTERVAL '6 days' + INTERVAL '23 hours 59 minutes 59 seconds')::timestamp as week_end
            FROM ventas
            WHERE vendedor = $1
            GROUP BY DATE_TRUNC('week', fecha)
          )
          SELECT 
            w.week_start,
-           w.week_end,
+           w.week_end::date as week_end,
            $1::uuid as vendedor_id,
            'Vendedor' as vendedor_nombre,
            COALESCE(SUM(v.total), 0) as total_ventas,

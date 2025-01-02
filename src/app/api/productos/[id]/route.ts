@@ -155,7 +155,25 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
                 parametrosEliminados = result.rows.length;
             }
 
-            // 6. Finalmente eliminar el producto
+            // 6. Eliminar referencias en usuario_producto_parametros
+            const usuarioProductoParametrosEliminados = await query(
+                'DELETE FROM usuario_producto_parametros WHERE producto_id = $1 RETURNING *',
+                [id]
+            );
+
+            // 7. Eliminar referencias en venta_parametros
+            const ventaParametrosEliminados = await query(
+                'DELETE FROM venta_parametros WHERE venta_id IN (SELECT id FROM ventas WHERE producto = $1) RETURNING *',
+                [id]
+            );
+
+            // 8. Eliminar referencias en ventas
+            const ventasEliminadas = await query(
+                'DELETE FROM ventas WHERE producto = $1 RETURNING *',
+                [id]
+            );
+
+            // 9. Finalmente eliminar el producto
             await query('DELETE FROM productos WHERE id = $1', [id]);
 
             await query('COMMIT');
@@ -167,7 +185,10 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
                     merma: mermaEliminada.rows.length,
                     usuarioProductos: usuarioProductosEliminados.rows.length,
                     transacciones: transaccionesEliminadas.rows.length,
-                    parametros: parametrosEliminados
+                    parametros: parametrosEliminados,
+                    usuarioProductoParametros: usuarioProductoParametrosEliminados.rows.length,
+                    ventaParametros: ventaParametrosEliminados.rows.length,
+                    ventas: ventasEliminadas.rows.length
                 }
             });
 

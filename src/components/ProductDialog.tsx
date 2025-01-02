@@ -14,16 +14,22 @@ interface ProductDialogProps {
   vendedores: Vendedor[]
   onEdit: (editedProduct: Producto, foto: File | null) => Promise<void>
   onDelete: (productId: string, vendedorId: string, cantidad: number) => Promise<void>
-  onDeliver: (productId: string, vendedorId: string, cantidad: number) => Promise<void>
+  onDeliver: (
+    productId: string, 
+    vendedorId: string, 
+    cantidadTotal: number,
+    parametros: { nombre: string; cantidad: number }[]
+  ) => Promise<void>
 }
 
-export default function ProductDialog({ 
-  product, 
-  onClose, 
-  vendedores, 
-  onEdit, 
-  onDelete, 
-  onDeliver 
+
+export default function ProductDialog({
+  product,
+  onClose,
+  vendedores,
+  onEdit,
+  onDelete,
+  onDeliver
 }: ProductDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'deliver'>('view')
   const [editedProduct, setEditedProduct] = useState<Producto>({
@@ -37,10 +43,15 @@ export default function ProductDialog({
     console.log('Product recibido:', product)
     console.log('Estado editedProduct:', editedProduct)
   }, [product, editedProduct])
-  
+
   const [newImage, setNewImage] = useState<File | null>(null)
   const [selectedVendedor, setSelectedVendedor] = useState<string | null>(null)
   const [deliveryQuantity, setDeliveryQuantity] = useState<number>(0)
+  const [deliveryStep, setDeliveryStep] = useState<1 | 2>(1)
+  const [parameterQuantities, setParameterQuantities] = useState<{ [key: string]: number }>({})
+
+  const [totalDeliveryQuantity, setTotalDeliveryQuantity] = useState(0)
+
 
   useEffect(() => {
     setEditedProduct({
@@ -50,7 +61,19 @@ export default function ProductDialog({
       parametros: product.parametros || []
     })
   }, [product])
-  
+
+
+  const handleParameterQuantityChange = (paramName: string, value: number) => {
+    const newQuantities = {
+      ...parameterQuantities,
+      [paramName]: value
+    }
+    setParameterQuantities(newQuantities)
+    
+    // Actualizar el total
+    const newTotal = Object.values(newQuantities).reduce((sum, qty) => sum + qty, 0)
+    setTotalDeliveryQuantity(newTotal)
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -102,7 +125,7 @@ export default function ProductDialog({
       parametros: checked ? (prev.parametros?.length ? prev.parametros : [{ nombre: '', cantidad: 0 }]) : []
     }))
   }
-  
+
 
   const handleEdit = async () => {
     const updatedProduct: Producto = {
@@ -113,37 +136,70 @@ export default function ProductDialog({
       // Si tiene parámetros, aseguramos que se incluyan
       parametros: editedProduct.tieneParametros ? editedProduct.parametros : []
     }
-  
+
     // Actualizar la cantidad total si tiene parámetros
     if (updatedProduct.tiene_parametros && updatedProduct.parametros) {
       updatedProduct.cantidad = updatedProduct.parametros.reduce((sum, param) => sum + param.cantidad, 0)
     }
-  
+
     // Verificación antes de enviar
     console.log('Producto a actualizar:', updatedProduct)
-  
+
     await onEdit(updatedProduct, newImage)
     setMode('view')
     setNewImage(null)
   }
-  
+
 
   const handleDeliver = async () => {
-    if (selectedVendedor && deliveryQuantity > 0 && deliveryQuantity <= getTotalCantidad()) {
-      try {
-        await onDeliver(product.id, selectedVendedor, deliveryQuantity)
-        alert(`Se entregaron ${deliveryQuantity} unidades al vendedor seleccionado`)
-        setDeliveryQuantity(0)
-        setSelectedVendedor(null)
-        setMode('view')
-      } catch (error) {
-        console.error('Error al entregar producto:', error)
-        alert(error instanceof Error ? error.message : 'Error desconocido al entregar producto')
-      }
-    } else {
-      alert('Verifica que has seleccionado un vendedor y que la cantidad es correcta.')
+    if (!selectedVendedor) {
+      alert('Por favor seleccione un vendedor')
+      return
+    }
+  
+    if (totalDeliveryQuantity === 0) {
+      alert('Por favor ingrese las cantidades a entregar')
+      return
+    }
+  
+    if (totalDeliveryQuantity > getTotalCantidad()) {
+      alert('La cantidad total excede el stock disponible')
+      return
+    }
+  
+    const invalidParam = product.parametros?.find(param => 
+      (parameterQuantities[param.nombre] || 0) > param.cantidad
+    )
+  
+    if (invalidParam) {
+      alert(`La cantidad para ${invalidParam.nombre} excede el stock disponible`)
+      return
+    }
+  
+    try {
+      const parametrosEntrega = product.parametros?.map(param => ({
+        nombre: param.nombre,
+        cantidad: parameterQuantities[param.nombre] || 0
+      })) || []
+  
+      await onDeliver(
+        product.id,
+        selectedVendedor,
+        totalDeliveryQuantity,
+        parametrosEntrega
+      )
+
+      setDeliveryStep(1)
+      setSelectedVendedor(null)
+      setParameterQuantities({})
+      setTotalDeliveryQuantity(0)
+      setMode('view')
+    } catch (error) {
+      console.error('Error al entregar producto:', error)
+      alert(error instanceof Error ? error.message : 'Error desconocido al entregar producto')
     }
   }
+  
 
   const handleDelete = async () => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
@@ -179,7 +235,7 @@ export default function ProductDialog({
               className="object-cover rounded"
             />
           </div>
-
+  
           {mode === 'edit' ? (
             <>
               <div className="space-y-4">
@@ -192,7 +248,7 @@ export default function ProductDialog({
                     placeholder="Nombre del producto"
                   />
                 </div>
-
+  
                 <div>
                   <Label>Precio</Label>
                   <Input
@@ -203,7 +259,7 @@ export default function ProductDialog({
                     placeholder="Precio"
                   />
                 </div>
-
+  
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="tieneParametros"
@@ -212,7 +268,7 @@ export default function ProductDialog({
                   />
                   <Label htmlFor="tieneParametros">Tiene parámetros</Label>
                 </div>
-
+  
                 {editedProduct.tieneParametros ? (
                   <div className="space-y-4">
                     <Label>Parámetros</Label>
@@ -261,13 +317,13 @@ export default function ProductDialog({
                     />
                   </div>
                 )}
-
+  
                 <Input
                   type="file"
                   onChange={handleImageChange}
                   accept="image/*"
                 />
-
+  
                 <div className="flex justify-between gap-2">
                   <Button onClick={handleEdit} className="flex-1">Guardar cambios</Button>
                   <Button variant="outline" onClick={() => setMode('view')} className="flex-1">
@@ -278,47 +334,103 @@ export default function ProductDialog({
             </>
           ) : mode === 'deliver' ? (
             <>
-              <Label>Seleccionar vendedor:</Label>
-              <div className="grid gap-2">
-                {vendedores.map(vendedor => (
-                  <Button
-                    key={vendedor.id}
-                    onClick={() => handleVendedorSelect(vendedor.id)}
-                    variant={selectedVendedor === vendedor.id ? 'default' : 'outline'}
-                    className="w-full"
+              {deliveryStep === 1 ? (
+                <div className="space-y-4">
+                  <Label>Seleccionar vendedor:</Label>
+                  <div className="grid gap-2">
+                    {vendedores.map(vendedor => (
+                      <Button
+                        key={vendedor.id}
+                        onClick={() => {
+                          handleVendedorSelect(vendedor.id)
+                          setDeliveryStep(2)
+                        }}
+                        variant={selectedVendedor === vendedor.id ? 'default' : 'outline'}
+                        className="w-full"
+                      >
+                        {vendedor.nombre}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setMode('view')} 
+                    className="w-full mt-4"
                   >
-                    {vendedor.nombre}
+                    Cancelar
                   </Button>
-                ))}
-              </div>
-              <Label>Cantidad a entregar:</Label>
-              <Input
-                type="number"
-                value={deliveryQuantity}
-                onChange={(e) => setDeliveryQuantity(Number(e.target.value))}
-                placeholder="Cantidad"
-                min={1}
-                max={getTotalCantidad()}
-              />
-              <div className="flex justify-between gap-2">
-                <Button onClick={handleDeliver} className="w-full">Confirmar entrega</Button>
-                <Button variant="outline" onClick={() => setMode('view')} className="w-full">
-                  Cancelar
-                </Button>
-              </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-medium">Cantidades a entregar</h3>
+                    <div className="text-sm">
+                      <span className="font-medium">Total: </span>
+                      <span className={`${totalDeliveryQuantity > getTotalCantidad() ? 'text-red-500' : 'text-green-600'}`}>
+                        {totalDeliveryQuantity}
+                      </span>
+                    </div>
+                  </div>
+  
+                  {product.parametros?.map((param, index) => (
+                    <div key={index} className="space-y-2 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-sm font-medium">{param.nombre}</Label>
+                        <span className="text-xs text-gray-500">
+                          Disponible: {param.cantidad}
+                        </span>
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          type="number"
+                          value={parameterQuantities[param.nombre] || 0}
+                          onChange={(e) => handleParameterQuantityChange(
+                            param.nombre,
+                            Math.min(Number(e.target.value), param.cantidad)
+                          )}
+                          min={0}
+                          max={param.cantidad}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  ))}
+  
+                  <div className="flex justify-between gap-2 mt-6">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setDeliveryStep(1)
+                        setParameterQuantities({})
+                        setTotalDeliveryQuantity(0)
+                      }}
+                      className="flex-1"
+                    >
+                      Atrás
+                    </Button>
+                    <Button
+                      onClick={handleDeliver}
+                      disabled={totalDeliveryQuantity === 0 || totalDeliveryQuantity > getTotalCantidad()}
+                      className="flex-1"
+                    >
+                      Confirmar entrega
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <p className="text-lg font-medium">Precio: ${product.precio}</p>
-                  
+  
                   {(product.tiene_parametros || product.tieneParametros) && product.parametros && product.parametros.length > 0 ? (
                     <div className="space-y-2">
                       <h4 className="font-medium text-sm text-gray-700">Parámetros:</h4>
                       <div className="grid grid-cols-1 gap-2">
                         {product.parametros.map((param, index) => (
-                          <div 
+                          <div
                             key={index}
                             className="p-2 bg-gray-50 rounded-md flex justify-between items-center"
                           >
@@ -334,9 +446,8 @@ export default function ProductDialog({
                   ) : (
                     <p className="text-gray-700">Cantidad disponible: {product.cantidad}</p>
                   )}
-
                 </div>
-
+  
                 <div className="flex justify-between gap-2">
                   <Button onClick={() => setMode('edit')} className="w-full">Editar</Button>
                   <Button onClick={() => setMode('deliver')} className="w-full">Entregar</Button>
@@ -351,4 +462,5 @@ export default function ProductDialog({
       </DialogContent>
     </Dialog>
   )
+  
 }
