@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
-import { Vendedor, Producto, Venta, Transaccion } from '@/types'
+import { Vendedor, Producto, Venta, Transaccion, TransaccionParametro } from '@/types'
 import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, ArrowUpDown, FileDown, X } from 'lucide-react'
 import { format, parseISO, startOfWeek, endOfWeek, isValid, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -21,17 +21,29 @@ interface VendorDialogProps {
   ventas: Venta[]
   ventasSemanales: VentaSemana[]
   ventasDiarias: VentaDia[]
-  onProductReduce: (productId: string, vendorId: string, cantidad: number) => Promise<void>
+  onProductReduce: (
+    productId: string,
+    vendorId: string,
+    cantidad: number,
+    parametros?: { nombre: string; cantidad: number }[]
+  ) => Promise<void>
   onDeleteSale: (saleId: string, vendedorId: string) => Promise<void>
-  onProductMerma: (productId: string, vendorId: string, cantidad: number) => Promise<void>
-  vendedores: Vendedor[] // Añadido
-  onProductTransfer: ( // Añadido
+  onProductMerma: (
+    productId: string,
+    vendorId: string,
+    cantidad: number,
+    parametros?: { nombre: string; cantidad: number }[]
+  ) => Promise<void>
+  vendedores: Vendedor[]
+  onProductTransfer: (
     productId: string,
     fromVendorId: string,
     toVendorId: string,
-    cantidad: number
-  ) => Promise<void>
+    cantidad: number,
+    parametros?: Array<{ nombre: string; cantidad: number }>
+  ) => Promise<void>;
 }
+
 
 interface VentaSemana {
   fechaInicio: string
@@ -70,6 +82,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [showVendorSelectDialog, setShowVendorSelectDialog] = useState(false)
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null)
   const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({})
+  const [parameterQuantities, setParameterQuantities] = useState<Record<string, number>>({})
 
 
 
@@ -218,6 +231,13 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }
 
   const sortAndFilterProducts = useCallback((products: Producto[]) => {
+    const calcularCantidadTotal = (producto: Producto) => {
+      if (producto.parametros && producto.parametros.length > 0) {
+        return producto.parametros.reduce((total, param) => total + (param.cantidad || 0), 0)
+      }
+      return producto.cantidad
+    }
+
     return products
       .filter(p => p.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
       .sort((a, b) => {
@@ -226,12 +246,15 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             ? a.nombre.localeCompare(b.nombre)
             : b.nombre.localeCompare(a.nombre)
         } else {
+          const cantidadA = calcularCantidadTotal(a)
+          const cantidadB = calcularCantidadTotal(b)
           return sortOrder === 'asc'
-            ? a.cantidad - b.cantidad
-            : b.cantidad - a.cantidad
+            ? cantidadA - cantidadB
+            : cantidadB - cantidadA
         }
       })
   }, [searchTerm, sortBy, sortOrder])
+
 
   const formatDate = (dateString: string): string => {
     try {
@@ -495,11 +518,61 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     }
   }
 
-  const handleReduceProduct = (product: Producto) => {
-    setProductToReduce(product)
-    setQuantityToReduce(0)
-    setReduceDialogOpen(true)
-  }
+  // En VendorDialog
+  const handleReduceProduct = async () => {
+    if (!productToReduce || !selectedDestination) return;
+
+    setIsLoading(true);
+    try {
+      const parametrosReduccion = productToReduce.tiene_parametros && productToReduce.parametros
+        ? Object.entries(parameterQuantities)
+          .filter(([_, cantidad]) => cantidad > 0)
+          .map(([nombre, cantidad]) => ({
+            nombre,
+            cantidad
+          }))
+        : undefined;
+
+      if (selectedDestination === 'merma') {
+        // Solo llamar a onProductMerma
+        await onProductMerma(
+          productToReduce.id,
+          vendor.id,
+          productToReduce.tiene_parametros ? 0 : quantityToReduce,
+          parametrosReduccion
+        );
+      } else if (selectedDestination === 'almacen') {
+        // Para devolución al almacén, usar onProductReduce
+        await onProductReduce(
+          productToReduce.id,
+          vendor.id,
+          productToReduce.tiene_parametros ? 0 : quantityToReduce,
+          parametrosReduccion
+        );
+      }
+
+      setShowDestinationDialog(false);
+      setSelectedDestination(null);
+      setProductToReduce(null);
+      setQuantityToReduce(0);
+      setParameterQuantities({});
+
+      toast({
+        title: "Éxito",
+        description: `Producto ${selectedDestination === 'merma' ? 'enviado a merma' : 'reducido'} correctamente.`,
+      });
+    } catch (error) {
+      console.error('Error al procesar la operación:', error);
+      toast({
+        title: "Error",
+        description: `No se pudo ${selectedDestination === 'merma' ? 'enviar a merma' : 'reducir'} el producto.`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
 
   const filterItems = useCallback((items: any[], term: string) => {
@@ -520,18 +593,24 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const renderProductList = useCallback((products: Producto[]) => {
     const filteredAndSortedProducts = sortAndFilterProducts(products)
 
+    const calcularCantidadTotal = (producto: Producto) => {
+      if (producto.parametros && producto.parametros.length > 0) {
+        return producto.parametros.reduce((total, param) => total + (param.cantidad || 0), 0)
+      }
+      return producto.cantidad
+    }
+
     return (
       <div className="space-y-2">
         {filteredAndSortedProducts.map(producto => {
           const hasParameters = producto.parametros && producto.parametros.length > 0
           const isExpanded = expandedProducts[producto.id] || false
+          const cantidadTotal = calcularCantidadTotal(producto)
 
           return (
-            <div 
-              key={producto.id} 
-              className={`bg-white rounded-lg shadow overflow-hidden ${
-                hasParameters ? 'cursor-pointer hover:bg-gray-50' : ''
-              }`}
+            <div
+              key={producto.id}
+              className={`bg-white rounded-lg shadow overflow-hidden ${hasParameters ? 'cursor-pointer hover:bg-gray-50' : ''}`}
               onClick={() => hasParameters && toggleExpand(producto.id)}
             >
               <div className="flex items-center p-4">
@@ -546,15 +625,13 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   <div className="flex items-center">
                     <h3 className="font-bold">{producto.nombre}</h3>
                     {hasParameters && (
-                      <ChevronDown 
-                        className={`ml-2 h-4 w-4 transition-transform ${
-                          isExpanded ? 'rotate-180' : ''
-                        }`}
+                      <ChevronDown
+                        className={`ml-2 h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                       />
                     )}
                   </div>
                   <p className="text-sm text-gray-600">
-                    ${formatPrice(producto.precio)} - Cantidad total: {producto.cantidad}
+                    ${formatPrice(producto.precio)} - Cantidad total: {cantidadTotal}
                   </p>
                 </div>
                 <Button
@@ -562,9 +639,11 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation()
-                    handleReduceProduct(producto)
+                    // Aquí establecemos el producto a reducir y abrimos el diálogo
+                    setProductToReduce(producto)
+                    setReduceDialogOpen(true)
                   }}
-                  disabled={isLoading}
+                  disabled={isLoading || cantidadTotal === 0}
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
@@ -573,7 +652,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 <div className="px-4 pb-4 bg-gray-50 border-t">
                   <div className="space-y-2 mt-2">
                     {producto.parametros.map((parametro, index) => (
-                      <div 
+                      <div
                         key={index}
                         className="flex justify-between items-center p-2 bg-white rounded-md"
                       >
@@ -593,10 +672,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
         })}
       </div>
     )
-  }, [expandedProducts, handleReduceProduct, isLoading, toggleExpand])
-  
-  
-
+  }, [expandedProducts, handleReduceProduct, isLoading, toggleExpand, setProductToReduce, setReduceDialogOpen])
 
   const renderVentasList = () => {
     return (
@@ -657,41 +733,90 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }
 
   const renderTransaccionesList = () => {
-    const filteredTransacciones = filterItems(transacciones, searchTerm)
+    const vendorId = vendor.id.toString(); // Aseguramos que el ID del vendedor sea string
+
+    const filteredTransacciones = filterItems(transacciones, searchTerm).filter(transaccion => {
+      const transaccionDesde = transaccion.desde?.toString();
+      const transaccionHacia = transaccion.hacia?.toString();
+
+      // Si es el vendedor origen, solo mostrar las Bajas
+      if (transaccionDesde === vendorId && transaccion.tipo === 'Baja') {
+        return true;
+      }
+
+      // Si es el vendedor destino, solo mostrar las Entregas
+      if (transaccionHacia === vendorId && transaccion.tipo === 'Entrega') {
+        return true;
+      }
+
+      return false;
+    });
+
     return (
       <div className="space-y-2">
-        {filteredTransacciones.map(transaccion => {
-          const transactionType = transaccion.tipo || 'Normal'
-          const borderColor =
-            transactionType === 'Baja' ? 'border-red-500' :
-              transactionType === 'Entrega' ? 'border-green-500' :
-                'border-blue-500'
+        {filteredTransacciones.length === 0 ? (
+          <div className="text-center text-gray-500 py-4">
+            No hay transacciones para mostrar
+          </div>
+        ) : (
+          filteredTransacciones.map((transaccion: Transaccion) => {
+            const transactionType = transaccion.tipo || 'Normal'
+            const borderColor =
+              transactionType === 'Baja' ? 'border-red-500' :
+                transactionType === 'Entrega' ? 'border-green-500' :
+                  'border-blue-500'
 
-          // Convertimos el precio a número y validamos
-          const precioFormateado = parseFloat(transaccion.precio || 0).toFixed(2)
+            const precioFormateado = parseFloat(transaccion.precio?.toString() || '0').toFixed(2)
 
-          return (
-            <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
-              <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
-              <div className="flex-grow overflow-hidden">
-                <div className="flex justify-between items-center">
-                  <p className="font-bold text-sm truncate">{transaccion.producto}</p>
-                  <p className="text-sm font-semibold text-green-600">
-                    ${precioFormateado}
-                  </p>
+            return (
+              <div key={transaccion.id} className={`bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
+                <div className="flex items-center">
+                  <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
+                  <div className="flex-grow overflow-hidden">
+                    <div className="flex justify-between items-center">
+                      <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+                      <p className="text-sm font-semibold text-green-600">
+                        ${precioFormateado}
+                      </p>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-gray-600">
+                      <span>{format(parseISO(transaccion.fecha), 'dd/MM/yyyy')}</span>
+                      {!transaccion.parametros ? (
+                        <span>Cantidad: {transaccion.cantidad}</span>
+                      ) : (
+                        <span></span>
+                      )}
+                    </div>
+                    <p className="text-xs font-semibold">{transactionType}</p>
+
+                    {transaccion.parametros && transaccion.parametros.length > 0 && (
+                      <div className="mt-2 border-t pt-2">
+                        <p className="text-xs font-medium text-gray-600 mb-1">Parámetros:</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-2">
+                            {transaccion.parametros.map((param: TransaccionParametro, index: number) => (
+                              <div key={`${transaccion.id}-param-${index}`} className="flex justify-between text-xs">
+                                <span className="text-gray-600">{param.nombre}:</span>
+                                <span className="font-medium">{param.cantidad}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex justify-between items-center text-xs text-gray-600">
-                  <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
-                  <span>Cantidad: {transaccion.cantidad}</span>
-                </div>
-                <p className="text-xs font-semibold">{transactionType}</p>
               </div>
-            </div>
-          )
-        })}
+            )
+          })
+        )}
       </div>
     )
   }
+
+
+
+
 
   const agruparVentasPorSemana = useCallback((ventas: Venta[]) => {
     const weekMap = new Map<string, VentaSemana>()
@@ -744,7 +869,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-full sm:max-w-[90vw] h-[90vh] flex flex-col p-0">
+      <DialogContent className="sm:max-w-[500px]"> {/* Cambiado de w-full max-w-full sm:max-w-[90vw] */}
         <DialogHeader className="p-4">
           <DialogTitle>{vendor.nombre}</DialogTitle>
         </DialogHeader>
@@ -789,75 +914,92 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
               </Button>
             </div>
           ) : mode === 'productos' ? (
-            <Tabs defaultValue="disponibles" className="w-full">
-              <div className="flex justify-center mb-4">
-                <Button onClick={exportToExcel} className="bg-green-500 hover:bg-green-600 text-white">
-                  <FileDown className="mr-2 h-4 w-4" />
-                  Exportar
-                </Button>
+            <div className="max-h-[600px] overflow-y-auto">
+              <Tabs defaultValue="disponibles" className="w-full">
+                <div className="flex justify-center mb-4">
+                  <Button onClick={exportToExcel} className="bg-green-500 hover:bg-green-600 text-white">
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Exportar
+                  </Button>
+                </div>
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
+                  <TabsTrigger value="agotados">Agotados</TabsTrigger>
+                </TabsList>
+                <div className="space-y-4 mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <Input
+                      type="search"
+                      placeholder="Buscar productos..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <div className="flex justify-start space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSort('nombre')}
+                      className="flex items-center"
+                    >
+                      Nombre
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSort('cantidad')}
+                      className="flex items-center"
+                    >
+                      Cantidad
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <TabsContent value="disponibles">
+                  {renderProductList(productos.filter(p => {
+                    const cantidadTotal = p.parametros && p.parametros.length > 0
+                      ? p.parametros.reduce((total, param) => total + (param.cantidad || 0), 0)
+                      : p.cantidad
+                    return cantidadTotal > 0
+                  }))}
+                </TabsContent>
+                <TabsContent value="agotados">
+                  {renderProductList(productos.filter(p => {
+                    const cantidadTotal = p.parametros && p.parametros.length > 0
+                      ? p.parametros.reduce((total, param) => total + (param.cantidad || 0), 0)
+                      : p.cantidad
+                    return cantidadTotal === 0
+                  }))}
+                </TabsContent>
+
+              </Tabs>
+            </div>
+          ) : mode === 'ventas' ? (
+            <div className="max-h-[600px] overflow-y-auto">
+              <div>
+                <h2 className="text-lg font-bold mb-4">Ventas</h2>
+                {renderVentasList()}
               </div>
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
-                <TabsTrigger value="agotados">Agotados</TabsTrigger>
-              </TabsList>
-              <div className="space-y-4 mb-4">
-                <div className="relative">
+            </div>
+          ) : mode === 'transacciones' ? (
+            <div className="max-h-[600px] overflow-y-auto">
+              <div>
+                <h2 className="text-lg font-bold mb-4">Transacciones</h2>
+                <div className="relative mb-4">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <Input
                     type="search"
-                    placeholder="Buscar productos..."
+                    placeholder="Buscar transacciones..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
                   />
                 </div>
-                <div className="flex justify-start space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSort('nombre')}
-                    className="flex items-center"
-                  >
-                    Nombre
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSort('cantidad')}
-                    className="flex items-center"
-                  >
-                    Cantidad
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
+                {renderTransaccionesList()}
               </div>
-              <TabsContent value="disponibles">
-                {renderProductList(productos.filter(p => p.cantidad > 0))}
-              </TabsContent>
-              <TabsContent value="agotados">
-                {renderProductList(productos.filter(p => p.cantidad === 0))}
-              </TabsContent>
-            </Tabs>
-          ) : mode === 'ventas' ? (
-            <div>
-              <h2 className="text-lg font-bold mb-4">Ventas</h2>
-              {renderVentasList()}
-            </div>
-          ) : mode === 'transacciones' ? (
-            <div>
-              <h2 className="text-lg font-bold mb-4">Transacciones</h2>
-              <div className="relative mb-4">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <Input
-                  type="search"
-                  placeholder="Buscar transacciones..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              {renderTransaccionesList()}
             </div>
           ) : (
             <div className="flex flex-col space-y-2">
@@ -869,8 +1011,12 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
           )}
         </div>
         {mode !== 'view' && (
-          <div className="p-4">
-            <Button onClick={() => setMode('view')}>Volver</Button>
+          <div className="flex justify-center p-4 border-t">
+            <Button
+              onClick={() => setMode('view')}
+            >
+              Volver
+            </Button>
           </div>
         )}
       </DialogContent>
@@ -881,27 +1027,91 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             <DialogTitle>Reducir cantidad de producto</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p>Especifique la cantidad a reducir para {productToReduce?.nombre}</p>
-            <Input
-              type="number"
-              value={quantityToReduce}
-              onChange={(e) => setQuantityToReduce(Math.max(0, Math.min(Number(e.target.value), productToReduce?.cantidad || 0)))}
-              max={productToReduce?.cantidad}
-              min={0}
-            />
+            <p className="font-medium">{productToReduce?.nombre}</p>
+
+            {productToReduce?.parametros && productToReduce.parametros.length > 0 ? (
+              // Vista para productos con parámetros
+              <div className="space-y-4">
+                <p className="text-sm text-gray-500">Especifique la cantidad a reducir para cada parámetro:</p>
+                <div className="space-y-2">
+                  {productToReduce.parametros.map((parametro, index) => (
+                    <div key={index} className="flex items-center justify-between space-x-4 p-2 border rounded-lg">
+                      <div>
+                        <p className="font-medium">{parametro.nombre}</p>
+                        <p className="text-sm text-gray-500">Disponible: {parametro.cantidad}</p>
+                      </div>
+                      <Input
+                        type="number"
+                        className="w-24"
+                        value={parameterQuantities[parametro.nombre] || 0}
+                        onChange={(e) => {
+                          const value = Math.max(0, Math.min(Number(e.target.value), parametro.cantidad))
+                          setParameterQuantities(prev => ({
+                            ...prev,
+                            [parametro.nombre]: value
+                          }))
+                        }}
+                        min={0}
+                        max={parametro.cantidad}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="text-sm text-gray-500">
+                  Total a reducir: {Object.values(parameterQuantities).reduce((a, b) => a + b, 0)}
+                </div>
+              </div>
+            ) : (
+              // Vista para productos sin parámetros
+              <div className="space-y-2">
+                <p className="text-sm text-gray-500">Especifique la cantidad a reducir:</p>
+                <div className="flex items-center space-x-4">
+                  <Input
+                    type="number"
+                    value={quantityToReduce}
+                    onChange={(e) => setQuantityToReduce(Math.max(0, Math.min(Number(e.target.value), productToReduce?.cantidad || 0)))}
+                    max={productToReduce?.cantidad}
+                    min={0}
+                  />
+                  <span className="text-sm text-gray-500">
+                    Disponible: {productToReduce?.cantidad}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReduceDialogOpen(false)} disabled={isLoading}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setReduceDialogOpen(false)
+                setParameterQuantities({})
+                setQuantityToReduce(0)
+              }}
+              disabled={isLoading}
+            >
               Cancelar
             </Button>
             <Button
               onClick={() => {
-                if (quantityToReduce > 0) {
+                if (productToReduce?.parametros && productToReduce.parametros.length > 0) {
+                  const totalQuantity = Object.values(parameterQuantities).reduce((a, b) => a + b, 0)
+                  if (totalQuantity > 0) {
+                    setQuantityToReduce(totalQuantity)
+                    setShowDestinationDialog(true)
+                    setReduceDialogOpen(false)
+                  }
+                } else if (quantityToReduce > 0) {
                   setShowDestinationDialog(true)
                   setReduceDialogOpen(false)
                 }
               }}
-              disabled={isLoading || quantityToReduce <= 0}
+              disabled={
+                isLoading ||
+                (productToReduce?.parametros
+                  ? Object.values(parameterQuantities).reduce((a, b) => a + b, 0) <= 0
+                  : quantityToReduce <= 0)
+              }
             >
               Siguiente
             </Button>
@@ -947,42 +1157,65 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             </Button>
             <Button
               onClick={async () => {
-                if (!productToReduce || !selectedDestination) return
+                if (!productToReduce || !selectedDestination) return;
 
-                setIsLoading(true)
+                setIsLoading(true);
                 try {
-                  if (selectedDestination === 'almacen') {
-                    await onProductReduce(productToReduce.id.toString(), vendor.id, quantityToReduce)
-                  } else if (selectedDestination === 'merma') {
-                    await onProductReduce(productToReduce.id.toString(), vendor.id, quantityToReduce)
+                  // Preparar los parámetros
+                  const parametrosReduccion = productToReduce.tiene_parametros && productToReduce.parametros
+                    ? Object.entries(parameterQuantities)
+                      .filter(([_, cantidad]) => cantidad > 0)
+                      .map(([nombre, cantidad]) => ({
+                        nombre,
+                        cantidad
+                      }))
+                    : undefined;
+
+                  if (selectedDestination === 'merma') {
+                    // Solo llamar a onProductMerma, que manejará la reducción internamente
                     await onProductMerma(
-                      productToReduce.id.toString(),
+                      productToReduce.id,
                       vendor.id,
-                      quantityToReduce
-                    )
+                      productToReduce.tiene_parametros ? 0 : quantityToReduce,
+                      parametrosReduccion
+                    );
+                  } else if (selectedDestination === 'almacen') {
+                    await onProductReduce(
+                      productToReduce.id,
+                      vendor.id,
+                      productToReduce.tiene_parametros ? 0 : quantityToReduce,
+                      parametrosReduccion
+                    );
                   }
 
-                  setShowDestinationDialog(false)
-                  setSelectedDestination(null)
-                  setProductToReduce(null)
-                  setQuantityToReduce(0)
+                  setShowDestinationDialog(false);
+                  setSelectedDestination(null);
+                  setProductToReduce(null);
+                  setQuantityToReduce(0);
+                  setParameterQuantities({});
 
                   toast({
                     title: "Éxito",
                     description: `Producto ${selectedDestination === 'merma' ? 'enviado a merma' : 'reducido'} correctamente.`,
-                  })
+                  });
                 } catch (error) {
-                  console.error('Error al procesar la operación:', error)
+                  console.error('Error al procesar la operación:', error);
                   toast({
                     title: "Error",
-                    description: `No se pudo ${selectedDestination === 'merma' ? 'enviar a merma' : 'reducir'} el producto. Por favor, inténtelo de nuevo.`,
+                    description: `No se pudo ${selectedDestination === 'merma' ? 'enviar a merma' : 'reducir'} el producto.`,
                     variant: "destructive",
-                  })
+                  });
                 } finally {
-                  setIsLoading(false)
+                  setIsLoading(false);
                 }
               }}
-              disabled={isLoading || !selectedDestination || selectedDestination === 'vendedor'}
+              disabled={
+                isLoading ||
+                !selectedDestination ||
+                (productToReduce?.tiene_parametros
+                  ? !Object.values(parameterQuantities).some(qty => qty > 0)
+                  : quantityToReduce <= 0)
+              }
             >
               {isLoading ? (
                 <>
@@ -993,6 +1226,8 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 'Confirmar'
               )}
             </Button>
+
+
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1034,11 +1269,29 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
 
                 setIsLoading(true)
                 try {
+                  const parametrosTransferencia = productToReduce.tiene_parametros && productToReduce.parametros
+                    ? Object.entries(parameterQuantities)
+                      .filter(([_, cantidad]) => cantidad > 0)
+                      .map(([nombre, cantidad]) => ({
+                        nombre,
+                        cantidad
+                      }))
+                    : undefined;
+
+
+                  console.log('Datos de transferencia:', {
+                    productId: productToReduce.id.toString(),
+                    fromVendorId: vendor.id,
+                    toVendorId: selectedVendorId,
+                    cantidad: productToReduce.tiene_parametros ? 0 : quantityToReduce,
+                    parametros: parametrosTransferencia
+                  });
                   await onProductTransfer(
                     productToReduce.id.toString(),
-                    vendor.id,
-                    selectedVendorId,
-                    quantityToReduce
+                    vendor.id.toString(), // Convertir a string
+                    selectedVendorId.toString(), // Convertir a string
+                    productToReduce.tiene_parametros ? 0 : quantityToReduce,
+                    parametrosTransferencia
                   )
 
                   setShowVendorSelectDialog(false)
@@ -1046,6 +1299,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   setSelectedDestination(null)
                   setProductToReduce(null)
                   setQuantityToReduce(0)
+                  setParameterQuantities({})
 
                   toast({
                     title: "Éxito",

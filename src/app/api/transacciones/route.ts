@@ -64,6 +64,19 @@ export async function POST(request: NextRequest) {
         [productoId, cantidad, tipo, null, vendedorId, new Date()]
       );
 
+      const transaccionId = transactionResult.rows[0].id;
+
+      // Registrar los parámetros de la transacción
+      if (tiene_parametros && parametros && parametros.length > 0) {
+        for (const param of parametros) {
+          await query(
+            `INSERT INTO transaccion_parametros (transaccion_id, nombre, cantidad) 
+             VALUES ($1, $2, $3)`,
+            [transaccionId, param.nombre, param.cantidad]
+          );
+        }
+      }
+
       const productResult = await query('SELECT precio FROM productos WHERE id = $1', [productoId]);
       const productPrice = productResult.rows[0]?.precio;
 
@@ -79,7 +92,7 @@ export async function POST(request: NextRequest) {
         [vendedorId, productoId, cantidad, productPrice]
       );
 
-      // Actualizar parámetros
+      // Actualizar parámetros del usuario
       if (tiene_parametros && parametros && parametros.length > 0) {
         for (const param of parametros) {
           // Actualizar stock de parámetros
@@ -129,32 +142,65 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    let result;
+    let transacciones;
+    const baseQuery = `
+      SELECT 
+        t.id, 
+        p.nombre as producto, 
+        t.cantidad, 
+        t.tipo, 
+        t.desde, 
+        t.hacia, 
+        t.fecha, 
+        p.precio,
+        p.tiene_parametros
+      FROM transacciones t 
+      JOIN productos p ON t.producto = p.id 
+    `;
+
     if (productoId) {
-      result = await query(
-        `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, p.precio
-         FROM transacciones t 
-         JOIN productos p ON t.producto = p.id 
-         WHERE t.producto = $1
-         ORDER BY t.fecha DESC`,
+      transacciones = await query(
+        baseQuery + ' WHERE t.producto = $1 ORDER BY t.fecha DESC',
         [productoId]
       );
     } else {
-      result = await query(
-        `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, p.precio
-         FROM transacciones t 
-         JOIN productos p ON t.producto = p.id 
-         WHERE t.hacia = $1 OR t.desde = $1
-         ORDER BY t.fecha DESC`,
+      transacciones = await query(
+        baseQuery + ' WHERE t.hacia = $1 OR t.desde = $1 ORDER BY t.fecha DESC',
         [vendedorId]
       );
     }
-    return NextResponse.json(result.rows);
+
+    // Obtener los parámetros para cada transacción
+    const transaccionesConParametros = await Promise.all(
+      transacciones.rows.map(async (transaccion) => {
+        if (transaccion.tiene_parametros) {
+          const parametrosResult = await query(
+            `SELECT nombre, cantidad 
+             FROM transaccion_parametros 
+             WHERE transaccion_id = $1`,
+            [transaccion.id]
+          );
+          return {
+            ...transaccion,
+            parametros: parametrosResult.rows
+          };
+        }
+        return transaccion;
+      })
+    );
+
+    return NextResponse.json(transaccionesConParametros);
   } catch (error) {
     if (error instanceof Error) {
-      return NextResponse.json({ error: 'Error al obtener transacciones', details: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Error al obtener transacciones', details: error.message }, 
+        { status: 500 }
+      );
     } else {
-      return NextResponse.json({ error: 'Error desconocido al obtener transacciones' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Error desconocido al obtener transacciones' }, 
+        { status: 500 }
+      );
     }
   }
 }

@@ -60,6 +60,15 @@ export interface Usuario {
   telefono?: string;
 }
 
+// Agregar nueva interface para los parámetros de transacción
+export interface TransaccionParametro {
+  id: string;
+  transaccion_id: string;
+  nombre: string;
+  cantidad: number;
+}
+
+// Actualizar la interface Transaccion para incluir los parámetros
 export interface Transaccion {
   id: string;
   tipo: 'Baja' | 'Entrega';
@@ -69,7 +78,10 @@ export interface Transaccion {
   hacia: string;
   fecha: string;
   precio: number;
+  parametro_nombre?: string;
+  parametros?: TransaccionParametro[]; // Agregar esta línea
 }
+
 
 export interface Entrega {
   id: string;
@@ -84,5 +96,14 @@ export interface Merma {
   producto: Producto;
   cantidad: number;
   fecha: string;
-  motivo?: string;
+  usuario_id: number;
+  usuario_nombre: string;
+}
+
+export interface TransferProductParams {
+  productId: string;
+  fromVendorId: string;
+  toVendorId: string;
+  cantidad: number;
+  parametros?: Array<{ nombre: string; cantidad: number }>; 
 }

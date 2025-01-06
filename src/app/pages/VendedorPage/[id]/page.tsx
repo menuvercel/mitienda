@@ -41,6 +41,10 @@ interface ProductoParametro {
   cantidad: number;
 }
 
+interface ProductoCardProps {
+  producto: Producto;
+  vendedorId: string; // Añadir esta prop
+}
 
 interface ProductoVenta extends Producto {
   cantidadVendida: number;
@@ -48,14 +52,25 @@ interface ProductoVenta extends Producto {
 }
 
 
-
-interface Transaccion {
+export interface TransaccionParametro {
   id: string;
+  transaccion_id: string;
+  nombre: string;
+  cantidad: number;
+}
+
+// Actualizar la interface Transaccion para incluir los parámetros
+export interface Transaccion {
+  id: string;
+  tipo: 'Baja' | 'Entrega';
   producto: string;
   cantidad: number;
+  desde: string;
+  hacia: string;
   fecha: string;
-  tipo: string;
   precio: number;
+  parametro_nombre?: string;
+  parametros?: TransaccionParametro[]; // Agregar esta línea
 }
 
 interface VentaParametro {
@@ -417,7 +432,7 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
                   />
                   <div className="flex flex-col">
                     <span className="font-medium">{v.producto_nombre}</span>
-                    {v.parametros && v.parametros.length > 0 && (
+                    {v.parametros && v.parametros.length > 0 ? (
                       <div className="mt-1">
                         {v.parametros.map((param, index) => (
                           <div key={index} className="text-sm text-gray-600">
@@ -427,6 +442,11 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
                         <div className="text-sm font-medium text-gray-700 mt-1">
                           Cantidad total: {v.parametros.reduce((sum, param) => sum + param.cantidad, 0)}
                         </div>
+                      </div>
+                    ) : (
+                      // Mostrar la cantidad vendida para productos sin parámetros
+                      <div className="text-sm text-gray-600">
+                        Cantidad: {v.cantidad}
                       </div>
                     )}
                   </div>
@@ -447,9 +467,6 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
     </div>
   );
 };
-
-
-
 
 
 const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
@@ -521,14 +538,108 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
   );
 };
 
-const ProductoCard = ({ producto }: { producto: Producto }) => {
+const TransaccionesList = ({
+  transacciones,
+  searchTerm,
+  vendedorId
+}: {
+  transacciones: Transaccion[],
+  searchTerm: string,
+  vendedorId: string
+}) => {
+  const filteredTransacciones = transacciones.filter(t =>
+    t.producto.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getTransactionKey = (transaction: Transaccion) => {
+    const parametrosString = transaction.parametros
+      ?.sort((a, b) => a.nombre.localeCompare(b.nombre))
+      .map(p => `${p.nombre.toLowerCase()}:${p.cantidad}`)
+      .join('|') || '';
+
+    return `${new Date(transaction.fecha).getTime()}_${transaction.tipo}_${parametrosString}_${transaction.producto}`;
+  };
+
+  const filteredByRole = filteredTransacciones.filter(transaction => {
+    if (transaction.parametros && transaction.parametros.length > 0) {
+      if (transaction.desde === vendedorId) {
+        return transaction.tipo === 'Baja';
+      }
+      if (transaction.hacia === vendedorId) {
+        return transaction.tipo === 'Entrega';
+      }
+      return false;
+    }
+    return true;
+  });
+
+  const groupedTransactions = filteredByRole.reduce((acc, transaction) => {
+    const key = getTransactionKey(transaction);
+    if (!acc.has(key)) {
+      acc.set(key, transaction);
+    }
+    return acc;
+  }, new Map<string, Transaccion>());
+
+  return (
+    <div className="space-y-2">
+      {Array.from(groupedTransactions.values()).map((transaccion) => {
+        const transactionType = transaccion.tipo || 'Normal';
+        const borderColor =
+          transactionType === 'Baja' ? 'border-red-500' :
+            transactionType === 'Entrega' ? 'border-green-500' :
+              'border-blue-500';
+
+        const cantidadTotal = transaccion.parametros
+          ? transaccion.parametros.reduce((sum, param) => sum + param.cantidad, 0)
+          : transaccion.cantidad;
+
+        return (
+          <div
+            key={getTransactionKey(transaccion)}
+            className={`flex items-start bg-white p-4 rounded-lg shadow border-l-4 ${borderColor}`}
+          >
+            <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-4 flex-shrink-0 mt-1" />
+            <div className="flex-grow overflow-hidden">
+              <div className="flex justify-between items-center mb-1">
+                <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+                <p className="text-sm font-semibold text-green-600">
+                  ${formatPrice(transaccion.precio)}
+                </p>
+              </div>
+              <div className="flex justify-between items-center text-xs text-gray-600">
+                <span>{formatDate(transaccion.fecha)}</span>
+                <span>Cantidad Total: {cantidadTotal}</span>
+              </div>
+              {transaccion.parametros && transaccion.parametros.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs font-medium text-gray-700">Parámetros:</p>
+                  {transaccion.parametros.map((param: TransaccionParametro, index: number) => (
+                    <div key={index} className="flex items-center text-xs text-gray-600">
+                      <span className="mr-2">•</span>
+                      <span className="font-medium">{param.nombre}:</span>
+                      <span className="ml-1">{param.cantidad}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs font-semibold mt-1 text-gray-700">{transactionType}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+
+const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId: string }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [transacciones, setTransacciones] = useState<Transaccion[]>([])
   const [ventas, setVentas] = useState<Venta[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [busqueda, setBusqueda] = useState('')
 
   const calcularCantidadTotal = (parametros?: ProductoParametro[]): number => {
     if (!parametros) return 0;
@@ -540,28 +651,23 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
     setError(null)
     try {
       const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0];
+      const startDate = new Date(new Date().setMonth(new Date().getMonth() - 1))
+        .toISOString().split('T')[0];
 
       const [transaccionesData, ventasData] = await Promise.all([
         getTransaccionesProducto(producto.id),
         getVentasProducto(producto.id, startDate, endDate)
       ]);
-      setTransacciones(transaccionesData.map(t => ({
-        id: t.id,
-        producto: t.producto,
-        cantidad: t.cantidad,
-        fecha: t.fecha,
-        tipo: t.tipo,
-        precio: t.precio
-      })))
-      setVentas(ventasData)
+
+      setTransacciones(transaccionesData);
+      setVentas(ventasData);
     } catch (error) {
-      console.error('Error al obtener datos del producto:', error)
-      setError('No se pudieron cargar los datos del producto. Por favor, intenta de nuevo.')
+      console.error('Error al obtener datos del producto:', error);
+      setError('No se pudieron cargar los datos del producto. Por favor, intenta de nuevo.');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [producto.id])
+  }, [producto.id]);
 
   const handleCardClick = () => {
     setIsDialogOpen(true)
@@ -582,13 +688,17 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
   }
 
   const VentaItem = ({ venta }: { venta: Venta }) => {
+    const cantidadTotal = venta.parametros
+      ? venta.parametros.reduce((sum, param) => sum + param.cantidad, 0)
+      : venta.cantidad;
+
     return (
       <div className="flex items-center justify-between bg-white p-2 rounded-lg shadow border-l-4 border-green-500">
         <div className="flex items-center space-x-2">
           <DollarSign className="w-5 h-5 text-green-500 flex-shrink-0" />
-          <p className="font-semibold text-sm">{new Date(venta.fecha).toLocaleDateString()}</p>
+          <p className="font-semibold text-sm">{formatDate(venta.fecha)}</p>
         </div>
-        <p className="text-sm">Cantidad: {venta.cantidad}</p>
+        <p className="text-sm">Cantidad: {cantidadTotal}</p>
       </div>
     );
   };
@@ -607,46 +717,6 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
       </div>
     )
   }
-
-  const renderTransaccionesList = () => {
-    const filteredTransacciones = transacciones.filter(t =>
-      t.producto.toLowerCase().includes(busqueda.toLowerCase())
-    );
-
-    return (
-      <div className="space-y-2">
-        {filteredTransacciones.map(transaccion => {
-          const transactionType = transaccion.tipo || 'Normal';
-          const borderColor =
-            transactionType === 'Baja' ? 'border-red-500' :
-              transactionType === 'Entrega' ? 'border-green-500' :
-                'border-blue-500';
-
-          // Usar la función formatPrice para manejar undefined de manera segura
-          const precioFormateado = formatPrice(transaccion.precio);
-
-          return (
-            <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
-              <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
-              <div className="flex-grow overflow-hidden">
-                <div className="flex justify-between items-center">
-                  <p className="font-bold text-sm truncate">{transaccion.producto}</p>
-                  <p className="text-sm font-semibold text-green-600">
-                    ${precioFormateado}
-                  </p>
-                </div>
-                <div className="flex justify-between items-center text-xs text-gray-600">
-                  <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
-                  <span>Cantidad: {transaccion.cantidad}</span>
-                </div>
-                <p className="text-xs font-semibold">{transactionType}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
 
   return (
     <>
@@ -688,7 +758,7 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[800px]">
+        <DialogContent className="sm:max-w-[800px] h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{producto.nombre}</DialogTitle>
           </DialogHeader>
@@ -700,81 +770,102 @@ const ProductoCard = ({ producto }: { producto: Producto }) => {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : (
-            <Tabs defaultValue="informacion">
-              <TabsList>
-                <TabsTrigger value="informacion">Información</TabsTrigger>
-                <TabsTrigger value="transacciones">Registro</TabsTrigger>
-                <TabsTrigger value="ventas">Ventas</TabsTrigger>
-              </TabsList>
-              <TabsContent value="informacion">
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="w-full h-[300px] flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
-                    <div className="relative w-full h-full">
-                      <OptimizedImage
-                        src={producto.foto || '/placeholder.svg'}
-                        fallbackSrc="/placeholder.svg"
-                        alt={producto.nombre}
-                        fill
-                        className="object-contain"
-                      />
-                    </div>
-                  </div>
-                  <div className="text-center w-full p-4 bg-white rounded-lg">
-                    <h3 className="text-xl font-semibold">{producto.nombre}</h3>
-                    <p className="text-gray-600">Precio: ${formatPrice(producto.precio)}</p>
-
-                    {/* Modificar esta parte para mostrar los parámetros */}
-                    {producto.tiene_parametros ? (
-                      <div className="mt-4">
-                        <h4 className="font-medium mb-2">Parámetros:</h4>
-                        <div className="space-y-2">
-                          {producto.parametros?.map((parametro) => (
-                            <div key={parametro.nombre} className="flex justify-between px-4">
-                              <span>{parametro.nombre}</span>
-                              <span>{parametro.cantidad}</span>
-                            </div>
-                          ))}
+            <div className="flex-1 overflow-hidden">
+              <Tabs defaultValue="informacion" className="h-full flex flex-col">
+                <TabsList>
+                  <TabsTrigger value="informacion">Información</TabsTrigger>
+                  <TabsTrigger value="transacciones">Registro</TabsTrigger>
+                  <TabsTrigger value="ventas">Ventas</TabsTrigger>
+                </TabsList>
+                <div className="flex-1 overflow-hidden">
+                  <TabsContent value="informacion" className="h-full overflow-auto">
+                    <div className="flex flex-col items-center space-y-4">
+                      <div className="w-full h-[300px] flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
+                        <div className="relative w-full h-full">
+                          <OptimizedImage
+                            src={producto.foto || '/placeholder.svg'}
+                            fallbackSrc="/placeholder.svg"
+                            alt={producto.nombre}
+                            fill
+                            className="object-contain"
+                          />
                         </div>
                       </div>
-                    ) : (
-                      <p className="text-gray-600">Cantidad disponible: {producto.cantidad}</p>
-                    )}
-                  </div>
+                      <div className="text-center w-full p-4 bg-white rounded-lg">
+                        <h3 className="text-xl font-semibold">{producto.nombre}</h3>
+                        <p className="text-gray-600">Precio: ${formatPrice(producto.precio)}</p>
+                        {producto.tiene_parametros ? (
+                          <div className="mt-4">
+                            <h4 className="font-medium mb-2">Parámetros:</h4>
+                            <div className="space-y-2">
+                              {producto.parametros?.map((parametro) => (
+                                <div key={parametro.nombre} className="flex justify-between px-4">
+                                  <span>{parametro.nombre}</span>
+                                  <span>{parametro.cantidad}</span>
+                                </div>
+                              ))}
+                              <div className="border-t pt-2 mt-2">
+                                <span className="font-medium">
+                                  Cantidad Total: {calcularCantidadTotal(producto.parametros)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-gray-600">Cantidad disponible: {producto.cantidad}</p>
+                        )}
+                      </div>
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="transacciones" className="h-full overflow-auto mt-0 border-0">
+                    <div className="sticky top-0 bg-white z-10 pb-4">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <Input
+                          type="search"
+                          placeholder="Buscar..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                    <div className="overflow-auto">
+                      <TransaccionesList
+                        transacciones={transacciones}
+                        searchTerm={searchTerm}
+                        vendedorId={vendedorId}
+                      />
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="ventas" className="h-full overflow-auto mt-0 border-0">
+                    <div className="sticky top-0 bg-white z-10 pb-4">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <Input
+                          type="search"
+                          placeholder="Buscar..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                    <div className="overflow-auto">
+                      {renderVentasList()}
+                    </div>
+                  </TabsContent>
                 </div>
-              </TabsContent>
-              <TabsContent value="transacciones">
-                <div className="relative mb-4 mt-4">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <Input
-                    type="search"
-                    placeholder="Buscar..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                {renderTransaccionesList()}
-              </TabsContent>
-              <TabsContent value="ventas">
-                <div className="relative mb-4 mt-4">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <Input
-                    type="search"
-                    placeholder="Buscar..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                {renderVentasList()}
-              </TabsContent>
-            </Tabs>
+              </Tabs>
+            </div>
           )}
         </DialogContent>
       </Dialog>
     </>
   )
 }
+
 
 const ParametrosDialog = ({
   producto,
@@ -918,45 +1009,6 @@ export default function VendedorPage() {
     p.nombre.toLowerCase().includes(busqueda.toLowerCase())
   )
 
-  const renderTransaccionesList = () => {
-    const filteredTransacciones = transacciones.filter(t =>
-      t.producto.toLowerCase().includes(busqueda.toLowerCase())
-    );
-
-    return (
-      <div className="space-y-2">
-        {filteredTransacciones.map(transaccion => {
-          const transactionType = transaccion.tipo || 'Normal';
-          const borderColor =
-            transactionType === 'Baja' ? 'border-red-500' :
-              transactionType === 'Entrega' ? 'border-green-500' :
-                'border-blue-500';
-
-          // Usar la función formatPrice para manejar undefined de manera segura
-          const precioFormateado = formatPrice(transaccion.precio);
-
-          return (
-            <div key={transaccion.id} className={`flex items-center bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
-              <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
-              <div className="flex-grow overflow-hidden">
-                <div className="flex justify-between items-center">
-                  <p className="font-bold text-sm truncate">{transaccion.producto}</p>
-                  <p className="text-sm font-semibold text-green-600">
-                    ${precioFormateado}
-                  </p>
-                </div>
-                <div className="flex justify-between items-center text-xs text-gray-600">
-                  <span>{new Date(transaccion.fecha).toLocaleDateString()}</span>
-                  <span>Cantidad: {transaccion.cantidad}</span>
-                </div>
-                <p className="text-xs font-semibold">{transactionType}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
 
   const handleProductSelect = (producto: Producto) => {
     if (producto.tiene_parametros) {
@@ -1024,7 +1076,16 @@ export default function VendedorPage() {
       ...productosConParametrosEnEspera
     ]);
 
-    // No limpiamos selectedProductIds aquí para mantener los checkboxes marcados
+    // Reiniciar las selecciones
+    setSelectedProductIds([]);
+    setProductosConParametrosEnEspera([]);
+    setIsDialogOpen(false);
+  };
+
+  // Añade un manejador para cuando se cierra el diálogo
+  const handleDialogClose = () => {
+    setSelectedProductIds([]);
+    setProductosConParametrosEnEspera([]);
     setIsDialogOpen(false);
   };
 
@@ -1129,7 +1190,7 @@ export default function VendedorPage() {
               </div>
               <div className="space-y-2">
                 {productosFiltrados.map((producto) => (
-                  <ProductoCard key={producto.id} producto={producto} />
+                  <ProductoCard key={producto.id} producto={producto} vendedorId={vendedorId} />
                 ))}
               </div>
             </TabsContent>
@@ -1147,7 +1208,7 @@ export default function VendedorPage() {
               </div>
               <div className="space-y-2">
                 {productosAgotadosFiltrados.map((producto) => (
-                  <ProductoCard key={producto.id} producto={producto} />
+                  <ProductoCard key={producto.id} producto={producto} vendedorId={vendedorId} />
                 ))}
               </div>
             </TabsContent>
@@ -1352,19 +1413,27 @@ export default function VendedorPage() {
         )}
         {seccionActual === 'registro' && (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Registro de Actividades</h2>
+            <h2 className="text-xl font-semibold mb-4">Registro de Actividades</h2>
             <div className="relative mb-4">
               <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <Input
-                placeholder="Buscar transacciones..."
+                type="search"
+                placeholder="Buscar..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 className="pl-10"
               />
             </div>
-            {renderTransaccionesList()}
+            <div className="overflow-auto">
+              <TransaccionesList
+                transacciones={transacciones}
+                searchTerm={busqueda}
+                vendedorId={vendedorId}
+              />
+            </div>
           </div>
         )}
+
       </main>
       <ParametrosDialog
         producto={selectedProduct}

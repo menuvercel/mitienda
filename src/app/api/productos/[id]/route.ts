@@ -127,25 +127,37 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
                 return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
             }
 
-            // 2. Eliminar registros de merma primero
+            // 2. Eliminar merma_parametros primero
+            const mermaParametrosEliminados = await query(
+                'DELETE FROM merma_parametros WHERE merma_id IN (SELECT id FROM merma WHERE producto_id = $1) RETURNING *',
+                [id]
+            );
+
+            // 3. Eliminar registros de merma
             const mermaEliminada = await query(
                 'DELETE FROM merma WHERE producto_id = $1 RETURNING *',
                 [id]
             );
 
-            // 3. Eliminar referencias en usuario_productos
+            // 4. Eliminar referencias en usuario_productos
             const usuarioProductosEliminados = await query(
                 'DELETE FROM usuario_productos WHERE producto_id = $1 RETURNING *',
                 [id]
             );
 
-            // 4. Eliminar transacciones asociadas
+            // 5. Eliminar transaccion_parametros primero
+            const transaccionParametrosEliminados = await query(
+                'DELETE FROM transaccion_parametros WHERE transaccion_id IN (SELECT id FROM transacciones WHERE producto = $1) RETURNING *',
+                [id]
+            );
+
+            // 6. Ahora sí eliminar transacciones
             const transaccionesEliminadas = await query(
                 'DELETE FROM transacciones WHERE producto = $1 RETURNING *',
                 [id]
             );
 
-            // 5. Eliminar parámetros si existen
+            // 7. Eliminar parámetros si existen
             let parametrosEliminados = 0;
             if (producto.rows[0].tiene_parametros) {
                 const result = await query(
@@ -155,25 +167,25 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
                 parametrosEliminados = result.rows.length;
             }
 
-            // 6. Eliminar referencias en usuario_producto_parametros
+            // 8. Eliminar referencias en usuario_producto_parametros
             const usuarioProductoParametrosEliminados = await query(
                 'DELETE FROM usuario_producto_parametros WHERE producto_id = $1 RETURNING *',
                 [id]
             );
 
-            // 7. Eliminar referencias en venta_parametros
+            // 9. Eliminar referencias en venta_parametros
             const ventaParametrosEliminados = await query(
                 'DELETE FROM venta_parametros WHERE venta_id IN (SELECT id FROM ventas WHERE producto = $1) RETURNING *',
                 [id]
             );
 
-            // 8. Eliminar referencias en ventas
+            // 10. Eliminar referencias en ventas
             const ventasEliminadas = await query(
                 'DELETE FROM ventas WHERE producto = $1 RETURNING *',
                 [id]
             );
 
-            // 9. Finalmente eliminar el producto
+            // 11. Finalmente eliminar el producto
             await query('DELETE FROM productos WHERE id = $1', [id]);
 
             await query('COMMIT');
@@ -182,8 +194,10 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
                 message: 'Producto eliminado exitosamente',
                 deletedProduct: producto.rows[0],
                 deletedData: {
+                    mermaParametros: mermaParametrosEliminados.rows.length,
                     merma: mermaEliminada.rows.length,
                     usuarioProductos: usuarioProductosEliminados.rows.length,
+                    transaccionParametros: transaccionParametrosEliminados.rows.length,
                     transacciones: transaccionesEliminadas.rows.length,
                     parametros: parametrosEliminados,
                     usuarioProductoParametros: usuarioProductoParametrosEliminados.rows.length,
@@ -206,6 +220,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         }, { status: 500 });
     }
 }
+
+
 
 
 

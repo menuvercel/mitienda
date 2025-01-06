@@ -1,14 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+// Modificar la interfaz de la solicitud para incluir parámetros específicos
+interface TransferRequest {
+  productId: string;
+  fromVendorId: string;
+  toVendorId: string;
+  cantidad: number;
+  parametros?: { nombre: string; cantidad: number }[];
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { productId, fromVendorId, toVendorId, cantidad } = body;
+    const body: TransferRequest = await request.json();
+    const { productId, fromVendorId, toVendorId, cantidad, parametros } = body;
 
-    if (!productId || !fromVendorId || !toVendorId || !cantidad) {
+    if (!productId || !fromVendorId || !toVendorId || cantidad === undefined) {
       return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 });
     }
+
+    // Si cantidad es 0, debe haber parámetros
+    if (cantidad === 0 && (!parametros || parametros.length === 0)) {
+      return NextResponse.json({ error: 'Si la cantidad es 0, debe especificar parámetros' }, { status: 400 });
+    }
+
 
     await query('BEGIN');
 
@@ -37,26 +52,45 @@ export async function POST(request: NextRequest) {
 
       const { tiene_parametros } = productoResult.rows[0];
 
-      // 3. Registrar las transacciones
-      // Transacción de Baja para el vendedor origen (desde = fromVendorId, hacia = fromVendorId)
+      // 3. Si tiene parámetros, verificar que los parámetros enviados sean válidos
+      if (tiene_parametros) {
+        if (!parametros || parametros.length === 0) {
+          throw new Error('Este producto requiere especificar parámetros para la transferencia');
+        }
+
+        // Verificar que cada parámetro tenga stock suficiente
+        for (const param of parametros) {
+          const paramResult = await query(
+            'SELECT cantidad FROM usuario_producto_parametros WHERE usuario_id = $1 AND producto_id = $2 AND nombre = $3',
+            [fromVendorId, productId, param.nombre]
+          );
+
+          if (paramResult.rows.length === 0 || paramResult.rows[0].cantidad < param.cantidad) {
+            throw new Error(`Stock insuficiente para el parámetro ${param.nombre}`);
+          }
+        }
+      }
+
+      // 4. Registrar las transacciones
       const bajaResult = await query(
-        'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $4, $5) RETURNING *',
-        [productId, cantidad, 'Baja', fromVendorId, new Date()]
+        'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [productId, cantidad, 'Baja', fromVendorId, null, new Date()]
       );
 
-      // Transacción de Entrega para el vendedor destino (desde = toVendorId, hacia = toVendorId)
       const entregaResult = await query(
-        'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $4, $5) RETURNING *',
-        [productId, cantidad, 'Entrega', toVendorId, new Date()]
+        'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [productId, cantidad, 'Entrega', fromVendorId, toVendorId, new Date()]
       );
 
-      // 4. Actualizar stock del vendedor origen
+
+
+      // 5. Actualizar stock del vendedor origen
       await query(
         'UPDATE usuario_productos SET cantidad = cantidad - $1 WHERE usuario_id = $2 AND producto_id = $3',
         [cantidad, fromVendorId, productId]
       );
 
-      // 5. Actualizar o crear stock del vendedor destino
+      // 6. Actualizar o crear stock del vendedor destino
       await query(
         `INSERT INTO usuario_productos (usuario_id, producto_id, cantidad, precio) 
          VALUES ($1, $2, $3, $4) 
@@ -65,32 +99,48 @@ export async function POST(request: NextRequest) {
         [toVendorId, productId, cantidad, precio]
       );
 
-      // 6. Si tiene parámetros, transferir también los parámetros
-      if (tiene_parametros) {
-        const parametrosResult = await query(
-          'SELECT nombre, cantidad as param_cantidad FROM usuario_producto_parametros WHERE usuario_id = $1 AND producto_id = $2',
-          [fromVendorId, productId]
-        );
-
-        for (const param of parametrosResult.rows) {
-          const cantidadParametro = (param.param_cantidad / stockVendedor) * cantidad;
-
+      // 7. Manejar los parámetros si existen
+      // 7. Manejar los parámetros si existen
+      if (tiene_parametros && parametros) {
+        for (const param of parametros) {
           // Reducir parámetros del vendedor origen
-          await query(
-            'UPDATE usuario_producto_parametros SET cantidad = cantidad - $1 WHERE usuario_id = $2 AND producto_id = $3 AND nombre = $4',
-            [cantidadParametro, fromVendorId, productId, param.nombre]
+          const updateOrigin = await query(
+            'UPDATE usuario_producto_parametros SET cantidad = cantidad - $1 WHERE usuario_id = $2 AND producto_id = $3 AND nombre = $4 RETURNING cantidad',
+            [param.cantidad, fromVendorId, productId, param.nombre]
           );
+
+          // Verificar si la cantidad resultante es 0 para eliminar el registro
+          if (updateOrigin.rows[0].cantidad === 0) {
+            await query(
+              'DELETE FROM usuario_producto_parametros WHERE usuario_id = $1 AND producto_id = $2 AND nombre = $3',
+              [fromVendorId, productId, param.nombre]
+            );
+          }
 
           // Agregar o actualizar parámetros en vendedor destino
           await query(
             `INSERT INTO usuario_producto_parametros (usuario_id, producto_id, nombre, cantidad)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (usuario_id, producto_id, nombre)
-             DO UPDATE SET cantidad = usuario_producto_parametros.cantidad + $4`,
-            [toVendorId, productId, param.nombre, cantidadParametro]
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (usuario_id, producto_id, nombre)
+      DO UPDATE SET cantidad = usuario_producto_parametros.cantidad + $4`,
+            [toVendorId, productId, param.nombre, param.cantidad]
+          );
+
+          // Registrar los parámetros en ambas transacciones
+          await query(
+            'INSERT INTO transaccion_parametros (transaccion_id, nombre, cantidad) VALUES ($1, $2, $3)',
+            [bajaResult.rows[0].id, param.nombre, param.cantidad]
+          );
+
+          await query(
+            'INSERT INTO transaccion_parametros (transaccion_id, nombre, cantidad) VALUES ($1, $2, $3)',
+            [entregaResult.rows[0].id, param.nombre, param.cantidad]
           );
         }
       }
+
+
+
 
       await query('COMMIT');
 
@@ -122,6 +172,7 @@ export async function POST(request: NextRequest) {
 }
 
 
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const fromVendorId = searchParams.get('fromVendorId');
@@ -136,31 +187,93 @@ export async function GET(request: NextRequest) {
 
   try {
     let result;
+    const baseQuery = `
+      SELECT 
+        t.id,
+        t.producto as producto_id,
+        p.nombre as producto,
+        t.cantidad,
+        t.tipo,
+        t.desde,
+        t.hacia,
+        t.fecha,
+        p.precio,
+        p.tiene_parametros,
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'id', tp.id,
+                'transaccion_id', tp.transaccion_id,
+                'nombre', tp.nombre,
+                'cantidad', tp.cantidad
+              )
+            )
+            FROM transaccion_parametros tp
+            WHERE tp.transaccion_id = t.id
+          ),
+          '[]'::json
+        ) as parametros,
+        u_desde.nombre as desde_nombre,
+        u_hacia.nombre as hacia_nombre
+      FROM transacciones t 
+      JOIN productos p ON t.producto = p.id
+      LEFT JOIN usuarios u_desde ON t.desde = u_desde.id
+      LEFT JOIN usuarios u_hacia ON t.hacia = u_hacia.id
+    `;
+
     if (fromVendorId && toVendorId) {
-      // Buscar todas las transacciones relacionadas entre estos dos vendedores
+      // Si tenemos ambos IDs, mostramos SOLO las transacciones donde:
+      // - Si es el fromVendorId, solo muestra las Bajas donde él es el origen
+      // - Si es el toVendorId, solo muestra las Entregas donde él es el destino
       result = await query(
-        `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, p.precio
-         FROM transacciones t 
-         JOIN productos p ON t.producto = p.id 
-         WHERE (t.desde = $1 AND t.hacia = $2) OR (t.desde = $2 AND t.hacia = $1)
-         ORDER BY t.fecha DESC`,
+        `${baseQuery} 
+        WHERE 
+          CASE 
+            WHEN t.desde = $1 THEN t.tipo = 'Baja'
+            WHEN t.hacia = $2 THEN t.tipo = 'Entrega'
+            ELSE FALSE
+          END
+        ORDER BY t.fecha DESC`,
         [fromVendorId, toVendorId]
       );
     } else {
-      // Buscar todas las transacciones de un vendedor específico
       const vendorId = fromVendorId || toVendorId;
       result = await query(
-        `SELECT t.id, p.nombre as producto, t.cantidad, t.tipo, t.desde, t.hacia, t.fecha, p.precio
-         FROM transacciones t 
-         JOIN productos p ON t.producto = p.id 
-         WHERE t.desde = $1 OR t.hacia = $1
-         ORDER BY t.fecha DESC`,
+        `${baseQuery} 
+        WHERE 
+          CASE 
+            WHEN t.desde = $1 THEN t.tipo = 'Baja'
+            WHEN t.hacia = $1 THEN t.tipo = 'Entrega'
+            ELSE FALSE
+          END
+        ORDER BY t.fecha DESC`,
         [vendorId]
       );
     }
+    
 
-    return NextResponse.json(result.rows);
+    // Transformar los resultados
+    const formattedResults = result.rows.map(row => ({
+      id: row.id,
+      producto_id: row.producto_id,
+      producto: row.producto,
+      cantidad: row.cantidad,
+      tipo: row.tipo,
+      desde: row.desde,
+      desde_nombre: row.desde_nombre,
+      hacia: row.hacia,
+      hacia_nombre: row.hacia_nombre,
+      fecha: row.fecha,
+      precio: row.precio,
+      tiene_parametros: row.tiene_parametros,
+      parametros: Array.isArray(row.parametros) ? row.parametros : []
+    }));
+
+    return NextResponse.json(formattedResults);
+
   } catch (error) {
+    console.error('Error al obtener transacciones:', error);
     if (error instanceof Error) {
       return NextResponse.json(
         { error: 'Error al obtener transacciones', details: error.message },
@@ -174,3 +287,5 @@ export async function GET(request: NextRequest) {
     }
   }
 }
+
+

@@ -37,7 +37,7 @@ import {
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
 import SalesSection from '@/components/SalesSection'
-import { Producto, Vendedor, Venta, Transaccion, Merma, Parametro } from '@/types'
+import { Producto, Vendedor, Venta, Transaccion, Merma, Parametro, TransferProductParams } from '@/types'
 import { toast } from "@/hooks/use-toast";
 
 
@@ -140,7 +140,6 @@ export default function AlmacenPage() {
   })
   const [productosVendedor, setProductosVendedor] = useState<Producto[]>([])
   const [ventasVendedor, setVentasVendedor] = useState<Venta[]>([])
-  const [ventas, setVentas] = useState<Venta[]>([])
   const [transaccionesVendedor, setTransaccionesVendedor] = useState<Transaccion[]>([])
   const [vendedorSeleccionado, setVendedorSeleccionado] = useState<Vendedor | null>(null)
   const [ventasSemanales, setVentasSemanales] = useState<VentaSemana[]>([])
@@ -177,8 +176,32 @@ export default function AlmacenPage() {
   const [mermas, setMermas] = useState<Merma[]>([]);
   const [mermaToDelete, setMermaToDelete] = useState<string | null>(null);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const [expandedMermas, setExpandedMermas] = useState<Set<string>>(new Set());
+  const [mermaSearchTerm, setMermaSearchTerm] = useState("")
+  const [mermaSortOrder, setMermaSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [mermaSortBy, setMermaSortBy] = useState<'nombre' | 'cantidad'>('nombre')
 
 
+  const toggleMermaExpansion = (mermaId: string) => {
+    setExpandedMermas(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(mermaId)) {
+        newSet.delete(mermaId);
+      } else {
+        newSet.add(mermaId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleMermaSort = (key: 'nombre' | 'cantidad') => {
+    if (mermaSortBy === key) {
+      setMermaSortOrder(mermaSortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setMermaSortBy(key)
+      setMermaSortOrder('asc')
+    }
+  }
 
   const fetchMermas = useCallback(async () => {
     try {
@@ -199,7 +222,10 @@ export default function AlmacenPage() {
 
   useEffect(() => {
     if (activeProductTab === 'merma') {
-      fetchMermas();
+      console.log('Fetching mermas...');
+      fetchMermas().then(() => {
+        console.log('Mermas actualizadas:', mermas);
+      });
     }
   }, [activeProductTab, fetchMermas]);
 
@@ -214,19 +240,23 @@ export default function AlmacenPage() {
     XLSX.writeFile(wb, "lista_productos.xlsx");
   };
 
-  const handleProductMerma = async (productId: string, vendorId: string, cantidad: number) => {
+  const handleProductMerma = async (
+    productId: string,
+    vendorId: string,
+    cantidad: number,
+    parametros?: Parametro[]
+  ) => {
     try {
-      await createMerma(productId, vendorId, cantidad);
+      // Solo llamar a createMerma, que manejará internamente la reducción
+      await createMerma(productId, vendorId, cantidad, parametros);
 
-      // Actualizar los productos del vendedor si hay uno seleccionado
+      // Actualizar los estados después de la operación
       if (vendedorSeleccionado) {
         const updatedProducts = await getProductosVendedor(vendedorSeleccionado.id);
         setProductosVendedor(updatedProducts);
       }
 
-      // Actualizar el inventario general
       await fetchInventario();
-      // Actualizar la lista de mermas
       await fetchMermas();
 
       toast({
@@ -242,6 +272,9 @@ export default function AlmacenPage() {
       });
     }
   };
+
+
+
 
   const handleDeleteProduct = async (productId: string) => {
     try {
@@ -292,13 +325,25 @@ export default function AlmacenPage() {
       if (!acc[key]) {
         acc[key] = {
           ...merma,
-          cantidad: 0
+          cantidad: merma.cantidad,
+          producto: {
+            ...merma.producto,
+            // Si tiene_parametros es true pero no hay parametros, inicializar como array vacío
+            parametros: merma.producto.tiene_parametros ? (merma.producto.parametros || []) : []
+          }
+        };
+      } else {
+        acc[key] = {
+          ...acc[key],
+          cantidad: acc[key].cantidad + merma.cantidad
         };
       }
-      acc[key].cantidad += merma.cantidad;
       return acc;
     }, {} as { [key: string]: Merma });
   };
+
+
+
 
 
   const calcularCantidadTotal = (producto: Producto) => {
@@ -310,100 +355,73 @@ export default function AlmacenPage() {
 
   const handleMassDelivery = async () => {
     try {
-      // Verificar si hay productos y vendedores seleccionados
       if (Object.keys(selectedProducts).length === 0 || selectedVendors.length === 0) {
         alert('Por favor, selecciona al menos un producto y un vendedor.');
         return;
       }
-  
-      // Actualizar el inventario antes de la entrega
+
       await fetchInventario();
-      console.log('Inventario después de fetch:', inventario);
-  
-      // Validar que todos los productos seleccionados existan en el inventario
-      const filteredProducts = Object.entries(selectedProducts).filter(([productId]) => {
-        const exists = inventario.some((p) => p.id.toString() === productId.toString());
-        if (!exists) {
-          console.error(`Producto con ID ${productId} no encontrado en el inventario.`);
-        }
-        return exists;
-      });
-  
-      if (filteredProducts.length !== Object.keys(selectedProducts).length) {
-        console.error('Algunos productos seleccionados no existen en el inventario.');
-        alert('Algunos productos seleccionados no existen en el inventario. Por favor, verifica la selección.');
-        return;
-      }
-  
-      // Iterar sobre los productos seleccionados
-      for (const [productId, productData] of filteredProducts) {
+
+      for (const [productId, productData] of Object.entries(selectedProducts)) {
         const { cantidad, parametros } = productData;
-  
-        // Obtener el producto del inventario
+
         const producto = inventario.find((p) => p.id.toString() === productId.toString());
-        if (!producto) {
-          console.error(`Producto con ID ${productId} no encontrado en el inventario.`);
-          continue; // Saltar este producto y continuar con el siguiente
-        }
-  
-        // Calcular la cantidad total a descontar
+        if (!producto) continue;
+
+        // Calcular la cantidad total correctamente
         const cantidadTotal = parametros
-          ? Object.values(parametros).reduce((sum, val) => sum + val, 0)
-          : cantidad;
-  
-        // Validar que haya suficiente stock
-        if (producto.cantidad < cantidadTotal) {
-          alert(`Stock insuficiente para el producto ${producto.nombre}. Disponible: ${producto.cantidad}, Requerido: ${cantidadTotal}`);
-          continue; // Saltar este producto y continuar con el siguiente
+          ? Object.values(parametros).reduce((sum, val) => sum + (Number(val) || 0), 0)
+          : Number(cantidad) || 0;
+
+        // Validar que la cantidad sea un número válido
+        if (isNaN(cantidadTotal) || cantidadTotal <= 0) {
+          alert(`Cantidad inválida para el producto ${producto.nombre}`);
+          continue;
         }
-  
-        // Transformar y filtrar los parámetros al formato correcto
+
+        if (producto.cantidad < cantidadTotal) {
+          alert(`Stock insuficiente para ${producto.nombre}`);
+          continue;
+        }
+
+        // Transformar parámetros
         const parametrosArray = parametros
           ? Object.entries(parametros)
-            .filter(([nombre]) => nombre !== '0' && nombre !== '1') // Filtrar nombres inválidos
-            .map(([nombre, cantidadParam]) => {
-              // Asegurarse de que `cantidadParam` sea un número
-              const cantidadNumerica = typeof cantidadParam === 'number' ? cantidadParam : 0;
-              return { nombre, cantidad: cantidadNumerica };
-            })
+            .filter(([nombre]) => nombre && nombre !== '0' && nombre !== '1')
+            .map(([nombre, cantidadParam]) => ({
+              nombre,
+              cantidad: Number(cantidadParam) || 0
+            }))
           : undefined;
-  
-        // Iterar sobre los vendedores seleccionados
+
         for (const vendorId of selectedVendors) {
           try {
-            // Depurar la solicitud
-            console.log('Datos de entrega:', {
+            await entregarProducto(
               productId,
               vendorId,
               cantidadTotal,
-              parametrosArray,
-            });
-  
-            // Realizar la entrega del producto al vendedor
-            await entregarProducto(productId, vendorId, cantidadTotal, parametrosArray);
+              parametrosArray
+            );
           } catch (error) {
-            console.error(`Error al entregar el producto ${productId} al vendedor ${vendorId}:`, error);
-            alert(`Error al entregar el producto ${productId} al vendedor ${vendorId}. Por favor, inténtelo de nuevo.`);
-            continue; // Continuar con el siguiente producto/vendedor en caso de error
+            console.error(`Error en entrega: ${error}`);
+            alert(`Error al entregar ${producto.nombre} al vendedor ${vendorId}`);
           }
         }
       }
-  
-      // Actualizar el inventario después de todas las entregas
+
       await fetchInventario();
-  
-      // Limpiar el estado y cerrar el diálogo de entrega masiva
       setShowMassDeliveryDialog(false);
       setMassDeliveryStep(1);
       setSelectedProducts({});
       setSelectedVendors([]);
-  
       alert('Entrega masiva realizada con éxito');
+
     } catch (error) {
-      console.error('Error en la entrega masiva:', error);
-      alert('Hubo un error al realizar la entrega masiva. Por favor, inténtelo de nuevo.');
+      console.error('Error en entrega masiva:', error);
+      alert('Error en la entrega masiva');
     }
   };
+
 
 
 
@@ -678,9 +696,15 @@ export default function AlmacenPage() {
   }
 
 
-  const handleReduceVendorProduct = async (productId: string, vendorId: string, cantidad: number) => {
+  const handleReduceVendorProduct = async (
+    productId: string,
+    vendorId: string,
+    cantidad: number,
+    parametros?: Array<{ nombre: string; cantidad: number }>
+  ) => {
     try {
-      await reducirProductoVendedor(productId, vendorId, cantidad);
+      // Si hay parámetros, enviarlos en la reducción
+      await reducirProductoVendedor(productId, vendorId, cantidad, parametros);
 
       if (vendedorSeleccionado) {
         const updatedProducts = await getProductosVendedor(vendedorSeleccionado.id);
@@ -691,25 +715,43 @@ export default function AlmacenPage() {
 
       await fetchInventario();
 
-      alert('Cantidad de producto reducida exitosamente');
+      toast({
+        title: "Éxito",
+        description: "Cantidad de producto reducida exitosamente",
+      });
     } catch (error) {
       console.error('Error reducing vendor product quantity:', error);
-      alert('Error al reducir la cantidad del producto. Por favor, inténtelo de nuevo.');
+      toast({
+        title: "Error",
+        description: "Error al reducir la cantidad del producto",
+        variant: "destructive",
+      });
     }
   };
+
 
   const handleProductTransfer = async (
     productId: string,
     fromVendorId: string,
     toVendorId: string,
-    cantidad: number
+    cantidad: number,
+    parametros?: Array<{ nombre: string; cantidad: number }>
+
   ) => {
+    console.log('handleProductTransfer recibió:', {
+      productId,
+      fromVendorId,
+      toVendorId,
+      cantidad,
+      parametros
+    });
     try {
       await transferProduct({
         productId,
         fromVendorId,
         toVendorId,
-        cantidad
+        cantidad,
+        parametros
       });
 
       if (vendedorSeleccionado) {
@@ -735,6 +777,9 @@ export default function AlmacenPage() {
       });
     }
   };
+
+
+
 
   const handleEditVendedor = async (editedVendor: Vendedor & { newPassword?: string }) => {
     try {
@@ -917,9 +962,7 @@ export default function AlmacenPage() {
                               }));
                             }}
                           />
-
                         </div>
-
                         <div className="flex-1 min-w-0">
                           <h3 className="text-sm font-medium text-gray-900 truncate">
                             {producto.nombre}
@@ -937,76 +980,153 @@ export default function AlmacenPage() {
                 </>
               ) : (
                 <div className="space-y-4">
-                  {mermas.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      No hay productos en merma registrados
-                    </div>
-                  ) : (
-                    Object.values(agruparMermas(mermas)).map((merma) => (
-                      <div
-                        key={merma.producto.id}
-                        className="p-3 rounded-lg border bg-white hover:bg-gray-50 transition-all duration-200"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 relative">
-                            {merma.producto.foto ? (
-                              <Image
-                                src={merma.producto.foto || '/placeholder.svg'}
-                                alt={merma.producto.nombre}
-                                width={48}
-                                height={48}
-                                className="rounded-md object-cover"
-                                onError={(e) => {
-                                  const img = e.target as HTMLImageElement;
-                                  img.src = '/placeholder.svg';
-                                }}
-                              />
+                  {/* Barra de búsqueda */}
+                  <div className="mb-4">
+                    <Input
+                      placeholder="Buscar en mermas..."
+                      value={mermaSearchTerm}
+                      onChange={(e) => setMermaSearchTerm(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
 
-                            ) : (
-                              <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
-                                <span className="text-gray-400 text-xs">Sin imagen</span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="font-medium text-base">{merma.producto.nombre}</h3>
-                            <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                              <div>
-                                <p>${Number(merma.producto.precio).toFixed(2)}</p>
-                                <p>{new Date(merma.fecha).toLocaleDateString()}</p>
-                              </div>
-                              <div>
-                                <p>Cantidad: {merma.cantidad}</p>
-                              </div>
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteMerma(merma.producto.id); // Ahora usamos el ID del producto
-                            }}
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </Button>
+                  {/* Botones de ordenamiento */}
+                  <div className="flex justify-start space-x-2 mb-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleMermaSort('nombre')}
+                      className="flex items-center text-xs px-2 py-1"
+                    >
+                      Nombre
+                      <ArrowUpDown className="ml-1 h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleMermaSort('cantidad')}
+                      className="flex items-center text-xs px-2 py-1"
+                    >
+                      Cantidad
+                      <ArrowUpDown className="ml-1 h-3 w-3" />
+                    </Button>
+                  </div>
 
-                        </div>
+                  {/* Lista de mermas con filtrado y ordenamiento */}
+                  <div className="space-y-4">
+                    {mermas.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        No hay productos en merma registrados
                       </div>
-                    ))
-                  )}
+                    ) : (
+                      Object.values(agruparMermas(mermas))
+                        // Filtrar por término de búsqueda
+                        .filter((merma) =>
+                          merma.producto.nombre.toLowerCase().includes(mermaSearchTerm.toLowerCase())
+                        )
+                        // Ordenar según criterios seleccionados
+                        .sort((a, b) => {
+                          if (mermaSortBy === 'nombre') {
+                            return mermaSortOrder === 'asc'
+                              ? a.producto.nombre.localeCompare(b.producto.nombre)
+                              : b.producto.nombre.localeCompare(a.producto.nombre)
+                          } else {
+                            return mermaSortOrder === 'asc'
+                              ? a.cantidad - b.cantidad
+                              : b.cantidad - a.cantidad
+                          }
+                        })
+                        .map((merma) => {
+                          const tieneParametros = merma.producto.tiene_parametros;
+                          const isExpanded = expandedMermas.has(merma.producto.id);
+
+                          return (
+                            <div
+                              key={merma.producto.id}
+                              className="p-3 rounded-lg border bg-white hover:bg-gray-50 transition-all duration-200"
+                            >
+                              {/* El resto del contenido de la merma permanece igual */}
+                              <div
+                                className={`flex items-center space-x-3 ${tieneParametros ? 'cursor-pointer' : ''}`}
+                                onClick={(e) => {
+                                  if (tieneParametros) {
+                                    e.preventDefault();
+                                    toggleMermaExpansion(merma.producto.id);
+                                  }
+                                }}
+                              >
+                                <div className="w-12 h-12 relative">
+                                  <Image
+                                    src={imageErrors[merma.producto.id] ? '/placeholder.svg' : (merma.producto.foto || '/placeholder.svg')}
+                                    alt={merma.producto.nombre}
+                                    width={48}
+                                    height={48}
+                                    className="rounded-md object-cover"
+                                    onError={() => {
+                                      setImageErrors(prev => ({
+                                        ...prev,
+                                        [merma.producto.id]: true
+                                      }));
+                                    }}
+                                  />
+                                </div>
+                                <div className="flex-1">
+                                  <h3 className="font-medium text-base">{merma.producto.nombre}</h3>
+                                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                    <div>
+                                      <p>${Number(merma.producto.precio).toFixed(2)}</p>
+                                      <p>{new Date(merma.fecha).toLocaleDateString()}</p>
+                                    </div>
+                                    <div>
+                                      <p>Cantidad: {merma.cantidad}</p>
+                                      {tieneParametros && !isExpanded && (
+                                        <p className="text-blue-500 text-xs">
+                                          Toca para ver detalles
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteMerma(merma.producto.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-5 w-5" />
+                                </Button>
+                              </div>
+
+                              {tieneParametros && isExpanded && (
+                                <div className="mt-3 pl-16 border-t pt-2">
+                                  <p className="text-sm font-medium text-gray-700 mb-2">
+                                    Detalles por parámetro:
+                                  </p>
+                                  <div className="space-y-1">
+                                    {merma.producto.parametros?.map((parametro, index) => (
+                                      <div key={`${parametro.nombre}-${index}`} className="flex justify-between text-sm">
+                                        <span className="text-gray-600">{parametro.nombre}:</span>
+                                        <span className="font-medium">{parametro.cantidad}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
                 </div>
               )}
             </CardContent>
+
           </Card>
         </div>
       )}
-
-
-
-
-
 
 
       {activeSection === 'vendedores' && (

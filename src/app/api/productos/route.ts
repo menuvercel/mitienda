@@ -35,8 +35,6 @@ export async function POST(request: NextRequest) {
         const tieneParametros = formData.get('tieneParametros') === 'true';
         const parametrosRaw = formData.get('parametros') as string;
         const parametros = parametrosRaw ? JSON.parse(parametrosRaw) : [];
-
-        console.log('Received form data:', { nombre, precio, cantidad, foto, tieneParametros, parametros });
   
         let fotoUrl = '';
   

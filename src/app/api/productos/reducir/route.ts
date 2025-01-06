@@ -6,30 +6,28 @@ export async function PUT(request: NextRequest) {
         const body = await request.json();
         const { productoId, vendedorId, cantidad, parametros } = body;
 
-        if (!productoId || !vendedorId || !cantidad) {
+        if (!productoId || !vendedorId) {
             return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 });
         }
 
         await query('BEGIN');
 
         try {
-            // Verificar producto principal
-            const usuarioProductoResult = await query(
-                'SELECT cantidad FROM usuario_productos WHERE usuario_id = $1 AND producto_id = $2',
-                [vendedorId, productoId]
+            // Verificar si el producto tiene parámetros
+            const productoResult = await query(
+                'SELECT tiene_parametros FROM productos WHERE id = $1',
+                [productoId]
             );
 
-            if (usuarioProductoResult.rows.length === 0) {
-                throw new Error('El vendedor no tiene este producto asignado');
-            }
+            const tieneParametros = productoResult.rows[0]?.tiene_parametros;
 
-            const cantidadActual = usuarioProductoResult.rows[0].cantidad;
-            if (cantidad > cantidadActual) {
-                throw new Error('La cantidad a reducir es mayor que la cantidad disponible');
-            }
+            if (tieneParametros) {
+                // Validar que se enviaron parámetros
+                if (!parametros || parametros.length === 0) {
+                    throw new Error('Este producto requiere especificar parámetros');
+                }
 
-            // Verificar y actualizar parámetros si existen
-            if (parametros && parametros.length > 0) {
+                // Verificar y actualizar cada parámetro
                 for (const param of parametros) {
                     const paramResult = await query(
                         'SELECT cantidad FROM usuario_producto_parametros WHERE usuario_id = $1 AND producto_id = $2 AND nombre = $3',
@@ -40,37 +38,72 @@ export async function PUT(request: NextRequest) {
                         throw new Error(`Cantidad insuficiente para el parámetro ${param.nombre}`);
                     }
 
-                    // Actualizar cantidad del parámetro
+                    // Actualizar cantidad del parámetro en usuario_producto_parametros
                     await query(
                         'UPDATE usuario_producto_parametros SET cantidad = cantidad - $1 WHERE usuario_id = $2 AND producto_id = $3 AND nombre = $4',
                         [param.cantidad, vendedorId, productoId, param.nombre]
                     );
 
-                    // Actualizar cantidad en almacén
+                    // Actualizar cantidad en producto_parametros (almacén)
                     await query(
                         'UPDATE producto_parametros SET cantidad = cantidad + $1 WHERE producto_id = $2 AND nombre = $3',
                         [param.cantidad, productoId, param.nombre]
                     );
                 }
+
+                // Registrar transacción principal
+                const transaccionResult = await query(
+                    'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha, parametro_nombre) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+                    [productoId, parametros[0].cantidad, 'Baja', vendedorId, null, new Date(), null]
+                );
+
+                const transaccionId = transaccionResult.rows[0].id;
+
+                // Registrar parámetros en transaccion_parametros
+                for (const param of parametros) {
+                    await query(
+                        'INSERT INTO transaccion_parametros (transaccion_id, nombre, cantidad) VALUES ($1, $2, $3)',
+                        [transaccionId, param.nombre, param.cantidad]
+                    );
+                }
+
+            } else {
+                // Lógica para productos sin parámetros
+                if (!cantidad) {
+                    throw new Error('Cantidad requerida para productos sin parámetros');
+                }
+
+                const usuarioProductoResult = await query(
+                    'SELECT cantidad FROM usuario_productos WHERE usuario_id = $1 AND producto_id = $2',
+                    [vendedorId, productoId]
+                );
+
+                if (usuarioProductoResult.rows.length === 0) {
+                    throw new Error('El vendedor no tiene este producto asignado');
+                }
+
+                if (cantidad > usuarioProductoResult.rows[0].cantidad) {
+                    throw new Error('La cantidad a reducir es mayor que la cantidad disponible');
+                }
+
+                // Actualizar cantidad principal del vendedor
+                await query(
+                    'UPDATE usuario_productos SET cantidad = cantidad - $1 WHERE usuario_id = $2 AND producto_id = $3',
+                    [cantidad, vendedorId, productoId]
+                );
+
+                // Actualizar cantidad en almacén
+                await query(
+                    'UPDATE productos SET cantidad = cantidad + $1 WHERE id = $2',
+                    [cantidad, productoId]
+                );
+
+                // Registrar transacción
+                await query(
+                    'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6)',
+                    [productoId, cantidad, 'Baja', vendedorId, null, new Date()]
+                );
             }
-
-            // Actualizar cantidad principal del vendedor
-            await query(
-                'UPDATE usuario_productos SET cantidad = cantidad - $1 WHERE usuario_id = $2 AND producto_id = $3',
-                [cantidad, vendedorId, productoId]
-            );
-
-            // Actualizar cantidad en almacén
-            await query(
-                'UPDATE productos SET cantidad = cantidad + $1 WHERE id = $2',
-                [cantidad, productoId]
-            );
-
-            // Registrar transacción de tipo "Baja"
-            await query(
-                'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6)',
-                [productoId, cantidad, 'Baja', vendedorId, null, new Date()]
-            );
 
             await query('COMMIT');
 

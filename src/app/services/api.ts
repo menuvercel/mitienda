@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Venta, Vendedor, Transaccion, VentaParametro } from '@/types';
+import { Venta, Vendedor, Transaccion, VentaParametro, TransferProductParams } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -30,12 +30,6 @@ interface Producto {
   }>;
 }
 
-interface TransferProductParams {
-  productId: string;
-  fromVendorId: string;
-  toVendorId: string;
-  cantidad: number;
-}
 
 export const uploadImage = async (file: File) => {
   const formData = new FormData();
@@ -329,18 +323,27 @@ export const reducirProductoVendedor = async (
   parametros?: Array<{ nombre: string; cantidad: number }>
 ) => {
   try {
-    const response = await api.put(`/productos/reducir`, { 
+    const payload = { 
       productoId, 
       vendedorId, 
       cantidad,
       parametros
-    });
+    };
+    
+    console.log('Enviando datos:', payload); // Para depuración
+    
+    const response = await api.put(`/productos/reducir`, payload);
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error al reducir la cantidad del producto:', error);
+    // Mostrar más detalles del error
+    if (error.response) {
+      console.error('Respuesta del servidor:', error.response.data);
+    }
     throw new Error('No se pudo reducir la cantidad del producto');
   }
 };
+
 
 
 export const getVentasVendedor = async (vendedorId: string): Promise<Venta[]> => {
@@ -437,19 +440,9 @@ export const deleteSale = async (saleId: string, vendedorId: string): Promise<vo
   }
   
   try {
-    await api.delete(`/ventas/${saleId}`, {
-      params: { vendedorId }
-    });
+    await api.delete(`/ventas/${saleId}?vendedorId=${vendedorId}`);
   } catch (error) {
     console.error('Error al eliminar la venta:', error);
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        throw new Error('Venta no encontrada');
-      }
-      if (error.response?.data?.error) {
-        throw new Error(error.response.data.error);
-      }
-    }
     throw new Error('No se pudo eliminar la venta');
   }
 };
@@ -462,7 +455,8 @@ export default api;
 export const createMerma = async (
   producto_id: string,
   usuario_id: string,
-  cantidad: number
+  cantidad: number,
+  parametros?: { nombre: string; cantidad: number }[]
 ) => {
   const response = await fetch('/api/merma', {
     method: 'POST',
@@ -472,7 +466,8 @@ export const createMerma = async (
     body: JSON.stringify({
       producto_id,
       usuario_id,
-      cantidad
+      cantidad,
+      parametros
     }),
   });
 
@@ -482,6 +477,7 @@ export const createMerma = async (
 
   return response.json();
 };
+
 
 
 export const getMermas = async (usuario_id?: string) => {
@@ -517,20 +513,21 @@ export const deleteMerma = async (productoId: string): Promise<void> => {
 
 
 // transferencia
-
 export const transferProduct = async ({
   productId,
   fromVendorId,
   toVendorId,
-  cantidad
+  cantidad,
+  parametros
 }: TransferProductParams) => {
   try {
+    // Una única llamada que manejará ambas transacciones
     const response = await api.post('/transacciones/transfer', {
       productId,
       fromVendorId,
       toVendorId,
       cantidad,
-      tipo: 'Transferencia'
+      parametros
     });
     
     return response.data;
@@ -546,4 +543,3 @@ export const transferProduct = async ({
     throw new Error('No se pudo completar la transferencia del producto');
   }
 };
-
