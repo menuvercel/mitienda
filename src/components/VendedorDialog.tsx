@@ -83,7 +83,14 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null)
   const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({})
   const [parameterQuantities, setParameterQuantities] = useState<Record<string, number>>({})
+  const [expandedTransactions, setExpandedTransactions] = useState<Record<string, boolean>>({});
 
+  const toggleExpand = (transactionId: string) => {
+    setExpandedTransactions(prev => ({
+      ...prev,
+      [transactionId]: !prev[transactionId]
+    }));
+  };
 
 
   // En el componente VendorDialog
@@ -583,7 +590,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     )
   }, [])
 
-  const toggleExpand = useCallback((productId: string) => {
+  const toggleExpandProd = useCallback((productId: string) => {
     setExpandedProducts(prev => ({
       ...prev,
       [productId]: !prev[productId]
@@ -611,7 +618,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
             <div
               key={producto.id}
               className={`bg-white rounded-lg shadow overflow-hidden ${hasParameters ? 'cursor-pointer hover:bg-gray-50' : ''}`}
-              onClick={() => hasParameters && toggleExpand(producto.id)}
+              onClick={() => hasParameters && toggleExpandProd(producto.id)}
             >
               <div className="flex items-center p-4">
                 <Image
@@ -672,7 +679,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
         })}
       </div>
     )
-  }, [expandedProducts, handleReduceProduct, isLoading, toggleExpand, setProductToReduce, setReduceDialogOpen])
+  }, [expandedProducts, handleReduceProduct, isLoading, toggleExpandProd, setProductToReduce, setReduceDialogOpen])
 
   const renderVentasList = () => {
     return (
@@ -733,24 +740,27 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   }
 
   const renderTransaccionesList = () => {
-    const vendorId = vendor.id.toString(); // Aseguramos que el ID del vendedor sea string
+    const vendorId = vendor.id.toString();
 
     const filteredTransacciones = filterItems(transacciones, searchTerm).filter(transaccion => {
       const transaccionDesde = transaccion.desde?.toString();
       const transaccionHacia = transaccion.hacia?.toString();
 
-      // Si es el vendedor origen, solo mostrar las Bajas
       if (transaccionDesde === vendorId && transaccion.tipo === 'Baja') {
         return true;
       }
-
-      // Si es el vendedor destino, solo mostrar las Entregas
       if (transaccionHacia === vendorId && transaccion.tipo === 'Entrega') {
         return true;
       }
-
       return false;
     });
+
+    const calcularCantidadTotal = (transaccion: Transaccion): number => {
+      if (transaccion.parametros && Array.isArray(transaccion.parametros) && transaccion.parametros.length > 0) {
+        return transaccion.parametros.reduce((total, param) => total + (param.cantidad || 0), 0);
+      }
+      return transaccion.cantidad || 0;
+    };
 
     return (
       <div className="space-y-2">
@@ -760,59 +770,79 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
           </div>
         ) : (
           filteredTransacciones.map((transaccion: Transaccion) => {
-            const transactionType = transaccion.tipo || 'Normal'
+            const transactionType = transaccion.tipo || 'Normal';
             const borderColor =
               transactionType === 'Baja' ? 'border-red-500' :
                 transactionType === 'Entrega' ? 'border-green-500' :
-                  'border-blue-500'
+                  'border-blue-500';
 
-            const precioFormateado = parseFloat(transaccion.precio?.toString() || '0').toFixed(2)
+            const precioFormateado = parseFloat(transaccion.precio?.toString() || '0').toFixed(2);
+            const cantidadTotal = calcularCantidadTotal(transaccion);
+            const hasParameters = Boolean(
+              transaccion.parametros &&
+              Array.isArray(transaccion.parametros) &&
+              transaccion.parametros.length > 0
+            );
+            const isExpanded = expandedTransactions[transaccion.id];
 
             return (
-              <div key={transaccion.id} className={`bg-white p-2 rounded-lg shadow border-l-4 ${borderColor}`}>
-                <div className="flex items-center">
-                  <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
-                  <div className="flex-grow overflow-hidden">
-                    <div className="flex justify-between items-center">
-                      <p className="font-bold text-sm truncate">{transaccion.producto}</p>
-                      <p className="text-sm font-semibold text-green-600">
-                        ${precioFormateado}
-                      </p>
-                    </div>
-                    <div className="flex justify-between items-center text-xs text-gray-600">
-                      <span>{format(parseISO(transaccion.fecha), 'dd/MM/yyyy')}</span>
-                      {!transaccion.parametros ? (
-                        <span>Cantidad: {transaccion.cantidad}</span>
-                      ) : (
-                        <span></span>
-                      )}
-                    </div>
-                    <p className="text-xs font-semibold">{transactionType}</p>
-
-                    {transaccion.parametros && transaccion.parametros.length > 0 && (
-                      <div className="mt-2 border-t pt-2">
-                        <p className="text-xs font-medium text-gray-600 mb-1">Parámetros:</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-2">
-                            {transaccion.parametros.map((param: TransaccionParametro, index: number) => (
-                              <div key={`${transaccion.id}-param-${index}`} className="flex justify-between text-xs">
-                                <span className="text-gray-600">{param.nombre}:</span>
-                                <span className="font-medium">{param.cantidad}</span>
-                              </div>
-                            ))}
-                          </div>
+              <div
+                key={transaccion.id}
+                className={`bg-white rounded-lg shadow border-l-4 ${borderColor} overflow-hidden`}
+              >
+                <div
+                  className={`p-4 ${hasParameters ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                  onClick={() => hasParameters && toggleExpand(transaccion.id)}
+                >
+                  <div className="flex items-center">
+                    <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
+                    <div className="flex-grow overflow-hidden">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-2">
+                          <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+                          {hasParameters && (
+                            <ChevronDown
+                              className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            />
+                          )}
                         </div>
+                        <p className="text-sm font-semibold text-green-600">
+                          ${precioFormateado}
+                        </p>
                       </div>
-                    )}
+                      <div className="flex justify-between items-center text-xs text-gray-600">
+                        <span>{format(parseISO(transaccion.fecha), 'dd/MM/yyyy')}</span>
+                        <span>Cantidad: {cantidadTotal}</span>
+                      </div>
+                      <p className="text-xs font-semibold">{transactionType}</p>
+                    </div>
                   </div>
                 </div>
+
+                {/* Panel expandible para parámetros */}
+                {hasParameters && isExpanded && transaccion.parametros && (
+                  <div className="bg-gray-50 px-4 py-2 border-t">
+                    <div className="space-y-2">
+                      {transaccion.parametros.map((param: TransaccionParametro, index: number) => (
+                        <div
+                          key={`${transaccion.id}-param-${index}`}
+                          className="flex justify-between items-center p-2 bg-white rounded-md"
+                        >
+                          <span className="text-sm font-medium">{param.nombre}</span>
+                          <span className="text-sm">{param.cantidad}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )
+            );
           })
         )}
       </div>
-    )
-  }
+    );
+  };
+
 
 
 
@@ -869,7 +899,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]"> {/* Cambiado de w-full max-w-full sm:max-w-[90vw] */}
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader className="p-4">
           <DialogTitle>{vendor.nombre}</DialogTitle>
         </DialogHeader>

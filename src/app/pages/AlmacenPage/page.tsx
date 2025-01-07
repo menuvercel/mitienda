@@ -322,25 +322,37 @@ export default function AlmacenPage() {
   const agruparMermas = (mermas: Merma[]) => {
     return mermas.reduce((acc, merma) => {
       const key = merma.producto.id;
+
+      // Calcular la cantidad total basada en los parámetros si existen
+      const cantidadTotal = merma.producto.tiene_parametros && merma.producto.parametros
+        ? merma.producto.parametros.reduce((sum, param) => sum + param.cantidad, 0)
+        : merma.cantidad;
+
       if (!acc[key]) {
+        // Primera vez que encontramos este producto
         acc[key] = {
           ...merma,
-          cantidad: merma.cantidad,
+          cantidad: cantidadTotal,
           producto: {
             ...merma.producto,
-            // Si tiene_parametros es true pero no hay parametros, inicializar como array vacío
             parametros: merma.producto.tiene_parametros ? (merma.producto.parametros || []) : []
           }
         };
       } else {
+        // Ya existe este producto, actualizamos la cantidad
         acc[key] = {
           ...acc[key],
-          cantidad: acc[key].cantidad + merma.cantidad
+          cantidad: acc[key].cantidad + cantidadTotal,
+          producto: {
+            ...acc[key].producto,
+            parametros: merma.producto.parametros || []
+          }
         };
       }
       return acc;
     }, {} as { [key: string]: Merma });
   };
+
 
 
 
@@ -1078,14 +1090,17 @@ export default function AlmacenPage() {
                                       <p>{new Date(merma.fecha).toLocaleDateString()}</p>
                                     </div>
                                     <div>
-                                      <p>Cantidad: {merma.cantidad}</p>
+                                      <p>Cantidad: {merma.producto.tiene_parametros
+                                        ? merma.producto.parametros?.reduce((sum, param) => sum + param.cantidad, 0)
+                                        : merma.cantidad}</p>
                                       {tieneParametros && !isExpanded && (
                                         <p className="text-blue-500 text-xs">
-                                          Toca para ver detalles
+                                          Parámetros
                                         </p>
                                       )}
                                     </div>
                                   </div>
+
                                 </div>
                                 <Button
                                   variant="ghost"
@@ -1102,9 +1117,6 @@ export default function AlmacenPage() {
 
                               {tieneParametros && isExpanded && (
                                 <div className="mt-3 pl-16 border-t pt-2">
-                                  <p className="text-sm font-medium text-gray-700 mb-2">
-                                    Detalles por parámetro:
-                                  </p>
                                   <div className="space-y-1">
                                     {merma.producto.parametros?.map((parametro, index) => (
                                       <div key={`${parametro.nombre}-${index}`} className="flex justify-between text-sm">
@@ -1174,15 +1186,15 @@ export default function AlmacenPage() {
       )}
 
       <Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="max-w-[95vw] w-full md:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Entrega Masiva</DialogTitle>
           </DialogHeader>
           {massDeliveryStep === 1 ? (
             <div className="space-y-4">
-              <div className="max-h-[300px] overflow-y-auto space-y-2">
+              <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-2">
                 {vendedores.map((vendedor) => (
-                  <div key={vendedor.id} className="flex items-center space-x-2">
+                  <div key={vendedor.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
                     <Checkbox
                       id={`vendor-${vendedor.id}`}
                       checked={selectedVendors.includes(vendedor.id)}
@@ -1194,14 +1206,21 @@ export default function AlmacenPage() {
                         }
                       }}
                     />
-                    <label htmlFor={`vendor-${vendedor.id}`}>{vendedor.nombre}</label>
+                    <label htmlFor={`vendor-${vendedor.id}`} className="flex-grow cursor-pointer">
+                      {vendedor.nombre}
+                    </label>
                   </div>
                 ))}
               </div>
-              <Button onClick={() => setMassDeliveryStep(2)}
-                disabled={selectedVendors.length === 0}>
-                Siguiente
-              </Button>
+              <div className="sticky bottom-0 pt-2 bg-white">
+                <Button
+                  onClick={() => setMassDeliveryStep(2)}
+                  disabled={selectedVendors.length === 0}
+                  className="w-full"
+                >
+                  Siguiente
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -1210,140 +1229,120 @@ export default function AlmacenPage() {
                 value={productSearchTerm}
                 onChange={(e) => setProductSearchTerm(e.target.value)}
               />
-              <div className="max-h-[300px] overflow-y-auto space-y-2">
-                {filteredInventarioForMassDelivery.map((producto) => {
-                  console.log('Producto:', producto); // Log 1: Verificar los datos del producto
-                  console.log('Selected Products:', selectedProducts); // Log 2: Verificar el estado actual de selectedProducts
-
-                  return (
-                    <div key={producto.id} className="flex flex-col space-y-2 p-2 border rounded">
-                      <div className="flex items-center space-x-4">
-                        {/* Checkbox a la izquierda */}
+              <div className="max-h-[55vh] overflow-y-auto space-y-2 pr-2">
+                {filteredInventarioForMassDelivery.map((producto) => (
+                  <div key={producto.id} className="flex flex-col space-y-2 p-2 border rounded">
+                    <div className="flex items-start space-x-3">
+                      {/* Checkbox y foto en una columna */}
+                      <div className="flex flex-col items-center space-y-2">
                         <Checkbox
                           id={`product-${producto.id}`}
                           checked={!!selectedProducts[producto.id]}
                           onCheckedChange={(checked) => {
-                            console.log('Checkbox changed:', checked); // Log 3: Verificar si el checkbox cambia
                             if (checked) {
-                              setSelectedProducts((prev) => {
-                                const newState = {
-                                  ...prev,
-                                  [producto.id]: {
-                                    cantidad: 0,
-                                    parametros: producto.tiene_parametros ? (producto.parametros || {}) : undefined,
-                                  },
-                                };
-                                console.log('New Selected Products (after adding):', newState); // Log 4: Verificar el nuevo estado después de seleccionar
-                                return newState;
-                              });
+                              setSelectedProducts((prev) => ({
+                                ...prev,
+                                [producto.id]: {
+                                  cantidad: 0,
+                                  parametros: producto.tiene_parametros ? (producto.parametros || {}) : undefined,
+                                },
+                              }));
                             } else {
                               setSelectedProducts((prev) => {
                                 const { [producto.id]: _, ...rest } = prev;
-                                console.log('New Selected Products (after removing):', rest); // Log 5: Verificar el nuevo estado después de deseleccionar
                                 return rest;
                               });
                             }
                           }}
                         />
-
-                        {/* Foto del producto */}
                         <img
                           src={producto.foto || '/placeholder.svg'}
                           alt={producto.nombre}
-                          className="w-16 h-16 object-cover rounded"
+                          className="w-12 h-12 object-cover rounded"
                           onError={(e) => {
                             const img = e.target as HTMLImageElement;
                             img.src = '/placeholder.svg';
                           }}
                         />
+                      </div>
 
-
-                        <div className="flex-grow">
-                          {/* Nombre y detalles del producto */}
-                          <label htmlFor={`product-${producto.id}`} className="font-medium">{producto.nombre}</label>
-                          <div className="text-sm text-gray-600">
-                            <span className="mr-2">Precio: ${producto.precio}</span>
-                            <span>Disponible: {producto.cantidad}</span>
-                          </div>
+                      {/* Información del producto y controles */}
+                      <div className="flex-grow min-w-0">
+                        <label htmlFor={`product-${producto.id}`} className="font-medium text-sm block truncate">
+                          {producto.nombre}
+                        </label>
+                        <div className="text-xs text-gray-600 mt-1">
+                          <span className="mr-2">Precio: ${producto.precio}</span>
+                          <span>Disponible: {producto.cantidad}</span>
                         </div>
 
                         {/* Input para cantidad si no tiene parámetros */}
                         {!producto.tiene_parametros && (
-                          <Input
-                            type="number"
-                            value={selectedProducts[producto.id]?.cantidad || ''}
-                            onChange={(e) =>
-                              setSelectedProducts((prev) => ({
-                                ...prev,
-                                [producto.id]: {
-                                  ...prev[producto.id],
-                                  cantidad: parseInt(e.target.value, 10) || 0,
-                                },
-                              }))
-                            }
-                            className="w-20"
-                            min={1}
-                            max={producto.cantidad}
-                          />
+                          <div className="mt-2">
+                            <Input
+                              type="number"
+                              value={selectedProducts[producto.id]?.cantidad || ''}
+                              onChange={(e) =>
+                                setSelectedProducts((prev) => ({
+                                  ...prev,
+                                  [producto.id]: {
+                                    ...prev[producto.id],
+                                    cantidad: parseInt(e.target.value, 10) || 0,
+                                  },
+                                }))
+                              }
+                              className="w-20 h-8 text-sm"
+                              min={1}
+                              max={producto.cantidad}
+                            />
+                          </div>
                         )}
                       </div>
-
-                      {/* Mostrar parámetros si el producto los tiene */}
-                      {producto.tiene_parametros && selectedProducts[producto.id] && (
-                        <div className="ml-6 mt-2 space-y-2">
-                          <p className="text-sm font-medium text-gray-700"></p>
-                          {producto.parametros?.map((parametro) => {
-                            console.log('Rendering parameter:', parametro); // Log 6: Verificar los datos del parámetro
-
-                            return (
-                              <div key={parametro.nombre} className="flex items-center space-x-2">
-                                <label className="flex-grow text-sm">
-                                  {parametro.nombre} (Max: {parametro.cantidad})
-                                </label>
-                                <Input
-                                  type="number"
-                                  value={selectedProducts[producto.id]?.parametros?.[parametro.nombre] || ''}
-                                  onChange={(e) => {
-                                    const value = parseInt(e.target.value, 10) || 0;
-                                    console.log('Parameter value changed:', { parametro: parametro.nombre, value }); // Log 7: Verificar el valor del parámetro
-                                    setSelectedProducts((prev) => {
-                                      const newState = {
-                                        ...prev,
-                                        [producto.id]: {
-                                          ...prev[producto.id],
-                                          parametros: {
-                                            ...prev[producto.id]?.parametros,
-                                            [parametro.nombre]: value,
-                                          },
-                                        },
-                                      };
-                                      console.log('New Selected Products (after parameter change):', newState); // Log 8: Verificar el nuevo estado después de cambiar un parámetro
-                                      return newState;
-                                    });
-                                  }}
-                                  className="w-20"
-                                  min={0}
-                                  max={parametro.cantidad}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
                     </div>
-                  );
-                })}
 
-
-
-
-
+                    {/* Parámetros */}
+                    {producto.tiene_parametros && selectedProducts[producto.id] && (
+                      <div className="ml-4 space-y-2">
+                        {producto.parametros?.map((parametro) => (
+                          <div key={parametro.nombre} className="flex items-center space-x-2">
+                            <label className="flex-grow text-xs">
+                              {parametro.nombre} (Max: {parametro.cantidad})
+                            </label>
+                            <Input
+                              type="number"
+                              value={selectedProducts[producto.id]?.parametros?.[parametro.nombre] || ''}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value, 10) || 0;
+                                setSelectedProducts((prev) => ({
+                                  ...prev,
+                                  [producto.id]: {
+                                    ...prev[producto.id],
+                                    parametros: {
+                                      ...prev[producto.id]?.parametros,
+                                      [parametro.nombre]: value,
+                                    },
+                                  },
+                                }));
+                              }}
+                              className="w-16 h-7 text-sm"
+                              min={0}
+                              max={parametro.cantidad}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between">
+              <div className="sticky bottom-0 pt-2 bg-white flex justify-between space-x-2">
                 <Button variant="outline" onClick={() => setMassDeliveryStep(1)}>
                   Atrás
                 </Button>
-                <Button onClick={handleMassDelivery} disabled={Object.keys(selectedProducts).length === 0}>
+                <Button
+                  onClick={handleMassDelivery}
+                  disabled={Object.keys(selectedProducts).length === 0}
+                >
                   Entregar
                 </Button>
               </div>
@@ -1351,6 +1350,7 @@ export default function AlmacenPage() {
           )}
         </DialogContent>
       </Dialog>
+
 
       <Dialog open={showRegisterModal} onOpenChange={setShowRegisterModal}>
         <DialogContent>

@@ -21,32 +21,66 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Crear registro en la tabla de transacciones
-    const transaccionResult = await sql`
-      INSERT INTO transacciones (
-        producto,
+    // 2. Crear registro en la tabla merma
+    const mermaResult = await sql`
+      INSERT INTO merma (
+        producto_id,
+        producto_nombre,
         cantidad,
-        tipo,
-        desde,
-        hacia,
-        fecha
+        fecha,
+        usuario_id,
+        usuario_nombre
       ) VALUES (
         ${producto_id},
+        ${producto.rows[0].nombre},
         ${cantidad},
-        'Baja',
+        NOW(),
         ${usuario_id},
-        null,
-        NOW()
+        ${usuario.rows[0].nombre}
       )
       RETURNING id
     `;
 
-    const transaccionId = transaccionResult.rows[0].id;
+    const mermaId = mermaResult.rows[0].id;
 
-    // 3. Si hay parámetros, guardarlos en transaccion_parametros y actualizar usuario_producto_parametros
     if (producto.rows[0].tiene_parametros && parametros && parametros.length > 0) {
+      // 3a. Para productos con parámetros
+      const transaccionResult = await sql`
+        INSERT INTO transacciones (
+          producto,
+          cantidad,
+          desde,
+          hacia,
+          fecha,
+          tipo
+        ) VALUES (
+          ${producto_id},
+          ${cantidad},
+          ${usuario_id},
+          'MERMA',
+          NOW(),
+          'Baja'
+        )
+        RETURNING id
+      `;
+
+      const transaccionId = transaccionResult.rows[0].id;
+
       for (const param of parametros) {
-        // Insertar en transaccion_parametros
+        // Registrar en merma_parametros
+        await sql`
+          INSERT INTO merma_parametros (
+            merma_id,
+            nombre,
+            cantidad
+          ) VALUES (
+            ${mermaId},
+            ${param.nombre},
+            ${param.cantidad}
+          )
+        `;
+
+        // Registrar en transaccion_parametros
         await sql`
           INSERT INTO transaccion_parametros (
             transaccion_id,
@@ -59,7 +93,7 @@ export async function POST(request: Request) {
           )
         `;
 
-        // Actualizar usuario_producto_parametros
+        // Actualizar inventario
         await sql`
           UPDATE usuario_producto_parametros
           SET cantidad = cantidad - ${param.cantidad}
@@ -68,8 +102,27 @@ export async function POST(request: Request) {
           AND nombre = ${param.nombre}
         `;
       }
-    } else if (!producto.rows[0].tiene_parametros) {
-      // 4. Si no tiene parámetros, actualizar la cantidad en usuario_productos
+    } else {
+      // 3b. Para productos sin parámetros
+      await sql`
+        INSERT INTO transacciones (
+          producto,
+          cantidad,
+          desde,
+          hacia,
+          fecha,
+          tipo
+        ) VALUES (
+          ${producto_id},
+          ${cantidad},
+          ${usuario_id},
+          'MERMA',
+          NOW(),
+          'Baja'
+        )
+      `;
+
+      // Actualizar inventario
       await sql`
         UPDATE usuario_productos 
         SET cantidad = cantidad - ${cantidad}
@@ -78,7 +131,7 @@ export async function POST(request: Request) {
       `;
     }
 
-    return NextResponse.json({ success: true, transaccion_id: transaccionId });
+    return NextResponse.json({ success: true, merma_id: mermaId });
   } catch (error) {
     console.error('Error en merma:', error);
     return NextResponse.json(
@@ -93,60 +146,41 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const usuario_id = searchParams.get('usuario_id');
 
-    // Consulta base para obtener las mermas desde transacciones
+    // Consulta base para obtener las mermas
     const mermas = await sql`
-      WITH MermasTotales AS (
-        SELECT 
-          p.id as producto_id,
-          p.nombre,
-          p.precio,
-          p.cantidad as cantidad_producto,
-          p.foto,
-          p.tiene_parametros,
-          COALESCE(
-            SUM(CASE 
-              WHEN p.tiene_parametros THEN (
-                SELECT SUM(tp.cantidad)
-                FROM transaccion_parametros tp
-                WHERE tp.transaccion_id = t.id
-              )
-              ELSE t.cantidad
-            END),
-            0
-          ) as cantidad_total,
-          MAX(t.fecha) as ultima_fecha
-        FROM transacciones t
-        INNER JOIN productos p ON t.producto = p.id
-        WHERE t.tipo = 'Baja'
-        AND CASE 
-          WHEN ${usuario_id}::text IS NOT NULL THEN t.desde = ${usuario_id}
-          ELSE TRUE
-        END
-        GROUP BY p.id, p.nombre, p.precio, p.cantidad, p.foto, p.tiene_parametros
-      )
-      SELECT * FROM MermasTotales
-      ORDER BY ultima_fecha DESC
+      SELECT 
+        m.id,
+        m.producto_id,
+        m.producto_nombre,
+        m.cantidad,
+        m.fecha,
+        m.usuario_id,
+        m.usuario_nombre,
+        p.precio,
+        p.foto,
+        p.tiene_parametros
+      FROM merma m
+      INNER JOIN productos p ON m.producto_id = p.id
+      WHERE CASE 
+        WHEN ${usuario_id}::text IS NOT NULL THEN m.usuario_id = ${usuario_id}
+        ELSE TRUE
+      END
+      ORDER BY m.fecha DESC
     `;
 
     const mermasFormateadas = await Promise.all(mermas.rows.map(async merma => {
       let parametros: Parametro[] = [];
 
       if (merma.tiene_parametros) {
-        // Obtener la suma de parámetros desde transaccion_parametros
+        // Obtener los parámetros de merma_parametros
         const parametrosResult = await sql`
           SELECT 
-            tp.nombre,
-            SUM(tp.cantidad) as cantidad
-          FROM transaccion_parametros tp
-          INNER JOIN transacciones t ON tp.transaccion_id = t.id
-          WHERE t.producto = ${merma.producto_id}
-          AND t.tipo = 'Baja'
-          AND CASE 
-            WHEN ${usuario_id}::text IS NOT NULL THEN t.desde = ${usuario_id}
-            ELSE TRUE
-          END
-          GROUP BY tp.nombre
+            nombre,
+            cantidad
+          FROM merma_parametros
+          WHERE merma_id = ${merma.id}
         `;
+        
         parametros = parametrosResult.rows.map(row => ({
           nombre: row.nombre,
           cantidad: row.cantidad
@@ -154,15 +188,14 @@ export async function GET(request: Request) {
       }
 
       return {
-        id: merma.producto_id,
-        cantidad: merma.cantidad_total,
-        fecha: merma.ultima_fecha,
-        usuario_id: usuario_id || null,
+        id: merma.id,
+        cantidad: merma.cantidad,
+        fecha: merma.fecha,
+        usuario_id: merma.usuario_id,
         producto: {
           id: merma.producto_id,
-          nombre: merma.nombre,
+          nombre: merma.producto_nombre,
           precio: merma.precio,
-          cantidad: merma.cantidad_producto,
           foto: merma.foto,
           tiene_parametros: merma.tiene_parametros,
           parametros: parametros
@@ -180,51 +213,70 @@ export async function GET(request: Request) {
   }
 }
 
+
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const productoId = searchParams.get('producto_id');
+    const producto_id = searchParams.get('producto_id');
 
-    if (!productoId) {
+    if (!producto_id) {
       return NextResponse.json(
-        { error: 'Se requiere producto_id' },
+        { error: 'Producto ID es requerido' },
         { status: 400 }
       );
     }
 
-    // Primero obtener los IDs de las transacciones de tipo merma
-    const transacciones = await sql`
-      SELECT id FROM transacciones 
-      WHERE producto = ${productoId}
-      AND tipo = 'Baja'
+    // 1. Obtener las mermas a eliminar para poder restaurar el inventario
+    const mermasAEliminar = await sql`
+      SELECT m.*, mp.nombre as param_nombre, mp.cantidad as param_cantidad
+      FROM merma m
+      LEFT JOIN merma_parametros mp ON m.id = mp.merma_id
+      WHERE m.producto_id = ${producto_id}
     `;
 
-    // Eliminar los parámetros relacionados
-    for (const transaccion of transacciones.rows) {
-      await sql`
-        DELETE FROM transaccion_parametros 
-        WHERE transaccion_id = ${transaccion.id}
-      `;
+    // 2. Restaurar el inventario
+    for (const merma of mermasAEliminar.rows) {
+      if (merma.param_nombre) {
+        // Si tiene parámetros, restaurar en usuario_producto_parametros
+        await sql`
+          UPDATE usuario_producto_parametros
+          SET cantidad = cantidad + ${merma.param_cantidad}
+          WHERE usuario_id = ${merma.usuario_id}
+          AND producto_id = ${merma.producto_id}
+          AND nombre = ${merma.param_nombre}
+        `;
+      } else {
+        // Si no tiene parámetros, restaurar en usuario_productos
+        await sql`
+          UPDATE usuario_productos
+          SET cantidad = cantidad + ${merma.cantidad}
+          WHERE usuario_id = ${merma.usuario_id}
+          AND producto_id = ${merma.producto_id}
+        `;
+      }
     }
 
-    // Luego eliminar las transacciones
-    const resultado = await sql`
-      DELETE FROM transacciones 
-      WHERE producto = ${productoId}
-      AND tipo = 'Baja'
+    // 3. Eliminar los registros de merma_parametros
+    await sql`
+      DELETE FROM merma_parametros
+      WHERE merma_id IN (
+        SELECT id FROM merma WHERE producto_id = ${producto_id}
+      )
     `;
 
-    return NextResponse.json({
-      success: true,
-      message: 'Registros de merma eliminados correctamente',
-      registrosEliminados: resultado.rowCount
-    });
+    // 4. Eliminar los registros de merma
+    await sql`
+      DELETE FROM merma
+      WHERE producto_id = ${producto_id}
+    `;
 
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error al eliminar registros de merma:', error);
+    console.error('Error al eliminar mermas:', error);
     return NextResponse.json(
-      { error: 'Error al eliminar los registros de merma' },
+      { error: 'Error al eliminar mermas' },
       { status: 500 }
     );
   }
 }
+

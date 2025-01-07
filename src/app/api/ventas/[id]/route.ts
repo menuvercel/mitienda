@@ -15,12 +15,9 @@ export async function DELETE(
   try {
     await query('BEGIN');
 
-    // 1. Obtener la venta y verificar si el producto tiene parámetros
+    // Obtener la venta
     const ventaResult = await query(
-      `SELECT v.*, p.tiene_parametros 
-       FROM ventas v
-       JOIN productos p ON v.producto = p.id 
-       WHERE v.id = $1`,
+      'SELECT * FROM ventas WHERE id = $1',
       [ventaId]
     );
 
@@ -31,54 +28,37 @@ export async function DELETE(
 
     const venta = ventaResult.rows[0];
 
-    // 2. Restaurar stock según el tipo de producto
-    if (venta.tiene_parametros) {
-      // Obtener los parámetros de la venta desde venta_parametros
-      const parametrosResult = await query(
-        `SELECT * FROM venta_parametros WHERE venta_id = $1`,
-        [ventaId]
-      );
+    // Obtener los parámetros de la venta antes de eliminarlos
+    const ventaParametrosResult = await query(
+      'SELECT * FROM venta_parametros WHERE venta_id = $1',
+      [ventaId]
+    );
 
-      for (const param of parametrosResult.rows) {
-        // Verificar si existe el registro
-        const existingParamResult = await query(
-          `SELECT * FROM usuario_producto_parametros 
-           WHERE usuario_id = $1 
-           AND producto_id = $2 
-           AND nombre = $3`,
-          [venta.vendedor, venta.producto, param.parametro]
+    // Restaurar stock según parámetros
+    if (ventaParametrosResult.rows.length > 0) {
+      // Si hay parámetros en venta_parametros, restauramos cada uno
+      for (const param of ventaParametrosResult.rows) {
+        await query(
+          `INSERT INTO usuario_producto_parametros 
+           (usuario_id, producto_id, nombre, cantidad)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (usuario_id, producto_id, nombre)
+           DO UPDATE SET cantidad = usuario_producto_parametros.cantidad + $4`,
+          [venta.vendedor, venta.producto, param.parametro, param.cantidad]
         );
-
-        if (existingParamResult.rows.length > 0) {
-          // Actualizar registro existente
-          await query(
-            `UPDATE usuario_producto_parametros 
-             SET cantidad = cantidad + $1 
-             WHERE usuario_id = $2 
-             AND producto_id = $3 
-             AND nombre = $4`,
-            [param.cantidad, venta.vendedor, venta.producto, param.parametro]
-          );
-        } else {
-          // Crear nuevo registro
-          await query(
-            `INSERT INTO usuario_producto_parametros 
-             (usuario_id, producto_id, nombre, cantidad) 
-             VALUES ($1, $2, $3, $4)`,
-            [venta.vendedor, venta.producto, param.parametro, param.cantidad]
-          );
-        }
       }
     } else {
-      // Solo actualizar usuario_productos si el producto NO tiene parámetros
+      // Si no hay parámetros, actualizamos la cantidad general
       await query(
         'UPDATE usuario_productos SET cantidad = cantidad + $1 WHERE producto_id = $2 AND usuario_id = $3',
         [venta.cantidad, venta.producto, venta.vendedor]
       );
     }
 
-    // 3. Eliminar registros relacionados
+    // Eliminar los registros en venta_parametros
     await query('DELETE FROM venta_parametros WHERE venta_id = $1', [ventaId]);
+
+    // Eliminar la venta
     await query('DELETE FROM ventas WHERE id = $1', [ventaId]);
     
     await query('COMMIT');

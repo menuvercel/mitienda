@@ -140,6 +140,13 @@ const useVendedorData = (vendedorId: string) => {
   const [productosSeleccionados, setProductosSeleccionados] = useState<ProductoVenta[]>([]);
   const [fecha, setFecha] = useState('');
 
+  const calcularCantidadTotal = (producto: Producto): number => {
+    if (producto.tiene_parametros && producto.parametros) {
+      return producto.parametros.reduce((total, param) => total + param.cantidad, 0);
+    }
+    return producto.cantidad;
+  };
+
   const handleEnviarVenta = async () => {
     if (productosSeleccionados.length === 0) {
       alert('Por favor, seleccione al menos un producto.');
@@ -284,8 +291,18 @@ const useVendedorData = (vendedorId: string) => {
     try {
       const data = await getProductosVendedor(vendedorId)
       console.log('Raw data from getProductosVendedor:', data);
-      setProductosDisponibles(data.filter((up: Producto) => up.cantidad > 0))
-      setProductosAgotados(data.filter((up: Producto) => up.cantidad === 0))
+      
+      // Modificamos el filtrado considerando los parámetros
+      setProductosDisponibles(data.filter((producto: Producto) => {
+        const cantidadTotal = calcularCantidadTotal(producto);
+        return cantidadTotal > 0;
+      }));
+      
+      setProductosAgotados(data.filter((producto: Producto) => {
+        const cantidadTotal = calcularCantidadTotal(producto);
+        return cantidadTotal === 0;
+      }));
+  
       console.log('Productos disponibles:', productosDisponibles);
       console.log('Productos agotados:', productosAgotados);
     } catch (error) {
@@ -547,6 +564,8 @@ const TransaccionesList = ({
   searchTerm: string,
   vendedorId: string
 }) => {
+  const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
+
   const filteredTransacciones = transacciones.filter(t =>
     t.producto.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -560,17 +579,26 @@ const TransaccionesList = ({
     return `${new Date(transaction.fecha).getTime()}_${transaction.tipo}_${parametrosString}_${transaction.producto}`;
   };
 
+  const toggleExpand = (transactionKey: string) => {
+    setExpandedTransactions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(transactionKey)) {
+        newSet.delete(transactionKey);
+      } else {
+        newSet.add(transactionKey);
+      }
+      return newSet;
+    });
+  };
+
   const filteredByRole = filteredTransacciones.filter(transaction => {
-    if (transaction.parametros && transaction.parametros.length > 0) {
-      if (transaction.desde === vendedorId) {
-        return transaction.tipo === 'Baja';
-      }
-      if (transaction.hacia === vendedorId) {
-        return transaction.tipo === 'Entrega';
-      }
-      return false;
+    if (transaction.desde === vendedorId) {
+      return transaction.tipo === 'Baja';
     }
-    return true;
+    if (transaction.hacia === vendedorId) {
+      return transaction.tipo === 'Entrega';
+    }
+    return false;
   });
 
   const groupedTransactions = filteredByRole.reduce((acc, transaction) => {
@@ -584,6 +612,7 @@ const TransaccionesList = ({
   return (
     <div className="space-y-2">
       {Array.from(groupedTransactions.values()).map((transaccion) => {
+        const transactionKey = getTransactionKey(transaccion);
         const transactionType = transaccion.tipo || 'Normal';
         const borderColor =
           transactionType === 'Baja' ? 'border-red-500' :
@@ -594,36 +623,54 @@ const TransaccionesList = ({
           ? transaccion.parametros.reduce((sum, param) => sum + param.cantidad, 0)
           : transaccion.cantidad;
 
+        const isExpanded = expandedTransactions.has(transactionKey);
+
         return (
           <div
-            key={getTransactionKey(transaccion)}
-            className={`flex items-start bg-white p-4 rounded-lg shadow border-l-4 ${borderColor}`}
+            key={transactionKey}
+            className={`bg-white p-4 rounded-lg shadow border-l-4 ${borderColor}`}
           >
-            <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-4 flex-shrink-0 mt-1" />
-            <div className="flex-grow overflow-hidden">
-              <div className="flex justify-between items-center mb-1">
-                <p className="font-bold text-sm truncate">{transaccion.producto}</p>
-                <p className="text-sm font-semibold text-green-600">
-                  ${formatPrice(transaccion.precio)}
-                </p>
-              </div>
-              <div className="flex justify-between items-center text-xs text-gray-600">
-                <span>{formatDate(transaccion.fecha)}</span>
-                <span>Cantidad Total: {cantidadTotal}</span>
-              </div>
-              {transaccion.parametros && transaccion.parametros.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  <p className="text-xs font-medium text-gray-700">Parámetros:</p>
-                  {transaccion.parametros.map((param: TransaccionParametro, index: number) => (
-                    <div key={index} className="flex items-center text-xs text-gray-600">
-                      <span className="mr-2">•</span>
-                      <span className="font-medium">{param.nombre}:</span>
-                      <span className="ml-1">{param.cantidad}</span>
-                    </div>
-                  ))}
+            <div
+              className={`flex items-start ${transaccion.parametros ? 'cursor-pointer' : ''}`}
+              onClick={() => {
+                if (transaccion.parametros) {
+                  toggleExpand(transactionKey);
+                }
+              }}
+            >
+              <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-4 flex-shrink-0 mt-1" />
+              <div className="flex-grow overflow-hidden">
+                <div className="flex justify-between items-center mb-1">
+                  <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+                  <p className="text-sm font-semibold text-green-600">
+                    ${formatPrice(transaccion.precio)}
+                  </p>
                 </div>
-              )}
-              <p className="text-xs font-semibold mt-1 text-gray-700">{transactionType}</p>
+                <div className="flex justify-between items-center text-xs text-gray-600">
+                  <span>{formatDate(transaccion.fecha)}</span>
+                  <span>Cantidad Total: {cantidadTotal}</span>
+                </div>
+                {transaccion.parametros && (
+                  <div className="flex items-center justify-end mt-1">
+                    {isExpanded ? (
+                      <ChevronUp className="h-4 w-4 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    )}
+                  </div>
+                )}
+                {isExpanded && transaccion.parametros && (
+                  <div className="mt-2 space-y-1 pl-4 border-l-2 border-gray-200">
+                    {transaccion.parametros.map((param, index) => (
+                      <div key={index} className="flex justify-between text-xs text-gray-600">
+                        <span className="font-medium">{param.nombre}:</span>
+                        <span>{param.cantidad}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs font-semibold mt-1 text-gray-700">{transactionType}</p>
+              </div>
             </div>
           </div>
         );
@@ -631,6 +678,7 @@ const TransaccionesList = ({
     </div>
   );
 };
+
 
 
 const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId: string }) => {
