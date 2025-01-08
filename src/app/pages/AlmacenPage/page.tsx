@@ -172,7 +172,7 @@ export default function AlmacenPage() {
   const [productSearchTerm, setProductSearchTerm] = useState("")
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
-  const [activeProductTab, setActiveProductTab] = useState<'inventario' | 'merma'>('inventario');
+  const [activeProductTab, setActiveProductTab] = useState<'inventario' | 'merma' | 'agotados'>('inventario');
   const [mermas, setMermas] = useState<Merma[]>([]);
   const [mermaToDelete, setMermaToDelete] = useState<string | null>(null);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
@@ -180,6 +180,49 @@ export default function AlmacenPage() {
   const [mermaSearchTerm, setMermaSearchTerm] = useState("")
   const [mermaSortOrder, setMermaSortOrder] = useState<'asc' | 'desc'>('asc')
   const [mermaSortBy, setMermaSortBy] = useState<'nombre' | 'cantidad'>('nombre')
+
+  const isProductoAgotado = (producto: Producto): boolean => {
+    if (producto.tiene_parametros && producto.parametros) {
+      // Si tiene parámetros, está agotado si todos los parámetros están en 0
+      return producto.parametros.every(param => param.cantidad === 0);
+    }
+    // Si no tiene parámetros, está agotado si la cantidad es 0
+    return producto.cantidad === 0;
+  };
+
+  const getFilteredProducts = (productos: Producto[]): Producto[] => {
+    const filteredBySearch = productos.filter((producto) =>
+      producto.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    switch (activeProductTab) {
+      case 'agotados':
+        return filteredBySearch.filter(isProductoAgotado);
+      case 'inventario':
+        return filteredBySearch.filter(producto => !isProductoAgotado(producto));
+      default:
+        return filteredBySearch;
+    }
+  };
+
+  const handleDeleteVendorData = async (vendorId: string) => {
+    try {
+      const response = await fetch(`/api/users/vendedores?id=${vendorId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Error al eliminar datos');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error:', error);
+      throw error;
+    }
+  };
+
 
 
   const toggleMermaExpansion = (mermaId: string) => {
@@ -458,9 +501,19 @@ export default function AlmacenPage() {
     }
   })
 
-  const filteredInventarioForMassDelivery = inventario.filter((producto) =>
-    producto.nombre.toLowerCase().includes(productSearchTerm.toLowerCase())
-  )
+  const filteredInventarioForMassDelivery = inventario
+    .filter((producto) => {
+      // Primero verifica si el producto tiene cantidad mayor a 0
+      if (producto.tiene_parametros && producto.parametros) {
+        // Para productos con parámetros, verifica si al menos un parámetro tiene cantidad > 0
+        return producto.parametros.some(param => param.cantidad > 0);
+      }
+      // Para productos sin parámetros, verifica si la cantidad es mayor a 0
+      return producto.cantidad > 0;
+    })
+    .filter((producto) =>
+      producto.nombre.toLowerCase().includes(productSearchTerm.toLowerCase())
+    );
 
 
 
@@ -913,6 +966,14 @@ export default function AlmacenPage() {
                     Inventario
                   </Button>
                   <Button
+                    variant={activeProductTab === 'agotados' ? "default" : "outline"}
+                    onClick={() => setActiveProductTab('agotados')}
+                    size="sm"
+                    className="relative"
+                  >
+                    Agotados
+                  </Button>
+                  <Button
                     variant={activeProductTab === 'merma' ? "default" : "outline"}
                     onClick={() => setActiveProductTab('merma')}
                     size="sm"
@@ -923,74 +984,7 @@ export default function AlmacenPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {activeProductTab === 'inventario' ? (
-                <>
-                  <div className="mb-4">
-                    <Input
-                      placeholder="Buscar productos..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="max-w-sm"
-                    />
-                  </div>
-                  <div className="flex justify-start space-x-2 mb-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSort('nombre')}
-                      className="flex items-center text-xs px-2 py-1"
-                    >
-                      Nombre
-                      <ArrowUpDown className="ml-1 h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSort('cantidad')}
-                      className="flex items-center text-xs px-2 py-1"
-                    >
-                      Cantidad
-                      <ArrowUpDown className="ml-1 h-3 w-3" />
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {filteredInventario.map((producto) => (
-                      <div
-                        key={producto.id}
-                        onClick={() => setSelectedProduct(producto)}
-                        className="flex items-center p-3 rounded-lg border mb-2 bg-white hover:bg-gray-50 cursor-pointer"
-                      >
-                        <div className="w-12 h-12 mr-3">
-                          <Image
-                            src={imageErrors[producto.id] ? '/placeholder.svg' : (producto.foto || '/placeholder.svg')}
-                            alt={producto.nombre}
-                            width={48}
-                            height={48}
-                            className="rounded-md object-cover"
-                            onError={() => {
-                              setImageErrors(prev => ({
-                                ...prev,
-                                [producto.id]: true
-                              }));
-                            }}
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-medium text-gray-900 truncate">
-                            {producto.nombre}
-                          </h3>
-                          <div className="flex flex-wrap gap-x-4 text-sm text-gray-500">
-                            <p>Precio: ${Number(producto.precio).toFixed(2)}</p>
-                            <p className={`${calcularCantidadTotal(producto) === 0 ? 'text-red-500' : ''}`}>
-                              Cantidad: {calcularCantidadTotal(producto)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
+              {activeProductTab === 'merma' ? (
                 <div className="space-y-4">
                   {/* Barra de búsqueda */}
                   <div className="mb-4">
@@ -1057,7 +1051,6 @@ export default function AlmacenPage() {
                               key={merma.producto.id}
                               className="p-3 rounded-lg border bg-white hover:bg-gray-50 transition-all duration-200"
                             >
-                              {/* El resto del contenido de la merma permanece igual */}
                               <div
                                 className={`flex items-center space-x-3 ${tieneParametros ? 'cursor-pointer' : ''}`}
                                 onClick={(e) => {
@@ -1100,7 +1093,6 @@ export default function AlmacenPage() {
                                       )}
                                     </div>
                                   </div>
-
                                 </div>
                                 <Button
                                   variant="ghost"
@@ -1133,8 +1125,94 @@ export default function AlmacenPage() {
                     )}
                   </div>
                 </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <Input
+                      placeholder="Buscar productos..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
+                  <div className="flex justify-start space-x-2 mb-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSort('nombre')}
+                      className="flex items-center text-xs px-2 py-1"
+                    >
+                      Nombre
+                      <ArrowUpDown className="ml-1 h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSort('cantidad')}
+                      className="flex items-center text-xs px-2 py-1"
+                    >
+                      Cantidad
+                      <ArrowUpDown className="ml-1 h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {getFilteredProducts(filteredInventario).length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        {activeProductTab === 'agotados'
+                          ? 'No hay productos agotados'
+                          : 'No se encontraron productos'}
+                      </div>
+                    ) : (
+                      getFilteredProducts(filteredInventario).map((producto) => (
+                        <div
+                          key={producto.id}
+                          onClick={() => setSelectedProduct(producto)}
+                          className={`flex items-center p-3 rounded-lg border mb-2 bg-white hover:bg-gray-50 cursor-pointer ${activeProductTab === 'agotados' ? 'border-red-200 bg-red-50' : ''
+                            }`}
+                        >
+                          <div className="w-12 h-12 mr-3">
+                            <Image
+                              src={imageErrors[producto.id] ? '/placeholder.svg' : (producto.foto || '/placeholder.svg')}
+                              alt={producto.nombre}
+                              width={48}
+                              height={48}
+                              className="rounded-md object-cover"
+                              onError={() => {
+                                setImageErrors(prev => ({
+                                  ...prev,
+                                  [producto.id]: true
+                                }));
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-medium text-gray-900 truncate">
+                              {producto.nombre}
+                            </h3>
+                            <div className="flex flex-wrap gap-x-4 text-sm text-gray-500">
+                              <p>Precio: ${Number(producto.precio).toFixed(2)}</p>
+                              <p className={`${calcularCantidadTotal(producto) === 0 ? 'text-red-500 font-semibold' : ''}`}>
+                                Cantidad: {calcularCantidadTotal(producto)}
+                              </p>
+                            </div>
+                            {producto.tiene_parametros && (
+                              <div className="mt-1 text-xs text-gray-500">
+                                {producto.parametros?.map((param, index) => (
+                                  <span key={index} className="mr-2">
+                                    {param.nombre}: {param.cantidad}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
               )}
             </CardContent>
+
 
           </Card>
         </div>
@@ -1566,6 +1644,7 @@ export default function AlmacenPage() {
           onProductMerma={handleProductMerma}
           onProductTransfer={handleProductTransfer}
           vendedores={vendedores}
+          onDeleteVendorData={handleDeleteVendorData}
         />
       )}
     </div>

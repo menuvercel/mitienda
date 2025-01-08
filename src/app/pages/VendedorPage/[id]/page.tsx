@@ -123,6 +123,13 @@ interface ParametrosDialogProps {
   onSubmit: (parametros: ProductoParametro[]) => void;
 }
 
+const calcularCantidadTotal = (producto: Producto): number => {
+  if (producto.tiene_parametros && producto.parametros) {
+    return producto.parametros.reduce((total, param) => total + param.cantidad, 0);
+  }
+  return producto.cantidad;
+};
+
 const useVendedorData = (vendedorId: string) => {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
@@ -139,13 +146,6 @@ const useVendedorData = (vendedorId: string) => {
   const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
   const [productosSeleccionados, setProductosSeleccionados] = useState<ProductoVenta[]>([]);
   const [fecha, setFecha] = useState('');
-
-  const calcularCantidadTotal = (producto: Producto): number => {
-    if (producto.tiene_parametros && producto.parametros) {
-      return producto.parametros.reduce((total, param) => total + param.cantidad, 0);
-    }
-    return producto.cantidad;
-  };
 
   const handleEnviarVenta = async () => {
     if (productosSeleccionados.length === 0) {
@@ -291,18 +291,18 @@ const useVendedorData = (vendedorId: string) => {
     try {
       const data = await getProductosVendedor(vendedorId)
       console.log('Raw data from getProductosVendedor:', data);
-      
+
       // Modificamos el filtrado considerando los parámetros
       setProductosDisponibles(data.filter((producto: Producto) => {
         const cantidadTotal = calcularCantidadTotal(producto);
         return cantidadTotal > 0;
       }));
-      
+
       setProductosAgotados(data.filter((producto: Producto) => {
         const cantidadTotal = calcularCantidadTotal(producto);
         return cantidadTotal === 0;
       }));
-  
+
       console.log('Productos disponibles:', productosDisponibles);
       console.log('Productos agotados:', productosAgotados);
     } catch (error) {
@@ -661,14 +661,17 @@ const TransaccionesList = ({
                 )}
                 {isExpanded && transaccion.parametros && (
                   <div className="mt-2 space-y-1 pl-4 border-l-2 border-gray-200">
-                    {transaccion.parametros.map((param, index) => (
-                      <div key={index} className="flex justify-between text-xs text-gray-600">
-                        <span className="font-medium">{param.nombre}:</span>
-                        <span>{param.cantidad}</span>
-                      </div>
-                    ))}
+                    {transaccion.parametros
+                      .filter(param => param.cantidad !== 0) // Añadimos este filtro
+                      .map((param, index) => (
+                        <div key={index} className="flex justify-between text-xs text-gray-600">
+                          <span className="font-medium">{param.nombre}:</span>
+                          <span>{param.cantidad}</span>
+                        </div>
+                      ))}
                   </div>
                 )}
+
                 <p className="text-xs font-semibold mt-1 text-gray-700">{transactionType}</p>
               </div>
             </div>
@@ -921,24 +924,48 @@ const ParametrosDialog = ({
   onClose,
   onSubmit
 }: ParametrosDialogProps) => {
+  // Solo incluir parámetros con cantidad > 0
   const [parametros, setParametros] = useState<ProductoParametro[]>(() =>
-    producto?.parametros?.map(p => ({
-      nombre: p.nombre,
-      cantidad: 0
-    })) || []
-  );
-
-  // Reiniciar los parámetros cuando cambia el producto
-  useEffect(() => {
-    if (producto?.parametros) {
-      setParametros(producto.parametros.map(p => ({
+    producto?.parametros
+      ?.filter(p => p.cantidad > 0) // Filtrar parámetros con cantidad > 0
+      ?.map(p => ({
         nombre: p.nombre,
         cantidad: 0
-      })));
+      })) || []
+  );
+
+  // Actualizar los parámetros cuando cambia el producto
+  useEffect(() => {
+    if (producto?.parametros) {
+      setParametros(
+        producto.parametros
+          .filter(p => p.cantidad > 0) // Filtrar parámetros con cantidad > 0
+          .map(p => ({
+            nombre: p.nombre,
+            cantidad: 0
+          }))
+      );
     }
   }, [producto]);
 
   const hasSelectedParameters = parametros.some(p => p.cantidad > 0);
+
+  // Si no hay parámetros disponibles, mostrar un mensaje
+  if (parametros.length === 0) {
+    return (
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Seleccionar Parámetros de {producto?.nombre}</DialogTitle>
+          </DialogHeader>
+          <div className="p-4 text-center text-gray-600">
+            No hay parámetros disponibles para este producto.
+          </div>
+          <Button onClick={onClose}>Cerrar</Button>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -947,36 +974,52 @@ const ParametrosDialog = ({
           <DialogTitle>Seleccionar Parámetros de {producto?.nombre}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          {parametros.map((param, index) => (
-            <div key={param.nombre} className="flex items-center justify-between">
-              <label>{param.nombre}</label>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    const newParams = [...parametros];
-                    newParams[index].cantidad = Math.max(0, param.cantidad - 1);
-                    setParametros(newParams);
-                  }}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <span>{param.cantidad}</span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    const newParams = [...parametros];
-                    newParams[index].cantidad = param.cantidad + 1;
-                    setParametros(newParams);
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
+          {parametros.map((param, index) => {
+            // Encontrar el parámetro original para obtener la cantidad máxima disponible
+            const parametroOriginal = producto?.parametros?.find(p => p.nombre === param.nombre);
+            const cantidadMaxima = parametroOriginal?.cantidad || 0;
+
+            return (
+              <div key={param.nombre} className="flex items-center justify-between">
+                <div>
+                  <label>{param.nombre}</label>
+                  <span className="text-sm text-gray-500 ml-2">
+                    (Disponible: {cantidadMaxima})
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      const newParams = [...parametros];
+                      newParams[index].cantidad = Math.max(0, param.cantidad - 1);
+                      setParametros(newParams);
+                    }}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <span>{param.cantidad}</span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      const newParams = [...parametros];
+                      // No permitir exceder la cantidad máxima disponible
+                      newParams[index].cantidad = Math.min(
+                        param.cantidad + 1,
+                        cantidadMaxima
+                      );
+                      setParametros(newParams);
+                    }}
+                    disabled={param.cantidad >= cantidadMaxima}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           <div className="flex flex-col gap-2">
             {!hasSelectedParameters && (
               <p className="text-sm text-red-500">
@@ -995,6 +1038,7 @@ const ParametrosDialog = ({
     </Dialog>
   );
 };
+
 
 
 export default function VendedorPage() {
@@ -1319,7 +1363,11 @@ export default function VendedorPage() {
                                 <label htmlFor={`product-${producto.id}`} className="font-medium">
                                   {producto.nombre}
                                 </label>
-                                <p className="text-sm text-gray-500">Cantidad: {producto.cantidad}</p>
+                                <p className="text-sm text-gray-500">
+                                  Cantidad: {producto.tiene_parametros
+                                    ? calcularCantidadTotal(producto)
+                                    : producto.cantidad}
+                                </p>
                                 <p className="text-sm text-gray-500">Precio: ${formatPrice(producto.precio)}</p>
 
                                 {/* Mostrar los parámetros si ya están configurados */}

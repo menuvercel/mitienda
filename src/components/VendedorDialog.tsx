@@ -42,6 +42,7 @@ interface VendorDialogProps {
     cantidad: number,
     parametros?: Array<{ nombre: string; cantidad: number }>
   ) => Promise<void>;
+  onDeleteVendorData: (vendorId: string) => Promise<void>;
 }
 
 
@@ -60,7 +61,7 @@ interface VentaDia {
 }
 
 
-export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce, onDeleteSale, onProductMerma, vendedores, onProductTransfer }: VendorDialogProps) {
+export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce, onDeleteSale, onProductMerma, vendedores, onProductTransfer, onDeleteVendorData }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
   const [searchTerm, setSearchTerm] = useState('')
@@ -84,6 +85,31 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({})
   const [parameterQuantities, setParameterQuantities] = useState<Record<string, number>>({})
   const [expandedTransactions, setExpandedTransactions] = useState<Record<string, boolean>>({});
+  const [deleteConfirmDialogOpen, setDeleteConfirmDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+
+  const handleDeleteVendorData = async () => {
+    try {
+      setIsDeleting(true);
+      await onDeleteVendorData(vendor.id);
+      toast({
+        title: "Éxito",
+        description: "Los datos del vendedor han sido eliminados correctamente.",
+      });
+      setDeleteConfirmDialogOpen(false);
+      onClose(); // Cerrar el diálogo principal
+    } catch (error) {
+      console.error('Error al eliminar los datos:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron eliminar los datos del vendedor. Por favor, inténtelo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const toggleExpand = (transactionId: string) => {
     setExpandedTransactions(prev => ({
@@ -310,19 +336,25 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     }
 
     const renderParametros = (venta: Venta) => {
-      if (!venta.parametros || venta.parametros.length === 0) return null
+      if (!venta.parametros || venta.parametros.length === 0) return null;
+
+      // Filtrar los parámetros con cantidad mayor a 0
+      const parametrosFiltrados = venta.parametros.filter(param => param.cantidad > 0);
+
+      if (parametrosFiltrados.length === 0) return null; // Si no hay parámetros válidos, no renderizar nada
 
       return (
         <div className="mt-1 text-sm text-gray-600">
-          {venta.parametros.map((param, index) => (
+          {parametrosFiltrados.map((param, index) => (
             <div key={index} className="flex space-x-2">
               <span>{param.nombre}:</span>
               <span>{param.cantidad}</span>
             </div>
           ))}
         </div>
-      )
-    }
+      );
+    };
+
 
     const calcularCantidadTotal = (venta: Venta) => {
       if (venta.parametros && venta.parametros.length > 0) {
@@ -823,18 +855,21 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 {hasParameters && isExpanded && transaccion.parametros && (
                   <div className="bg-gray-50 px-4 py-2 border-t">
                     <div className="space-y-2">
-                      {transaccion.parametros.map((param: TransaccionParametro, index: number) => (
-                        <div
-                          key={`${transaccion.id}-param-${index}`}
-                          className="flex justify-between items-center p-2 bg-white rounded-md"
-                        >
-                          <span className="text-sm font-medium">{param.nombre}</span>
-                          <span className="text-sm">{param.cantidad}</span>
-                        </div>
-                      ))}
+                      {transaccion.parametros
+                        .filter((param: TransaccionParametro) => param.cantidad > 0) // Añadimos este filtro
+                        .map((param: TransaccionParametro, index: number) => (
+                          <div
+                            key={`${transaccion.id}-param-${index}`}
+                            className="flex justify-between items-center p-2 bg-white rounded-md"
+                          >
+                            <span className="text-sm font-medium">{param.nombre}</span>
+                            <span className="text-sm">{param.cantidad}</span>
+                          </div>
+                        ))}
                     </div>
                   </div>
                 )}
+
               </div>
             );
           })
@@ -942,6 +977,17 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   'Guardar cambios'
                 )}
               </Button>
+
+              {/* Nuevo botón para eliminar datos */}
+              <div className="pt-4 border-t mt-4">
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => setDeleteConfirmDialogOpen(true)}
+                >
+                  Eliminar datos del vendedor
+                </Button>
+              </div>
             </div>
           ) : mode === 'productos' ? (
             <div className="max-h-[600px] overflow-y-auto">
@@ -1355,6 +1401,46 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                 </>
               ) : (
                 'Transferir'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={deleteConfirmDialogOpen} onOpenChange={setDeleteConfirmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar eliminación de datos</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-red-500 font-medium mb-2">¡Advertencia!</p>
+            <p className="text-gray-600">
+              Esta acción eliminará todas las ventas y transacciones asociadas a {vendor.nombre}.
+              Los productos asignados no serán eliminados.
+            </p>
+            <p className="text-gray-600 mt-2">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteVendorData}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar datos'
               )}
             </Button>
           </DialogFooter>

@@ -46,3 +46,61 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Error al actualizar vendedor' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+
+  if (!id) {
+    return NextResponse.json({ error: 'ID no proporcionado' }, { status: 400 });
+  }
+
+  try {
+    await query('BEGIN');
+
+    try {
+      // 1. Primero eliminar los registros de venta_parametros
+      await query(`
+        DELETE FROM venta_parametros 
+        WHERE venta_id IN (
+          SELECT id FROM ventas WHERE vendedor = $1
+        )
+      `, [id]);
+
+      // 2. Luego eliminar las ventas
+      await query('DELETE FROM ventas WHERE vendedor = $1', [id]);
+
+      // 3. Eliminar los parámetros de transacciones relacionados con el vendedor
+      await query(`
+        DELETE FROM transaccion_parametros 
+        WHERE transaccion_id IN (
+          SELECT id FROM transacciones WHERE desde = $1 OR hacia = $1
+        )
+      `, [id]);
+
+      // 4. Eliminar las transacciones relacionadas con el vendedor
+      await query(`
+        DELETE FROM transacciones 
+        WHERE desde = $1 OR hacia = $1
+      `, [id]);
+
+      await query('COMMIT');
+
+      return NextResponse.json({
+        message: 'Ventas y transacciones eliminadas correctamente',
+        vendedorId: id
+      });
+
+    } catch (error) {
+      await query('ROLLBACK');
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Error al eliminar ventas y transacciones:', error);
+    return NextResponse.json(
+      { error: 'Error al eliminar ventas y transacciones' },
+      { status: 500 }
+    );
+  }
+}
