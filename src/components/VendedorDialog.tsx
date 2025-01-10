@@ -266,7 +266,9 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const sortAndFilterProducts = useCallback((products: Producto[]) => {
     const calcularCantidadTotal = (producto: Producto) => {
       if (producto.parametros && producto.parametros.length > 0) {
-        return producto.parametros.reduce((total, param) => total + (param.cantidad || 0), 0)
+        return producto.parametros
+          .filter(param => param.cantidad > 0) // Solo contar parámetros con cantidad > 0
+          .reduce((total, param) => total + (param.cantidad || 0), 0)
       }
       return producto.cantidad
     }
@@ -634,7 +636,9 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
 
     const calcularCantidadTotal = (producto: Producto) => {
       if (producto.parametros && producto.parametros.length > 0) {
-        return producto.parametros.reduce((total, param) => total + (param.cantidad || 0), 0)
+        return producto.parametros
+          .filter(param => param.cantidad > 0) // Solo contar parámetros con cantidad > 0
+          .reduce((total, param) => total + (param.cantidad || 0), 0)
       }
       return producto.cantidad
     }
@@ -642,9 +646,15 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
     return (
       <div className="space-y-2">
         {filteredAndSortedProducts.map(producto => {
-          const hasParameters = producto.parametros && producto.parametros.length > 0
+          const parametrosFiltrados = producto.parametros?.filter(param => param.cantidad > 0) || []
+          const hasParameters = parametrosFiltrados.length > 0
           const isExpanded = expandedProducts[producto.id] || false
           const cantidadTotal = calcularCantidadTotal(producto)
+
+          // Si el producto tiene parámetros pero todos están en 0, no lo mostramos
+          if (producto.parametros && producto.parametros.length > 0 && parametrosFiltrados.length === 0) {
+            return null
+          }
 
           return (
             <div
@@ -678,7 +688,6 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation()
-                    // Aquí establecemos el producto a reducir y abrimos el diálogo
                     setProductToReduce(producto)
                     setReduceDialogOpen(true)
                   }}
@@ -687,10 +696,10 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   <Minus className="h-4 w-4" />
                 </Button>
               </div>
-              {isExpanded && producto.parametros && (
+              {isExpanded && hasParameters && (
                 <div className="px-4 pb-4 bg-gray-50 border-t">
                   <div className="space-y-2 mt-2">
-                    {producto.parametros.map((parametro, index) => (
+                    {parametrosFiltrados.map((parametro, index) => (
                       <div
                         key={index}
                         className="flex justify-between items-center p-2 bg-white rounded-md"
@@ -1098,65 +1107,72 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
       </DialogContent>
 
       <Dialog open={reduceDialogOpen} onOpenChange={setReduceDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] flex flex-col"> {/* Añadido max-h y flex */}
           <DialogHeader>
             <DialogTitle>Reducir cantidad de producto</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <p className="font-medium">{productToReduce?.nombre}</p>
 
-            {productToReduce?.parametros && productToReduce.parametros.length > 0 ? (
-              // Vista para productos con parámetros
-              <div className="space-y-4">
-                <p className="text-sm text-gray-500">Especifique la cantidad a reducir para cada parámetro:</p>
+          <div className="flex-1 min-h-0"> {/* Contenedor flexible */}
+            <div className="space-y-4">
+              <p className="font-medium">{productToReduce?.nombre}</p>
+
+              {productToReduce?.parametros && productToReduce.parametros.length > 0 ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-500">Especifique la cantidad a reducir para cada parámetro:</p>
+
+                  {/* Contenedor scrolleable para los parámetros */}
+                  <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2">
+                    {productToReduce.parametros
+                      .filter(parametro => parametro.cantidad > 0) // Filtrar parámetros con cantidad > 0
+                      .map((parametro, index) => (
+                        <div key={index} className="flex items-center justify-between space-x-4 p-2 border rounded-lg">
+                          <div>
+                            <p className="font-medium">{parametro.nombre}</p>
+                            <p className="text-sm text-gray-500">Disponible: {parametro.cantidad}</p>
+                          </div>
+                          <Input
+                            type="number"
+                            className="w-24"
+                            value={parameterQuantities[parametro.nombre] || 0}
+                            onChange={(e) => {
+                              const value = Math.max(0, Math.min(Number(e.target.value), parametro.cantidad))
+                              setParameterQuantities(prev => ({
+                                ...prev,
+                                [parametro.nombre]: value
+                              }))
+                            }}
+                            min={0}
+                            max={parametro.cantidad}
+                          />
+                        </div>
+                      ))}
+                  </div>
+
+                  <div className="text-sm text-gray-500">
+                    Total a reducir: {Object.values(parameterQuantities).reduce((a, b) => a + b, 0)}
+                  </div>
+                </div>
+              ) : (
                 <div className="space-y-2">
-                  {productToReduce.parametros.map((parametro, index) => (
-                    <div key={index} className="flex items-center justify-between space-x-4 p-2 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{parametro.nombre}</p>
-                        <p className="text-sm text-gray-500">Disponible: {parametro.cantidad}</p>
-                      </div>
-                      <Input
-                        type="number"
-                        className="w-24"
-                        value={parameterQuantities[parametro.nombre] || 0}
-                        onChange={(e) => {
-                          const value = Math.max(0, Math.min(Number(e.target.value), parametro.cantidad))
-                          setParameterQuantities(prev => ({
-                            ...prev,
-                            [parametro.nombre]: value
-                          }))
-                        }}
-                        min={0}
-                        max={parametro.cantidad}
-                      />
-                    </div>
-                  ))}
+                  <p className="text-sm text-gray-500">Especifique la cantidad a reducir:</p>
+                  <div className="flex items-center space-x-4">
+                    <Input
+                      type="number"
+                      value={quantityToReduce}
+                      onChange={(e) => setQuantityToReduce(Math.max(0, Math.min(Number(e.target.value), productToReduce?.cantidad || 0)))}
+                      max={productToReduce?.cantidad}
+                      min={0}
+                    />
+                    <span className="text-sm text-gray-500">
+                      Disponible: {productToReduce?.cantidad}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-500">
-                  Total a reducir: {Object.values(parameterQuantities).reduce((a, b) => a + b, 0)}
-                </div>
-              </div>
-            ) : (
-              // Vista para productos sin parámetros
-              <div className="space-y-2">
-                <p className="text-sm text-gray-500">Especifique la cantidad a reducir:</p>
-                <div className="flex items-center space-x-4">
-                  <Input
-                    type="number"
-                    value={quantityToReduce}
-                    onChange={(e) => setQuantityToReduce(Math.max(0, Math.min(Number(e.target.value), productToReduce?.cantidad || 0)))}
-                    max={productToReduce?.cantidad}
-                    min={0}
-                  />
-                  <span className="text-sm text-gray-500">
-                    Disponible: {productToReduce?.cantidad}
-                  </span>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="mt-4"> {/* Añadido margen superior */}
             <Button
               variant="outline"
               onClick={() => {
@@ -1194,6 +1210,7 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
       <Dialog open={showDestinationDialog} onOpenChange={setShowDestinationDialog}>
         <DialogContent>

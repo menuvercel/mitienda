@@ -1195,15 +1195,6 @@ export default function AlmacenPage() {
                                 Cantidad: {calcularCantidadTotal(producto)}
                               </p>
                             </div>
-                            {producto.tiene_parametros && (
-                              <div className="mt-1 text-xs text-gray-500">
-                                {producto.parametros?.map((param, index) => (
-                                  <span key={index} className="mr-2">
-                                    {param.nombre}: {param.cantidad}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
                           </div>
                         </div>
                       ))

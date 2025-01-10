@@ -849,12 +849,15 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
                           <div className="mt-4">
                             <h4 className="font-medium mb-2">Parámetros:</h4>
                             <div className="space-y-2">
-                              {producto.parametros?.map((parametro) => (
-                                <div key={parametro.nombre} className="flex justify-between px-4">
-                                  <span>{parametro.nombre}</span>
-                                  <span>{parametro.cantidad}</span>
-                                </div>
-                              ))}
+                              {/* Filtrar los parámetros con cantidad > 0 */}
+                              {producto.parametros
+                                ?.filter(parametro => parametro.cantidad > 0)
+                                ?.map((parametro) => (
+                                  <div key={parametro.nombre} className="flex justify-between px-4">
+                                    <span>{parametro.nombre}</span>
+                                    <span>{parametro.cantidad}</span>
+                                  </div>
+                                ))}
                               <div className="border-t pt-2 mt-2">
                                 <span className="font-medium">
                                   Cantidad Total: {calcularCantidadTotal(producto.parametros)}
@@ -868,6 +871,7 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
                       </div>
                     </div>
                   </TabsContent>
+
                   <TabsContent value="transacciones" className="h-full overflow-auto mt-0 border-0">
                     <div className="sticky top-0 bg-white z-10 pb-4">
                       <div className="relative">
