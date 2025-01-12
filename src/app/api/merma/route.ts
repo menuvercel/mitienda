@@ -226,37 +226,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // 1. Obtener las mermas a eliminar para poder restaurar el inventario
-    const mermasAEliminar = await sql`
-      SELECT m.*, mp.nombre as param_nombre, mp.cantidad as param_cantidad
-      FROM merma m
-      LEFT JOIN merma_parametros mp ON m.id = mp.merma_id
-      WHERE m.producto_id = ${producto_id}
-    `;
-
-    // 2. Restaurar el inventario
-    for (const merma of mermasAEliminar.rows) {
-      if (merma.param_nombre) {
-        // Si tiene parámetros, restaurar en usuario_producto_parametros
-        await sql`
-          UPDATE usuario_producto_parametros
-          SET cantidad = cantidad + ${merma.param_cantidad}
-          WHERE usuario_id = ${merma.usuario_id}
-          AND producto_id = ${merma.producto_id}
-          AND nombre = ${merma.param_nombre}
-        `;
-      } else {
-        // Si no tiene parámetros, restaurar en usuario_productos
-        await sql`
-          UPDATE usuario_productos
-          SET cantidad = cantidad + ${merma.cantidad}
-          WHERE usuario_id = ${merma.usuario_id}
-          AND producto_id = ${merma.producto_id}
-        `;
-      }
-    }
-
-    // 3. Eliminar los registros de merma_parametros
+    // 1. Eliminar los registros de merma_parametros
     await sql`
       DELETE FROM merma_parametros
       WHERE merma_id IN (
@@ -264,7 +234,7 @@ export async function DELETE(request: Request) {
       )
     `;
 
-    // 4. Eliminar los registros de merma
+    // 2. Eliminar los registros de merma
     await sql`
       DELETE FROM merma
       WHERE producto_id = ${producto_id}
@@ -279,4 +249,5 @@ export async function DELETE(request: Request) {
     );
   }
 }
+
 

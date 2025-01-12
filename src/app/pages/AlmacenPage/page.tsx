@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2 } from "lucide-react"
+import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X  } from "lucide-react"
 import {
   getVendedores,
   getCurrentUser,
@@ -1185,6 +1185,7 @@ export default function AlmacenPage() {
                               }}
                             />
                           </div>
+
                           <div className="flex-1 min-w-0">
                             <h3 className="text-sm font-medium text-gray-900 truncate">
                               {producto.nombre}
@@ -1324,15 +1325,15 @@ export default function AlmacenPage() {
                             }
                           }}
                         />
-                        <img
-                          src={producto.foto || '/placeholder.svg'}
-                          alt={producto.nombre}
-                          className="w-12 h-12 object-cover rounded"
-                          onError={(e) => {
-                            const img = e.target as HTMLImageElement;
-                            img.src = '/placeholder.svg';
-                          }}
-                        />
+                        <div className="w-12 h-12 relative overflow-hidden rounded-md flex-shrink-0">
+                          <Image
+                            src={producto.foto || '/placeholder.svg'}
+                            alt={producto.nombre}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+
                       </div>
 
                       {/* Información del producto y controles */}
@@ -1476,11 +1477,12 @@ export default function AlmacenPage() {
       </Dialog>
 
       <Dialog open={showAddProductModal} onOpenChange={setShowAddProductModal}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Agregar Nuevo Producto</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+
+          <div className="space-y-4 mb-16">
             <div>
               <label htmlFor="nombre" className="block text-sm font-medium text-gray-700">Nombre</label>
               <Input
@@ -1491,6 +1493,7 @@ export default function AlmacenPage() {
                 placeholder="Nombre del producto"
               />
             </div>
+
             <div>
               <label htmlFor="precio" className="block text-sm font-medium text-gray-700">Precio</label>
               <Input
@@ -1520,29 +1523,44 @@ export default function AlmacenPage() {
 
             {newProduct.tieneParametros ? (
               <div className="space-y-4">
-                {newProduct.parametros.map((param, index) => (
-                  <div key={index} className="flex space-x-2">
-                    <Input
-                      placeholder="Nombre del parámetro"
-                      value={param.nombre}
-                      onChange={(e) => {
-                        const newParametros = [...newProduct.parametros];
-                        newParametros[index].nombre = e.target.value;
-                        setNewProduct(prev => ({ ...prev, parametros: newParametros }));
-                      }}
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Cantidad"
-                      value={param.cantidad}
-                      onChange={(e) => {
-                        const newParametros = [...newProduct.parametros];
-                        newParametros[index].cantidad = parseInt(e.target.value);
-                        setNewProduct(prev => ({ ...prev, parametros: newParametros }));
-                      }}
-                    />
-                  </div>
-                ))}
+                {/* Contenedor scrolleable para los parámetros */}
+                <div className="max-h-[300px] overflow-y-auto pr-2 space-y-4 border rounded-lg p-4">
+                  {newProduct.parametros.map((param, index) => (
+                    <div key={index} className="flex space-x-2">
+                      <Input
+                        placeholder="Nombre del parámetro"
+                        value={param.nombre}
+                        onChange={(e) => {
+                          const newParametros = [...newProduct.parametros];
+                          newParametros[index].nombre = e.target.value;
+                          setNewProduct(prev => ({ ...prev, parametros: newParametros }));
+                        }}
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Cantidad"
+                        value={param.cantidad}
+                        onChange={(e) => {
+                          const newParametros = [...newProduct.parametros];
+                          newParametros[index].cantidad = parseInt(e.target.value);
+                          setNewProduct(prev => ({ ...prev, parametros: newParametros }));
+                        }}
+                      />
+                      {/* Botón para eliminar parámetro */}
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => {
+                          const newParametros = newProduct.parametros.filter((_, i) => i !== index);
+                          setNewProduct(prev => ({ ...prev, parametros: newParametros }));
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                {/* Botón para agregar parámetro fuera del área scrolleable */}
                 <Button
                   type="button"
                   onClick={() => {
@@ -1580,10 +1598,20 @@ export default function AlmacenPage() {
                 accept="image/*"
               />
             </div>
-            <Button onClick={handleAddProduct}>Agregar</Button>
+          </div>
+
+          {/* Botones fijos en la parte inferior */}
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
+            <div className="max-w-[calc(100%-2rem)] mx-auto">
+              <Button onClick={handleAddProduct} className="w-full">
+                Agregar
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
+
+
 
       <AlertDialog open={mermaToDelete !== null} onOpenChange={(open) => !open && setMermaToDelete(null)}>
         <AlertDialogContent>

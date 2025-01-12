@@ -699,18 +699,11 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
               {isExpanded && hasParameters && (
                 <div className="px-4 pb-4 bg-gray-50 border-t">
                   <div className="space-y-2 mt-2">
-                    {parametrosFiltrados.map((parametro, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center p-2 bg-white rounded-md"
-                      >
-                        <span className="font-medium text-sm">{parametro.nombre}</span>
-                        <div className="flex items-center space-x-4">
-                          <span className="text-sm text-gray-600">
-                            Cantidad: {parametro.cantidad}
-                          </span>
+                    {producto.parametros?.map((parametro, index) => (
+                      <div key={index} className="flex justify-between items-center space-x-4 p-2 border rounded-lg">
+                          <p className="font-medium">{parametro.nombre}</p>
+                          <p className="text-sm text-gray-500">Disponible: {parametro.cantidad}</p>
                         </div>
-                      </div>
                     ))}
                   </div>
                 </div>
