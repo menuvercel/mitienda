@@ -797,7 +797,7 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
             </p>
             {producto.tiene_parametros ? (
               <p className="text-sm text-gray-600">
-                Cantidad total: {calcularCantidadTotal(producto.parametros)}
+                Cantidad: {calcularCantidadTotal(producto.parametros)}
               </p>
             ) : (
               <p className="text-sm text-gray-600">
@@ -1132,24 +1132,28 @@ export default function VendedorPage() {
 
   const handleParametrosSubmit = (parametros: ProductoParametro[]) => {
     if (!selectedProduct) return;
-
+  
+    // Filtrar solo los parámetros con cantidad > 0
+    const parametrosFiltrados = parametros.filter(param => param.cantidad > 0);
+  
     // Añadir el producto a productosConParametrosEnEspera
     setProductosConParametrosEnEspera(prev => [
       ...prev,
       {
         ...selectedProduct,
         cantidadVendida: 1,
-        parametrosVenta: parametros
+        parametrosVenta: parametrosFiltrados // Usar los parámetros filtrados
       }
     ]);
-
+  
     // Añadir el ID del producto a selectedProductIds
     setSelectedProductIds(prev => [...prev, selectedProduct.id]);
-
-    // Cerrar solo el diálogo de parámetros
+  
+    // Cerrar el diálogo de parámetros
     setParametrosDialogOpen(false);
     setSelectedProduct(null);
   };
+  
 
 
 
@@ -1379,7 +1383,9 @@ export default function VendedorPage() {
                                   <div className="mt-2 text-sm text-gray-600">
                                     {productosConParametrosEnEspera
                                       .find(p => p.id === producto.id)
-                                      ?.parametrosVenta?.map(param => (
+                                      ?.parametrosVenta
+                                      ?.filter(param => param.cantidad > 0) // Filtrar solo parámetros con cantidad > 0
+                                      ?.map(param => (
                                         <div key={param.nombre} className="flex justify-between">
                                           <span>{param.nombre}:</span>
                                           <span>{param.cantidad}</span>
@@ -1408,11 +1414,13 @@ export default function VendedorPage() {
                         {producto.parametrosVenta && producto.parametrosVenta.length > 0 && (
                           <div className="text-sm text-gray-500">
                             <p className="font-medium">Parámetros:</p>
-                            {producto.parametrosVenta.map(param => (
-                              <p key={param.nombre} className="ml-2">
-                                {param.nombre}: {param.cantidad}
-                              </p>
-                            ))}
+                            {producto.parametrosVenta
+                              .filter(param => param.cantidad > 0) // Filtrar solo parámetros con cantidad > 0
+                              .map(param => (
+                                <p key={param.nombre} className="ml-2">
+                                  {param.nombre}: {param.cantidad}
+                                </p>
+                              ))}
                           </div>
                         )}
                       </div>
