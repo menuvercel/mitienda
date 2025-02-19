@@ -13,6 +13,7 @@ import { es } from 'date-fns/locale'
 import * as XLSX from 'xlsx'
 
 interface VendorDialogProps {
+  almacen: Producto[]// Añadir esta prop
   vendor: Vendedor
   onClose: () => void
   onEdit: (editedVendor: Vendedor) => Promise<void>
@@ -45,6 +46,12 @@ interface VendorDialogProps {
   onDeleteVendorData: (vendorId: string) => Promise<void>;
 }
 
+interface ComparativeData {
+  nombre: string;
+  cantidadVendedor: number;
+  cantidadAlmacen: number;
+}
+
 
 interface VentaSemana {
   fechaInicio: string
@@ -61,7 +68,7 @@ interface VentaDia {
 }
 
 
-export default function VendorDialog({ vendor, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce, onDeleteSale, onProductMerma, vendedores, onProductTransfer, onDeleteVendorData }: VendorDialogProps) {
+export default function VendorDialog({ vendor, almacen, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce, onDeleteSale, onProductMerma, vendedores, onProductTransfer, onDeleteVendorData }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
   const [searchTerm, setSearchTerm] = useState('')
@@ -87,6 +94,78 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
   const [expandedTransactions, setExpandedTransactions] = useState<Record<string, boolean>>({});
   const [deleteConfirmDialogOpen, setDeleteConfirmDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showComparativeTable, setShowComparativeTable] = useState(false)
+  const [filterType, setFilterType] = useState<'all' | 'lessThan5' | 'outOfStock'>('all')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
+  const [sortField, setSortField] = useState<keyof Pick<ComparativeData, 'cantidadVendedor' | 'cantidadAlmacen'> | null>(null);
+
+  const getComparativeData = useCallback((): ComparativeData[] => {
+    const data = productos.map(productoVendedor => {
+      const productoAlmacen = almacen.find(p => p.id === productoVendedor.id);
+
+      const getCantidadTotal = (producto: Producto) => {
+        if (producto.parametros && producto.parametros.length > 0) {
+          return producto.parametros
+            .filter(param => param.cantidad > 0)
+            .reduce((total, param) => total + (param.cantidad || 0), 0);
+        }
+        return producto.cantidad;
+      };
+
+      const cantidadVendedor = getCantidadTotal(productoVendedor);
+      const cantidadAlmacen = productoAlmacen ? getCantidadTotal(productoAlmacen) : 0;
+
+      return {
+        nombre: productoVendedor.nombre,
+        cantidadVendedor,
+        cantidadAlmacen
+      };
+    });
+
+    // Aplicar filtros
+    let filteredData = data
+      .filter(item =>
+        item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .filter(item => {
+        switch (filterType) {
+          case 'lessThan5':
+            return item.cantidadVendedor < 5;
+          case 'outOfStock':
+            return item.cantidadVendedor === 0;
+          default:
+            return true;
+        }
+      });
+
+    // Aplicar ordenamiento
+    if (sortField && sortDirection) {
+      filteredData.sort((a, b) => {
+        const compareValue = a[sortField] - b[sortField];
+        return sortDirection === 'asc' ? compareValue : -compareValue;
+      });
+    }
+
+    return filteredData;
+  }, [productos, almacen, searchTerm, filterType, sortField, sortDirection]);
+
+  const handleComparativeSort = (field: 'cantidadVendedor' | 'cantidadAlmacen') => {
+    if (sortField === field) {
+      // Si ya estamos ordenando por este campo, cambiamos la dirección
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else if (sortDirection === 'desc') {
+        // Si ya está en desc, resetear el ordenamiento
+        setSortField(null);
+        setSortDirection(null);
+      }
+    } else {
+      // Si es un nuevo campo, comenzar con orden ascendente
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
 
 
   const handleDeleteVendorData = async () => {
@@ -701,9 +780,9 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
                   <div className="space-y-2 mt-2">
                     {producto.parametros?.map((parametro, index) => (
                       <div key={index} className="flex justify-between items-center space-x-4 p-2 border rounded-lg">
-                          <p className="font-medium">{parametro.nombre}</p>
-                          <p className="text-sm text-gray-500">Disponible: {parametro.cantidad}</p>
-                        </div>
+                        <p className="font-medium">{parametro.nombre}</p>
+                        <p className="text-sm text-gray-500">Disponible: {parametro.cantidad}</p>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -1085,6 +1164,12 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
               <Button onClick={() => setMode('productos')}>Productos</Button>
               <Button onClick={() => setMode('ventas')}>Ventas</Button>
               <Button onClick={() => setMode('transacciones')}>Transacciones</Button>
+              <Button
+                onClick={() => setShowComparativeTable(true)}
+                className="w-full md:w-auto"
+              >
+                Comparativa
+              </Button>
             </div>
           )}
         </div>
@@ -1452,6 +1537,125 @@ export default function VendorDialog({ vendor, onClose, onEdit, productos, trans
               ) : (
                 'Eliminar datos'
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showComparativeTable} onOpenChange={setShowComparativeTable}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Comparativa con Almacén</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Barra de búsqueda */}
+            <div className="flex flex-col space-y-2">
+              <Input
+                placeholder="Buscar productos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+              />
+            </div>
+
+            {/* Filtros */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={filterType === 'all' ? "default" : "outline"}
+                onClick={() => setFilterType('all')}
+                size="sm"
+              >
+                Todos
+              </Button>
+              <Button
+                variant={filterType === 'lessThan5' ? "default" : "outline"}
+                onClick={() => setFilterType('lessThan5')}
+                size="sm"
+              >
+                Menos de 5
+              </Button>
+              <Button
+                variant={filterType === 'outOfStock' ? "default" : "outline"}
+                onClick={() => setFilterType('outOfStock')}
+                size="sm"
+              >
+                Sin existencias
+              </Button>
+            </div>
+
+            {/* Tabla */}
+            <div className="max-h-[400px] overflow-y-auto border rounded-md">
+              <Table>
+                <TableHeader className="sticky top-0 bg-white">
+                  <TableRow>
+                    <TableHead>Producto</TableHead>
+                    <TableHead
+                      className="text-right cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleComparativeSort('cantidadVendedor')}
+                    >
+                      <div className="flex items-center justify-end gap-2">
+                        Cantidad Vendedor
+                        {sortField === 'cantidadVendedor' && (
+                          <span className="text-xs">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="text-right cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleComparativeSort('cantidadAlmacen')}
+                    >
+                      <div className="flex items-center justify-end gap-2">
+                        Cantidad Almacén
+                        {sortField === 'cantidadAlmacen' && (
+                          <span className="text-xs">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {getComparativeData().length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-4 text-gray-500">
+                        No se encontraron productos
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    getComparativeData().map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{item.nombre}</TableCell>
+                        <TableCell
+                          className={`text-right ${item.cantidadVendedor === 0
+                            ? 'text-red-500'
+                            : item.cantidadVendedor < 5
+                              ? 'text-yellow-600'
+                              : ''
+                            }`}
+                        >
+                          {item.cantidadVendedor}
+                        </TableCell>
+                        <TableCell className="text-right">{item.cantidadAlmacen}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowComparativeTable(false)
+              setSearchTerm('')
+              setFilterType('all')
+              setSortField(null)
+              setSortDirection(null)
+            }}>
+              Cerrar
             </Button>
           </DialogFooter>
         </DialogContent>

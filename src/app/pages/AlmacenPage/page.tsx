@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X  } from "lucide-react"
+import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X } from "lucide-react"
 import {
   getVendedores,
   getCurrentUser,
@@ -1650,6 +1650,7 @@ export default function AlmacenPage() {
 
       {vendedorSeleccionado && (
         <VendorDialog
+          almacen={inventario} // Añadir esta línea
           vendor={vendedorSeleccionado}
           onClose={() => setVendedorSeleccionado(null)}
           onEdit={handleEditVendedor}
