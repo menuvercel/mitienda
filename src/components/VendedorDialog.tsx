@@ -123,7 +123,7 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
     });
 
     // Aplicar filtros
-    let filteredData = data
+    const filteredData = data
       .filter(item =>
         item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
       )
