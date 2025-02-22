@@ -37,7 +37,8 @@ import {
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
 import SalesSection from '@/components/SalesSection'
-import { Producto, Vendedor, Venta, Transaccion, Merma, Parametro, TransferProductParams } from '@/types'
+import { ImageUpload } from '@/components/ImageUpload'
+import { Producto, Vendedor, Venta, Transaccion, Merma, Parametro } from '@/types'
 import { toast } from "@/hooks/use-toast";
 
 
@@ -66,7 +67,7 @@ interface NewProduct {
   nombre: string;
   precio: number;
   cantidad: number;
-  foto: File | null;
+  foto: string;
   tieneParametros: boolean;
   parametros: Array<{
     nombre: string;
@@ -149,7 +150,7 @@ export default function AlmacenPage() {
     nombre: '',
     precio: 0,
     cantidad: 0,
-    foto: null,
+    foto: '',
     tieneParametros: false,
     parametros: []
   })
@@ -660,51 +661,51 @@ export default function AlmacenPage() {
 
   const handleAddProduct = async () => {
     try {
-      const formData = new FormData()
-      formData.append('nombre', newProduct.nombre)
-      formData.append('precio', newProduct.precio.toString())
+      const formData = new FormData();
+      formData.append('nombre', newProduct.nombre);
+      formData.append('precio', newProduct.precio.toString());
 
-      // Si tiene parámetros, enviamos los parámetros y su cantidad total
       if (newProduct.tieneParametros) {
-        formData.append('tieneParametros', 'true')
-        formData.append('parametros', JSON.stringify(newProduct.parametros))
-        // Calculamos la cantidad total sumando las cantidades de todos los parámetros
-        const cantidadTotal = newProduct.parametros.reduce((sum, param) => sum + param.cantidad, 0)
-        formData.append('cantidad', cantidadTotal.toString())
+        formData.append('tieneParametros', 'true');
+        formData.append('parametros', JSON.stringify(newProduct.parametros));
+        const cantidadTotal = newProduct.parametros.reduce((sum, param) => sum + param.cantidad, 0);
+        formData.append('cantidad', cantidadTotal.toString());
       } else {
-        formData.append('tieneParametros', 'false')
-        formData.append('cantidad', newProduct.cantidad.toString())
+        formData.append('tieneParametros', 'false');
+        formData.append('cantidad', newProduct.cantidad.toString());
       }
 
+      // Si hay una URL de imagen, la incluimos
       if (newProduct.foto) {
-        formData.append('foto', newProduct.foto)
+        formData.append('fotoUrl', newProduct.foto);
       }
 
-      await agregarProducto(formData)
-      setShowAddProductModal(false)
+      await agregarProducto(formData);
+      setShowAddProductModal(false);
       setNewProduct({
         nombre: '',
         precio: 0,
         cantidad: 0,
-        foto: null,
+        foto: '', // Ahora es string vacío
         tieneParametros: false,
         parametros: []
-      })
-      await fetchInventario()
+      });
+      await fetchInventario();
 
       toast({
         title: "Éxito",
         description: "Producto agregado correctamente",
-      })
+      });
     } catch (error) {
-      console.error('Error al agregar producto:', error)
+      console.error('Error al agregar producto:', error);
       toast({
         title: "Error",
         description: "Error al agregar el producto",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
+
 
 
   const handleProductDelivery = async (
@@ -731,34 +732,42 @@ export default function AlmacenPage() {
     }
   }
 
-
-  const handleEditProduct = async (editedProduct: Producto, foto: File | null) => {
+  // En AlmacenPage.tsx
+  const handleEditProduct = async (editedProduct: Producto, imageUrl: string | undefined) => {
     try {
-      const formData = new FormData()
-      formData.append('nombre', editedProduct.nombre)
-      formData.append('precio', editedProduct.precio.toString())
-      formData.append('cantidad', editedProduct.cantidad.toString())
-      formData.append('tiene_parametros', editedProduct.tiene_parametros.toString())
+      const formData = new FormData();
+      formData.append('nombre', editedProduct.nombre);
+      formData.append('precio', editedProduct.precio.toString());
+      formData.append('cantidad', editedProduct.cantidad.toString());
+      formData.append('tiene_parametros', editedProduct.tiene_parametros.toString());
 
-      // Agregar los parámetros si existen
       if (editedProduct.parametros) {
-        formData.append('parametros', JSON.stringify(editedProduct.parametros))
+        formData.append('parametros', JSON.stringify(editedProduct.parametros));
       }
 
-      if (foto) {
-        formData.append('foto', foto)
-      } else if (editedProduct.foto) {
-        formData.append('fotoUrl', editedProduct.foto)
+      // Asegúrate de enviar la URL de la imagen como `fotoUrl`
+      if (imageUrl) {
+        formData.append('fotoUrl', imageUrl);
+        console.log('FormData imagen:', imageUrl);
       }
 
-      await editarProducto(editedProduct.id, formData)
-      await fetchInventario()
-      setSelectedProduct(null)
+      await editarProducto(editedProduct.id, formData);
+      await fetchInventario();
+      setSelectedProduct(null);
+
+      toast({
+        title: "Éxito",
+        description: "Producto actualizado correctamente",
+      });
     } catch (error) {
-      console.error('Error editing product:', error)
-      alert('Error al editar el producto. Por favor, inténtelo de nuevo.')
+      console.error('Error al editar producto:', error);
+      toast({
+        title: "Error",
+        description: "Error al actualizar el producto",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
 
   const handleReduceVendorProduct = async (
@@ -1026,20 +1035,18 @@ export default function AlmacenPage() {
                       </div>
                     ) : (
                       Object.values(agruparMermas(mermas))
-                        // Filtrar por término de búsqueda
                         .filter((merma) =>
                           merma.producto.nombre.toLowerCase().includes(mermaSearchTerm.toLowerCase())
                         )
-                        // Ordenar según criterios seleccionados
                         .sort((a, b) => {
                           if (mermaSortBy === 'nombre') {
                             return mermaSortOrder === 'asc'
                               ? a.producto.nombre.localeCompare(b.producto.nombre)
-                              : b.producto.nombre.localeCompare(a.producto.nombre)
+                              : b.producto.nombre.localeCompare(a.producto.nombre);
                           } else {
                             return mermaSortOrder === 'asc'
                               ? a.cantidad - b.cantidad
-                              : b.cantidad - a.cantidad
+                              : b.cantidad - a.cantidad;
                           }
                         })
                         .map((merma) => {
@@ -1052,7 +1059,7 @@ export default function AlmacenPage() {
                               className="p-3 rounded-lg border bg-white hover:bg-gray-50 transition-all duration-200"
                             >
                               <div
-                                className={`flex items-center space-x-3 ${tieneParametros ? 'cursor-pointer' : ''}`}
+                                className={`flex items-center ${tieneParametros ? 'cursor-pointer' : ''}`}
                                 onClick={(e) => {
                                   if (tieneParametros) {
                                     e.preventDefault();
@@ -1060,12 +1067,12 @@ export default function AlmacenPage() {
                                   }
                                 }}
                               >
-                                <div className="w-12 h-12 relative">
+                                {/* Contenedor de la imagen */}
+                                <div className="w-12 h-12 flex-shrink-0 relative mr-4">
                                   <Image
                                     src={imageErrors[merma.producto.id] ? '/placeholder.svg' : (merma.producto.foto || '/placeholder.svg')}
                                     alt={merma.producto.nombre}
-                                    width={48}
-                                    height={48}
+                                    fill
                                     className="rounded-md object-cover"
                                     onError={() => {
                                       setImageErrors(prev => ({
@@ -1075,7 +1082,7 @@ export default function AlmacenPage() {
                                     }}
                                   />
                                 </div>
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <h3 className="font-medium text-base">{merma.producto.nombre}</h3>
                                   <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
                                     <div>
@@ -1170,12 +1177,12 @@ export default function AlmacenPage() {
                           className={`flex items-center p-3 rounded-lg border mb-2 bg-white hover:bg-gray-50 cursor-pointer ${activeProductTab === 'agotados' ? 'border-red-200 bg-red-50' : ''
                             }`}
                         >
-                          <div className="w-12 h-12 mr-3">
+                          {/* Contenedor de la imagen */}
+                          <div className="w-12 h-12 flex-shrink-0 relative mr-4">
                             <Image
                               src={imageErrors[producto.id] ? '/placeholder.svg' : (producto.foto || '/placeholder.svg')}
                               alt={producto.nombre}
-                              width={48}
-                              height={48}
+                              fill
                               className="rounded-md object-cover"
                               onError={() => {
                                 setImageErrors(prev => ({
@@ -1589,13 +1596,13 @@ export default function AlmacenPage() {
             )}
 
             <div>
-              <label htmlFor="foto" className="block text-sm font-medium text-gray-700">Foto del producto</label>
-              <Input
-                id="foto"
-                name="foto"
-                type="file"
-                onChange={handleProductInputChange}
-                accept="image/*"
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Foto del producto
+              </label>
+              <ImageUpload
+                value={newProduct.foto}
+                onChange={(url) => setNewProduct(prev => ({ ...prev, foto: url }))}
+                disabled={false}
               />
             </div>
           </div>

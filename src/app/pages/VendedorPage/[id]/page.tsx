@@ -775,23 +775,27 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
         onClick={handleCardClick}
         className="w-full cursor-pointer hover:bg-gray-100 transition-colors"
       >
-        <CardContent className="p-4 flex items-center space-x-4">
-          {producto.foto ? (
-            <OptimizedImage
-              src={producto.foto}
-              fallbackSrc="/placeholder.svg"
-              alt={producto.nombre}
-              width={50}
-              height={50}
-              className="object-cover rounded"
-            />
-          ) : (
-            <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
-              <span className="text-gray-500 text-xs">Sin imagen</span>
-            </div>
-          )}
-          <div>
-            <h3 className="font-semibold">{producto.nombre}</h3>
+        <CardContent className="p-4 flex items-center">
+          {/* Contenedor de la imagen */}
+          <div className="w-16 h-16 flex-shrink-0 relative mr-4">
+            {producto.foto ? (
+              <OptimizedImage
+                src={producto.foto}
+                fallbackSrc="/placeholder.svg"
+                alt={producto.nombre}
+                fill
+                className="object-cover rounded"
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-200 rounded flex items-center justify-center">
+                <span className="text-gray-500 text-xs">Sin imagen</span>
+              </div>
+            )}
+          </div>
+
+          {/* Contenido */}
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold truncate">{producto.nombre}</h3>
             <p className="text-sm text-gray-600">
               Precio: ${formatPrice(producto.precio)}
             </p>
@@ -1132,10 +1136,10 @@ export default function VendedorPage() {
 
   const handleParametrosSubmit = (parametros: ProductoParametro[]) => {
     if (!selectedProduct) return;
-  
+
     // Filtrar solo los parámetros con cantidad > 0
     const parametrosFiltrados = parametros.filter(param => param.cantidad > 0);
-  
+
     // Añadir el producto a productosConParametrosEnEspera
     setProductosConParametrosEnEspera(prev => [
       ...prev,
@@ -1145,15 +1149,15 @@ export default function VendedorPage() {
         parametrosVenta: parametrosFiltrados // Usar los parámetros filtrados
       }
     ]);
-  
+
     // Añadir el ID del producto a selectedProductIds
     setSelectedProductIds(prev => [...prev, selectedProduct.id]);
-  
+
     // Cerrar el diálogo de parámetros
     setParametrosDialogOpen(false);
     setSelectedProduct(null);
   };
-  
+
 
 
 

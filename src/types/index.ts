@@ -20,7 +20,7 @@ export interface Producto {
   nombre: string;
   precio: number;
   cantidad: number;
-  foto?: string;
+  foto: string;
   tiene_parametros: boolean;  // Propiedad del backend
   tieneParametros?: boolean;  // Propiedad del frontend
   parametros?: Parametro[] 

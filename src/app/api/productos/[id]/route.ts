@@ -29,56 +29,30 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         const { id } = params;
         const formData = await request.formData();
 
-
-            Array.from(formData.entries()).forEach(([key, value]) => {
-            });
-
-
         const nombre = formData.get('nombre') as string;
         const precio = formData.get('precio') as string;
         const cantidad = formData.get('cantidad') as string;
-        const foto = formData.get('foto') as File | null;
-        
-        // Cambiar aquí para aceptar ambas versiones del campo
-        const tieneParametros = 
-            formData.get('tiene_parametros') === 'true' || 
-            formData.get('tieneParametros') === 'true';
-            
+        const fotoUrl = formData.get('fotoUrl') as string | null; // Cambia esto para manejar `fotoUrl`
+        const tieneParametros = formData.get('tiene_parametros') === 'true';
         const parametrosRaw = formData.get('parametros') as string;
         const parametros = parametrosRaw ? JSON.parse(parametrosRaw) : [];
 
-
         const currentProduct = await query('SELECT * FROM productos WHERE id = $1', [id]);
-        
+
         if (currentProduct.rows.length === 0) {
             return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
         }
 
-        let fotoUrl = currentProduct.rows[0].foto;
-
-        if (foto && foto instanceof File) {
-            try {
-                console.log('Uploading new image:', foto.name);
-                const blob = await put(foto.name, foto, {
-                    access: 'public',
-                });
-                fotoUrl = blob.url;
-                console.log('New image uploaded successfully:', fotoUrl);
-            } catch (error) {
-                console.error('Error uploading image:', error);
-                return NextResponse.json({ error: 'Error al subir la imagen' }, { status: 500 });
-            }
-        }
+        // Si no se proporciona una nueva URL de imagen, usa la existente
+        const nuevaFotoUrl = fotoUrl || currentProduct.rows[0].foto;
 
         await query('BEGIN');
 
         try {
-
             const result = await query(
                 'UPDATE productos SET nombre = $1, precio = $2, cantidad = $3, foto = $4, tiene_parametros = $5 WHERE id = $6 RETURNING *',
-                [nombre, Number(precio), Number(cantidad), fotoUrl, tieneParametros, id]
+                [nombre, Number(precio), Number(cantidad), nuevaFotoUrl, tieneParametros, id]
             );
-
 
             await query('DELETE FROM producto_parametros WHERE producto_id = $1', [id]);
 
@@ -102,7 +76,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         }
     } catch (error) {
         console.error('Error updating product:', error);
-        return NextResponse.json({ 
+        return NextResponse.json({
             error: 'Error interno del servidor',
             details: (error as Error).message
         }, { status: 500 });
@@ -112,7 +86,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
     try {
         const { id } = params;
-        
+
         await query('BEGIN');
 
         try {
@@ -190,7 +164,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
             await query('COMMIT');
 
-            return NextResponse.json({ 
+            return NextResponse.json({
                 message: 'Producto eliminado exitosamente',
                 deletedProduct: producto.rows[0],
                 deletedData: {
@@ -214,9 +188,9 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     } catch (error) {
         console.error('Error in DELETE function:', error);
-        return NextResponse.json({ 
-            error: 'Error interno del servidor', 
-            details: (error as Error).message 
+        return NextResponse.json({
+            error: 'Error interno del servidor',
+            details: (error as Error).message
         }, { status: 500 });
     }
 }
