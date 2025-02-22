@@ -3,16 +3,33 @@ import sharp from 'sharp';
 import { cloudinary } from '@/lib/cloudinary';
 
 // Constantes de validación
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB para el archivo inicial
+const TARGET_FILE_SIZE = 1 * 1024 * 1024; // 1MB objetivo
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_DIMENSION = 2000;
 const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 600;
 
-// Nueva configuración de ruta para Next.js 14
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
+
+async function compressImage(buffer: Buffer, targetSize: number = TARGET_FILE_SIZE): Promise<Buffer> {
+  let quality = 80;
+  let processedBuffer = await sharp(buffer)
+    .webp({ quality })
+    .toBuffer();
+  
+  // Si el tamaño sigue siendo mayor a 1MB, reducir la calidad gradualmente
+  while (processedBuffer.length > targetSize && quality > 10) {
+    quality -= 5;
+    processedBuffer = await sharp(buffer)
+      .webp({ quality })
+      .toBuffer();
+  }
+
+  return processedBuffer;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,7 +52,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validar tamaño
+    // Validar tamaño inicial
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: 'El archivo excede el tamaño máximo permitido' },
@@ -45,37 +62,45 @@ export async function POST(request: NextRequest) {
 
     // Convertir a buffer
     const buffer = await file.arrayBuffer();
+    const imageBuffer = Buffer.from(buffer);
 
     // Obtener metadata de la imagen
-    const metadata = await sharp(Buffer.from(buffer)).metadata();
-
-    // Validar dimensiones si existen
-    if (metadata.width && metadata.height) {
-      if (metadata.width > MAX_DIMENSION || metadata.height > MAX_DIMENSION) {
-        return NextResponse.json(
-          { error: 'Las dimensiones de la imagen son demasiado grandes' },
-          { status: 400 }
-        );
-      }
-    }
+    const metadata = await sharp(imageBuffer).metadata();
 
     // Calcular dimensiones optimizadas
     let targetWidth = DEFAULT_WIDTH;
     let targetHeight = DEFAULT_HEIGHT;
 
     if (metadata.width && metadata.height) {
-      targetWidth = Math.min(metadata.width, DEFAULT_WIDTH);
-      targetHeight = Math.round((targetWidth * metadata.height) / metadata.width);
+      // Si la imagen es más grande que MAX_DIMENSION, la redimensionamos proporcionalmente
+      if (metadata.width > MAX_DIMENSION || metadata.height > MAX_DIMENSION) {
+        const aspectRatio = metadata.width / metadata.height;
+        if (metadata.width > metadata.height) {
+          targetWidth = MAX_DIMENSION;
+          targetHeight = Math.round(MAX_DIMENSION / aspectRatio);
+        } else {
+          targetHeight = MAX_DIMENSION;
+          targetWidth = Math.round(MAX_DIMENSION * aspectRatio);
+        }
+      } else {
+        // Si la imagen es más pequeña que DEFAULT_WIDTH, mantenemos sus dimensiones originales
+        targetWidth = Math.min(metadata.width, DEFAULT_WIDTH);
+        targetHeight = Math.round((targetWidth * metadata.height) / metadata.width);
+      }
     }
 
-    // Procesar imagen
-    const processedImageBuffer = await sharp(Buffer.from(buffer))
+    // Primero redimensionar
+    let processedImageBuffer = await sharp(imageBuffer)
       .resize(targetWidth, targetHeight, {
         fit: 'inside',
         withoutEnlargement: true
       })
-      .webp({ quality: 80 })
       .toBuffer();
+
+    // Luego comprimir si es necesario
+    if (processedImageBuffer.length > TARGET_FILE_SIZE) {
+      processedImageBuffer = await compressImage(processedImageBuffer);
+    }
 
     // Generar nombre único
     const uniqueFilename = `${Date.now()}-${file.name.replace(/\.[^/.]+$/, "")}`;
