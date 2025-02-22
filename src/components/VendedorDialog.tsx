@@ -50,6 +50,7 @@ interface ComparativeData {
   nombre: string;
   cantidadVendedor: number;
   cantidadAlmacen: number;
+  precio: number; // Añadimos el precio
 }
 
 
@@ -95,15 +96,28 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
   const [deleteConfirmDialogOpen, setDeleteConfirmDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showComparativeTable, setShowComparativeTable] = useState(false)
-  const [filterType, setFilterType] = useState<'all' | 'lessThan5' | 'outOfStock'>('all')
+  const [filterType, setFilterType] = useState<'all' | 'lessThan5' | 'outOfStock' | 'notInVendor'>('all');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
-  const [sortField, setSortField] = useState<keyof Pick<ComparativeData, 'cantidadVendedor' | 'cantidadAlmacen'> | null>(null);
+  const [sortField, setSortField] = useState<keyof Pick<ComparativeData, 'cantidadVendedor' | 'cantidadAlmacen' | 'precio'> | null>(null);
+
+
 
   const getComparativeData = useCallback((): ComparativeData[] => {
-    const data = productos.map(productoVendedor => {
-      const productoAlmacen = almacen.find(p => p.id === productoVendedor.id);
+    // Crear un array con todos los IDs únicos
+    const uniqueIds = Array.from(
+      new Set([
+        ...productos.map(p => p.id),
+        ...almacen.map(p => p.id)
+      ])
+    );
 
-      const getCantidadTotal = (producto: Producto) => {
+    // Mapear los IDs únicos a los datos de productos
+    const allProducts = uniqueIds.map(productId => {
+      const productoVendedor = productos.find(p => p.id === productId);
+      const productoAlmacen = almacen.find(p => p.id === productId);
+
+      const getCantidadTotal = (producto: Producto | undefined) => {
+        if (!producto) return 0;
         if (producto.parametros && producto.parametros.length > 0) {
           return producto.parametros
             .filter(param => param.cantidad > 0)
@@ -113,32 +127,35 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
       };
 
       const cantidadVendedor = getCantidadTotal(productoVendedor);
-      const cantidadAlmacen = productoAlmacen ? getCantidadTotal(productoAlmacen) : 0;
+      const cantidadAlmacen = getCantidadTotal(productoAlmacen);
 
       return {
-        nombre: productoVendedor.nombre,
+        nombre: productoAlmacen?.nombre || productoVendedor?.nombre || '',
         cantidadVendedor,
-        cantidadAlmacen
+        cantidadAlmacen,
+        precio: productoAlmacen?.precio || productoVendedor?.precio || 0
       };
     });
 
     // Aplicar filtros
-    const filteredData = data
+    const filteredData = allProducts
       .filter(item =>
         item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
       )
       .filter(item => {
         switch (filterType) {
           case 'lessThan5':
-            return item.cantidadVendedor < 5;
+            return item.cantidadVendedor < 5 && item.cantidadVendedor > 0;
           case 'outOfStock':
             return item.cantidadVendedor === 0;
+          case 'notInVendor':
+            return item.cantidadVendedor === 0 && item.cantidadAlmacen > 0;
           default:
             return true;
         }
       });
 
-    // Aplicar ordenamiento
+    // Ordenamiento
     if (sortField && sortDirection) {
       filteredData.sort((a, b) => {
         const compareValue = a[sortField] - b[sortField];
@@ -149,22 +166,22 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
     return filteredData;
   }, [productos, almacen, searchTerm, filterType, sortField, sortDirection]);
 
-  const handleComparativeSort = (field: 'cantidadVendedor' | 'cantidadAlmacen') => {
+
+
+  const handleComparativeSort = (field: 'cantidadVendedor' | 'cantidadAlmacen' | 'precio') => {
     if (sortField === field) {
-      // Si ya estamos ordenando por este campo, cambiamos la dirección
       if (sortDirection === 'asc') {
         setSortDirection('desc');
       } else if (sortDirection === 'desc') {
-        // Si ya está en desc, resetear el ordenamiento
         setSortField(null);
         setSortDirection(null);
       }
     } else {
-      // Si es un nuevo campo, comenzar con orden ascendente
       setSortField(field);
       setSortDirection('asc');
     }
   };
+
 
 
 
@@ -1548,47 +1565,48 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Barra de búsqueda */}
-            <div className="flex flex-col space-y-2">
+            <div className="flex gap-4 items-center">
               <Input
-                placeholder="Buscar productos..."
+                placeholder="Buscar producto..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
+                className="max-w-sm"
               />
+              <select
+                className="border rounded-md px-2 py-1"
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as 'all' | 'lessThan5' | 'outOfStock' | 'notInVendor')}
+              >
+                <option value="all">Todos los productos</option>
+                <option value="lessThan5">Menos de 5 unidades</option>
+                <option value="outOfStock">Sin existencias</option>
+                <option value="notInVendor">Solo en almacén</option>
+              </select>
             </div>
 
-            {/* Filtros */}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={filterType === 'all' ? "default" : "outline"}
-                onClick={() => setFilterType('all')}
-                size="sm"
-              >
-                Todos
-              </Button>
-              <Button
-                variant={filterType === 'lessThan5' ? "default" : "outline"}
-                onClick={() => setFilterType('lessThan5')}
-                size="sm"
-              >
-                Menos de 5
-              </Button>
-              <Button
-                variant={filterType === 'outOfStock' ? "default" : "outline"}
-                onClick={() => setFilterType('outOfStock')}
-                size="sm"
-              >
-                Sin existencias
-              </Button>
-            </div>
-
-            {/* Tabla */}
             <div className="max-h-[400px] overflow-y-auto border rounded-md">
               <Table>
                 <TableHeader className="sticky top-0 bg-white">
                   <TableRow>
+                    {/* Columna Producto */}
                     <TableHead>Producto</TableHead>
+
+                    {/* Columna Precio */}
+                    <TableHead
+                      className="text-right cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleComparativeSort('precio')}
+                    >
+                      <div className="flex items-center justify-end gap-2">
+                        Precio
+                        {sortField === 'precio' && (
+                          <span className="text-xs">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </TableHead>
+
+                    {/* Columna Cantidad Vendedor */}
                     <TableHead
                       className="text-right cursor-pointer hover:bg-gray-50"
                       onClick={() => handleComparativeSort('cantidadVendedor')}
@@ -1602,6 +1620,8 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                         )}
                       </div>
                     </TableHead>
+
+                    {/* Columna Cantidad Almacén */}
                     <TableHead
                       className="text-right cursor-pointer hover:bg-gray-50"
                       onClick={() => handleComparativeSort('cantidadAlmacen')}
@@ -1620,14 +1640,21 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                 <TableBody>
                   {getComparativeData().length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center py-4 text-gray-500">
-                        No se encontraron productos
+                      <TableCell colSpan={4} className="text-center py-4 text-gray-500">
+                        {filterType === 'notInVendor'
+                          ? 'No hay productos que estén solo en almacén'
+                          : filterType === 'lessThan5'
+                            ? 'No hay productos con menos de 5 unidades'
+                            : filterType === 'outOfStock'
+                              ? 'No hay productos sin existencias'
+                              : 'No se encontraron productos'}
                       </TableCell>
                     </TableRow>
                   ) : (
                     getComparativeData().map((item, index) => (
                       <TableRow key={index}>
                         <TableCell>{item.nombre}</TableCell>
+                        <TableCell className="text-right">${formatPrice(item.precio)}</TableCell>
                         <TableCell
                           className={`text-right ${item.cantidadVendedor === 0
                             ? 'text-red-500'
@@ -1660,6 +1687,8 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+
     </Dialog>
   )
 }
