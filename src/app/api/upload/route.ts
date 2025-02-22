@@ -9,6 +9,11 @@ const MAX_DIMENSION = 2000;
 const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 600;
 
+// Nueva configuración de ruta para Next.js 14
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -136,10 +141,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-export const config = {
-  api: {
-    bodyParser: false,
-    maxDuration: 30,
-  },
-};
