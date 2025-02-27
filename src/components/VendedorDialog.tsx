@@ -47,11 +47,16 @@ interface VendorDialogProps {
 }
 
 interface ComparativeData {
+  id: string;
   nombre: string;
   cantidadVendedor: number;
   cantidadAlmacen: number;
-  precio: number; // Añadimos el precio
+  precio: number;
+  parametrosVendedor?: Array<{ nombre: string; cantidad: number }>;
+  parametrosAlmacen?: Array<{ nombre: string; cantidad: number }>;
+  tieneParametros: boolean;
 }
+
 
 
 interface VentaSemana {
@@ -99,15 +104,31 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
   const [filterType, setFilterType] = useState<'all' | 'lessThan5' | 'outOfStock' | 'notInVendor'>('all');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
   const [sortField, setSortField] = useState<keyof Pick<ComparativeData, 'cantidadVendedor' | 'cantidadAlmacen' | 'precio'> | null>(null);
+  const [expandedComparativeProducts, setExpandedComparativeProducts] = useState<Record<string, boolean>>({});
 
 
 
   const getComparativeData = useCallback((): ComparativeData[] => {
-    // Crear un array con todos los IDs únicos
+    // Función de utilidad para validar parámetros
+    const validarParametro = (parametro: any) => {
+      // Verificar que el parámetro sea un objeto válido
+      if (!parametro || typeof parametro !== 'object') return false;
+
+      // Verificar que tenga un nombre válido (no solo números)
+      if (!parametro.nombre || typeof parametro.nombre !== 'string') return false;
+      if (/^\d+$/.test(parametro.nombre)) return false;
+
+      // Verificar que la cantidad sea un número
+      if (isNaN(parametro.cantidad)) return false;
+
+      return true;
+    };
+
+    // Crear un array con todos los IDs únicos (con validación)
     const uniqueIds = Array.from(
       new Set([
-        ...productos.map(p => p.id),
-        ...almacen.map(p => p.id)
+        ...productos.filter(p => p && p.id).map(p => p.id),
+        ...almacen.filter(p => p && p.id).map(p => p.id)
       ])
     );
 
@@ -116,24 +137,45 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
       const productoVendedor = productos.find(p => p.id === productId);
       const productoAlmacen = almacen.find(p => p.id === productId);
 
-      const getCantidadTotal = (producto: Producto | undefined) => {
+      // Filtrar y validar parámetros del vendedor
+      const parametrosVendedor = productoVendedor?.parametros
+        ? productoVendedor.parametros
+          .filter(validarParametro)
+          .map(param => ({ ...param }))
+        : [];
+
+      // Filtrar y validar parámetros del almacén
+      const parametrosAlmacen = productoAlmacen?.parametros
+        ? productoAlmacen.parametros
+          .filter(validarParametro)
+          .map(param => ({ ...param }))
+        : [];
+
+      const getCantidadTotal = (producto: Producto | undefined, parametros: Array<{ nombre: string; cantidad: number }>) => {
         if (!producto) return 0;
-        if (producto.parametros && producto.parametros.length > 0) {
-          return producto.parametros
+        if (parametros && parametros.length > 0) {
+          return parametros
             .filter(param => param.cantidad > 0)
             .reduce((total, param) => total + (param.cantidad || 0), 0);
         }
         return producto.cantidad;
       };
 
-      const cantidadVendedor = getCantidadTotal(productoVendedor);
-      const cantidadAlmacen = getCantidadTotal(productoAlmacen);
+      const cantidadVendedor = getCantidadTotal(productoVendedor, parametrosVendedor);
+      const cantidadAlmacen = getCantidadTotal(productoAlmacen, parametrosAlmacen);
+
+      // Verificar si tiene parámetros válidos
+      const tieneParametros = parametrosVendedor.length > 0 || parametrosAlmacen.length > 0;
 
       return {
+        id: productId,
         nombre: productoAlmacen?.nombre || productoVendedor?.nombre || '',
         cantidadVendedor,
         cantidadAlmacen,
-        precio: productoAlmacen?.precio || productoVendedor?.precio || 0
+        precio: productoAlmacen?.precio || productoVendedor?.precio || 0,
+        parametrosVendedor,
+        parametrosAlmacen,
+        tieneParametros
       };
     });
 
@@ -165,6 +207,8 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
 
     return filteredData;
   }, [productos, almacen, searchTerm, filterType, sortField, sortDirection]);
+
+
 
 
 
@@ -1653,26 +1697,99 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                           </td>
                         </tr>
                       ) : (
-                        getComparativeData().map((item, index) => (
-                          <tr key={index} className="border-b last:border-b-0 hover:bg-gray-50">
-                            <td className="p-2 text-sm break-words">{item.nombre}</td>
-                            <td className="p-2 text-right text-sm whitespace-nowrap">${formatPrice(item.precio)}</td>
-                            <td
-                              className={`p-2 text-right text-sm ${item.cantidadVendedor === 0
+                        getComparativeData().map((item) => (
+                          <React.Fragment key={item.id}>
+                            <tr
+                              className={`border-b hover:bg-gray-50 ${item.tieneParametros ? 'cursor-pointer' : ''}`}
+                              onClick={() => {
+                                if (item.tieneParametros) {
+                                  setExpandedComparativeProducts(prev => ({
+                                    ...prev,
+                                    [item.id]: !prev[item.id]
+                                  }));
+                                }
+                              }}
+                            >
+                              <td className="p-2 text-sm break-words">
+                                <div className="flex items-center">
+                                  {item.nombre}
+                                  {item.tieneParametros && (
+                                    <ChevronDown
+                                      className={`ml-2 h-4 w-4 transition-transform ${expandedComparativeProducts[item.id] ? 'rotate-180' : ''
+                                        }`}
+                                    />
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-2 text-right text-sm whitespace-nowrap">${formatPrice(item.precio)}</td>
+                              <td
+                                className={`p-2 text-right text-sm ${item.cantidadVendedor === 0
                                   ? 'text-red-500'
                                   : item.cantidadVendedor < 5
                                     ? 'text-yellow-600'
                                     : ''
-                                }`}
-                            >
-                              {item.cantidadVendedor}
-                            </td>
-                            <td className="p-2 text-right text-sm">{item.cantidadAlmacen}</td>
-                          </tr>
+                                  }`}
+                              >
+                                {item.cantidadVendedor}
+                              </td>
+                              <td className="p-2 text-right text-sm">{item.cantidadAlmacen}</td>
+                            </tr>
+
+                            {/* Fila expandible para parámetros */}
+                            {item.tieneParametros && expandedComparativeProducts[item.id] && (
+                              <tr className="bg-gray-50">
+                                <td colSpan={4} className="p-0">
+                                  <div className="p-2 pl-6 border-b">
+                                    <div className="grid grid-cols-1 gap-2">
+                                      <div className="text-xs font-semibold mb-1">Parámetros:</div>
+
+                                      <div className="overflow-x-auto">
+                                        <table className="w-full text-xs border-separate border-spacing-0">
+                                          <thead className="bg-gray-100">
+                                            <tr>
+                                              <th className="p-1 text-left">Parámetro</th>
+                                              <th className="p-1 text-right">Vendedor</th>
+                                              <th className="p-1 text-right">Almacén</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {/* Unir todos los parámetros de vendedor y almacén */}
+                                            {Array.from(new Set([
+                                              ...(item.parametrosVendedor || []).map(p => p.nombre),
+                                              ...(item.parametrosAlmacen || []).map(p => p.nombre)
+                                            ])).map((nombreParametro, idx) => {
+                                              const paramVendedor = (item.parametrosVendedor || []).find(p => p.nombre === nombreParametro);
+                                              const paramAlmacen = (item.parametrosAlmacen || []).find(p => p.nombre === nombreParametro);
+
+                                              return (
+                                                <tr key={idx} className="hover:bg-gray-100">
+                                                  <td className="p-1">{nombreParametro}</td>
+                                                  <td className={`p-1 text-right ${(paramVendedor?.cantidad || 0) === 0
+                                                    ? 'text-red-500'
+                                                    : (paramVendedor?.cantidad || 0) < 5
+                                                      ? 'text-yellow-600'
+                                                      : ''
+                                                    }`}>
+                                                    {paramVendedor?.cantidad || 0}
+                                                  </td>
+                                                  <td className="p-1 text-right">{paramAlmacen?.cantidad || 0}</td>
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         ))
                       )}
                     </tbody>
                   </table>
+
                 </div>
               </div>
             </div>
