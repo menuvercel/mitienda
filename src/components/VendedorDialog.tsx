@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -1559,41 +1559,43 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
         </DialogContent>
       </Dialog>
       <Dialog open={showComparativeTable} onOpenChange={setShowComparativeTable}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl mx-auto">
           <DialogHeader>
-            <DialogTitle>Comparativa con Almacén</DialogTitle>
+            <DialogTitle className="text-center">Comparativa con Almacén</DialogTitle>
+            <DialogDescription className="sr-only">
+              Tabla comparativa de productos entre vendedor y almacén
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="flex gap-4 items-center">
+          <div className="flex flex-col gap-4 w-full">
+            {/* Controles de búsqueda y filtro */}
+            <div className="flex flex-col sm:flex-row justify-between gap-4 w-full">
               <Input
                 placeholder="Buscar producto..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
+                className="w-full sm:max-w-[250px]"
               />
               <select
-                className="border rounded-md px-2 py-1"
+                className="border rounded-md px-2 py-1 w-full sm:w-auto"
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value as 'all' | 'lessThan5' | 'outOfStock' | 'notInVendor')}
               >
                 <option value="all">Todos los productos</option>
                 <option value="lessThan5">Menos de 5 unidades</option>
                 <option value="outOfStock">Sin existencias</option>
-                <option value="notInVendor">Solo en almacén</option>
+                <option value="notInVendor">No disponible en vendedor</option>
               </select>
             </div>
 
-            <div className="max-h-[400px] overflow-y-auto border rounded-md">
+            {/* Tabla */}
+            <div className="w-full border rounded-md overflow-hidden max-h-[400px] overflow-y-auto">
               <Table>
                 <TableHeader className="sticky top-0 bg-white">
                   <TableRow>
-                    {/* Columna Producto */}
-                    <TableHead>Producto</TableHead>
-
-                    {/* Columna Precio */}
+                    <TableHead className="w-[40%]">Producto</TableHead>
                     <TableHead
-                      className="text-right cursor-pointer hover:bg-gray-50"
+                      className="text-right w-[20%] cursor-pointer hover:bg-gray-50"
                       onClick={() => handleComparativeSort('precio')}
                     >
                       <div className="flex items-center justify-end gap-2">
@@ -1605,10 +1607,8 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                         )}
                       </div>
                     </TableHead>
-
-                    {/* Columna Cantidad Vendedor */}
                     <TableHead
-                      className="text-right cursor-pointer hover:bg-gray-50"
+                      className="text-right w-[20%] cursor-pointer hover:bg-gray-50"
                       onClick={() => handleComparativeSort('cantidadVendedor')}
                     >
                       <div className="flex items-center justify-end gap-2">
@@ -1620,10 +1620,8 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                         )}
                       </div>
                     </TableHead>
-
-                    {/* Columna Cantidad Almacén */}
                     <TableHead
-                      className="text-right cursor-pointer hover:bg-gray-50"
+                      className="text-right w-[20%] cursor-pointer hover:bg-gray-50"
                       onClick={() => handleComparativeSort('cantidadAlmacen')}
                     >
                       <div className="flex items-center justify-end gap-2">
@@ -1641,13 +1639,15 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                   {getComparativeData().length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-4 text-gray-500">
-                        {filterType === 'notInVendor'
-                          ? 'No hay productos que estén solo en almacén'
+                        {filterType === 'all' && searchTerm
+                          ? 'No se encontraron productos que coincidan con la búsqueda.'
                           : filterType === 'lessThan5'
-                            ? 'No hay productos con menos de 5 unidades'
+                            ? 'No hay productos con menos de 5 unidades.'
                             : filterType === 'outOfStock'
-                              ? 'No hay productos sin existencias'
-                              : 'No se encontraron productos'}
+                              ? 'No hay productos sin existencias.'
+                              : filterType === 'notInVendor'
+                                ? 'No hay productos que no estén disponibles en el vendedor.'
+                                : 'No hay productos disponibles.'}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -1657,10 +1657,10 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                         <TableCell className="text-right">${formatPrice(item.precio)}</TableCell>
                         <TableCell
                           className={`text-right ${item.cantidadVendedor === 0
-                            ? 'text-red-500'
-                            : item.cantidadVendedor < 5
-                              ? 'text-yellow-600'
-                              : ''
+                              ? 'text-red-500'
+                              : item.cantidadVendedor < 5
+                                ? 'text-yellow-600'
+                                : ''
                             }`}
                         >
                           {item.cantidadVendedor}
@@ -1672,21 +1672,24 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                 </TableBody>
               </Table>
             </div>
-          </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setShowComparativeTable(false)
-              setSearchTerm('')
-              setFilterType('all')
-              setSortField(null)
-              setSortDirection(null)
-            }}>
+            {/* Botón de cerrar */}
+            <Button
+              variant="outline"
+              onClick={() => setShowComparativeTable(false)}
+              className="mx-auto w-full sm:w-auto"
+            >
               Cerrar
             </Button>
-          </DialogFooter>
+          </div>
+
+          <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+            <X className="h-4 w-4" />
+            <span className="sr-only">Cerrar</span>
+          </DialogClose>
         </DialogContent>
       </Dialog>
+
 
 
     </Dialog>
