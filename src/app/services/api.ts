@@ -166,6 +166,7 @@ export const agregarProducto = async (formData: FormData) => {
       }
     }
 
+    // No es necesario modificar esta parte, ya que formData ya incluirá el campo "precioCompra"
     const response = await api.post('/productos', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -180,8 +181,10 @@ export const agregarProducto = async (formData: FormData) => {
 
 
 
+
 export const editarProducto = async (id: string, formData: FormData) => {
   try {
+    // Procesar los parámetros como ya lo estás haciendo
     const parametrosRaw = formData.get('parametros');
     if (parametrosRaw) {
       try {
@@ -203,6 +206,13 @@ export const editarProducto = async (id: string, formData: FormData) => {
       }
     }
 
+    // Para depuración - verificar si precio_compra está en el FormData
+    console.log('FormData antes de enviar:', {
+      precio_compra: formData.get('precio_compra'),
+      nombre: formData.get('nombre'),
+      precio: formData.get('precio')
+    });
+
     const response = await api.put(`/productos/${id}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -214,6 +224,7 @@ export const editarProducto = async (id: string, formData: FormData) => {
     throw new Error('Error al editar el producto');
   }
 };
+
 
 
 

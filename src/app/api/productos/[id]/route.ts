@@ -5,7 +5,7 @@ import { put } from '@vercel/blob';
 const obtenerProductoConParametros = async (productoId: string) => {
     const result = await query(`
         SELECT 
-            p.*,
+            p.*,  -- Esto ya incluirá precio_compra si existe en la tabla
             COALESCE(
                 json_agg(
                     json_build_object(
@@ -24,6 +24,7 @@ const obtenerProductoConParametros = async (productoId: string) => {
     return result.rows[0];
 };
 
+
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
     try {
         const { id } = params;
@@ -32,10 +33,24 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         const nombre = formData.get('nombre') as string;
         const precio = formData.get('precio') as string;
         const cantidad = formData.get('cantidad') as string;
-        const fotoUrl = formData.get('fotoUrl') as string | null; // Cambia esto para manejar `fotoUrl`
+        const fotoUrl = formData.get('fotoUrl') as string | null;
         const tieneParametros = formData.get('tiene_parametros') === 'true';
         const parametrosRaw = formData.get('parametros') as string;
         const parametros = parametrosRaw ? JSON.parse(parametrosRaw) : [];
+
+        // Extraer el precio_compra del FormData
+        const precioCompra = formData.get('precio_compra') as string;
+
+        // Log para depuración
+        console.log('Datos recibidos en el endpoint PUT:', {
+            id,
+            nombre,
+            precio,
+            precio_compra: precioCompra,
+            cantidad,
+            tieneParametros,
+            parametros: parametros.length
+        });
 
         const currentProduct = await query('SELECT * FROM productos WHERE id = $1', [id]);
 
@@ -49,12 +64,21 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         await query('BEGIN');
 
         try {
-            // 1. Actualizar el producto principal
+            // 1. Actualizar el producto principal - INCLUIR precio_compra
             const result = await query(
-                'UPDATE productos SET nombre = $1, precio = $2, cantidad = $3, foto = $4, tiene_parametros = $5 WHERE id = $6 RETURNING *',
-                [nombre, Number(precio), Number(cantidad), nuevaFotoUrl, tieneParametros, id]
+                'UPDATE productos SET nombre = $1, precio = $2, cantidad = $3, foto = $4, tiene_parametros = $5, precio_compra = $6 WHERE id = $7 RETURNING *',
+                [
+                    nombre,
+                    Number(precio),
+                    Number(cantidad),
+                    nuevaFotoUrl,
+                    tieneParametros,
+                    precioCompra ? Number(precioCompra) : currentProduct.rows[0].precio_compra || 0, // Usar el valor existente si no se proporciona uno nuevo
+                    id
+                ]
             );
 
+            // El resto de tu código permanece igual
             // 2. Eliminar parámetros antiguos del producto principal
             await query('DELETE FROM producto_parametros WHERE producto_id = $1', [id]);
 
@@ -73,7 +97,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                 'SELECT usuario_id FROM usuario_productos WHERE producto_id = $1',
                 [id]
             );
-            
+
             // 5. Para cada vendedor, actualizar sus parámetros
             for (const vendedor of vendedoresConProducto.rows) {
                 // 5.1 Eliminar parámetros antiguos del vendedor
@@ -81,7 +105,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                     'DELETE FROM usuario_producto_parametros WHERE producto_id = $1 AND usuario_id = $2',
                     [id, vendedor.usuario_id]
                 );
-                
+
                 // 5.2 Insertar nuevos parámetros para el vendedor
                 if (tieneParametros && parametros.length > 0) {
                     for (const param of parametros) {
@@ -110,6 +134,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         }, { status: 500 });
     }
 }
+
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
     try {

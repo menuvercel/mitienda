@@ -66,6 +66,7 @@ interface NewUser {
 interface NewProduct {
   nombre: string;
   precio: number;
+  precioCompra: number;
   cantidad: number;
   foto: string;
   tieneParametros: boolean;
@@ -149,6 +150,7 @@ export default function AlmacenPage() {
   const [newProduct, setNewProduct] = useState<NewProduct>({
     nombre: '',
     precio: 0,
+    precioCompra: 0, // Nuevo campo inicializado
     cantidad: 0,
     foto: '',
     tieneParametros: false,
@@ -664,6 +666,7 @@ export default function AlmacenPage() {
       const formData = new FormData();
       formData.append('nombre', newProduct.nombre);
       formData.append('precio', newProduct.precio.toString());
+      formData.append('precioCompra', newProduct.precioCompra.toString()); // Nuevo campo agregado
 
       if (newProduct.tieneParametros) {
         formData.append('tieneParametros', 'true');
@@ -685,8 +688,9 @@ export default function AlmacenPage() {
       setNewProduct({
         nombre: '',
         precio: 0,
+        precioCompra: 0, // Reiniciar el nuevo campo
         cantidad: 0,
-        foto: '', // Ahora es string vacío
+        foto: '',
         tieneParametros: false,
         parametros: []
       });
@@ -705,6 +709,7 @@ export default function AlmacenPage() {
       });
     }
   };
+
 
 
 
@@ -741,11 +746,16 @@ export default function AlmacenPage() {
       formData.append('cantidad', editedProduct.cantidad.toString());
       formData.append('tiene_parametros', editedProduct.tiene_parametros.toString());
 
+      // Añadir explícitamente el precio_compra
+      formData.append('precio_compra', (editedProduct.precio_compra || 0).toString());
+
+      // Log para depuración
+      console.log('Precio de compra a enviar:', editedProduct.precio_compra);
+
       if (editedProduct.parametros) {
         formData.append('parametros', JSON.stringify(editedProduct.parametros));
       }
 
-      // Asegúrate de enviar la URL de la imagen como `fotoUrl`
       if (imageUrl) {
         formData.append('fotoUrl', imageUrl);
         console.log('FormData imagen:', imageUrl);
@@ -768,6 +778,8 @@ export default function AlmacenPage() {
       });
     }
   };
+
+
 
 
   const handleReduceVendorProduct = async (
@@ -1510,6 +1522,18 @@ export default function AlmacenPage() {
                 value={newProduct.precio}
                 onChange={handleProductInputChange}
                 placeholder="Precio del producto"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="precioCompra" className="block text-sm font-medium text-gray-700">Precio de Compra</label>
+              <Input
+                id="precioCompra"
+                name="precioCompra"
+                type="number"
+                value={newProduct.precioCompra}
+                onChange={handleProductInputChange}
+                placeholder="Precio de compra del producto"
               />
             </div>
 

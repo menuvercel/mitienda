@@ -19,6 +19,7 @@ export interface Producto {
   id: string;
   nombre: string;
   precio: number;
+  precio_compra?: number;
   cantidad: number;
   foto: string;
   tiene_parametros: boolean;  // Propiedad del backend

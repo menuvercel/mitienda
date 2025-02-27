@@ -26,18 +26,18 @@ const obtenerProductoConParametros = async (productoId: string) => {
 
 export async function POST(request: NextRequest) {
     try {
-  
         const formData = await request.formData();
         const nombre = formData.get('nombre') as string;
         const precio = formData.get('precio') as string;
+        const precioCompra = formData.get('precioCompra') as string; // Nuevo campo
         const cantidad = formData.get('cantidad') as string;
         const foto = formData.get('foto') as File | null;
         const tieneParametros = formData.get('tieneParametros') === 'true';
         const parametrosRaw = formData.get('parametros') as string;
         const parametros = parametrosRaw ? JSON.parse(parametrosRaw) : [];
-  
+
         let fotoUrl = '';
-  
+
         if (foto && foto instanceof File) {
             try {
                 console.log('Uploading image:', foto.name);
@@ -55,9 +55,10 @@ export async function POST(request: NextRequest) {
         await query('BEGIN');
 
         try {
+            // Actualizar la consulta SQL para incluir el campo precio_compra
             const result = await query(
-                'INSERT INTO productos (nombre, precio, cantidad, foto, tiene_parametros) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-                [nombre, Number(precio), Number(cantidad), fotoUrl, tieneParametros]
+                'INSERT INTO productos (nombre, precio, precio_compra, cantidad, foto, tiene_parametros) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+                [nombre, Number(precio), Number(precioCompra), Number(cantidad), fotoUrl, tieneParametros]
             );
 
             const productoId = result.rows[0].id;
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
             }
 
             await query('COMMIT');
-            
+
             const productoCompleto = await obtenerProductoConParametros(productoId);
             return NextResponse.json(productoCompleto);
         } catch (error) {
@@ -85,9 +86,10 @@ export async function POST(request: NextRequest) {
     }
 }
 
+
 export async function GET(request: NextRequest) {
     try {
-  
+
         const result = await query(`
             SELECT 
                 p.*,
@@ -104,8 +106,8 @@ export async function GET(request: NextRequest) {
             LEFT JOIN producto_parametros pp ON p.id = pp.producto_id
             GROUP BY p.id
         `);
-  
-  
+
+
         return NextResponse.json(result.rows);
     } catch (error) {
         console.error('Error fetching products:', error);

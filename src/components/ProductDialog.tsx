@@ -42,6 +42,7 @@ export default function ProductDialog({
     tiene_parametros: product.tiene_parametros,
     parametros: product.parametros || [],
     foto: product.foto || '',
+    precio_compra: product.precio_compra || 0, // Aseguramos que precio_compra tenga un valor
   });
 
   const [selectedVendedor, setSelectedVendedor] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export default function ProductDialog({
   const [simpleDeliveryQuantity, setSimpleDeliveryQuantity] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
 
-  
+
 
   // Efecto para sincronizar el estado con el producto recibido
   useEffect(() => {
@@ -61,6 +62,7 @@ export default function ProductDialog({
       tiene_parametros: product.tiene_parametros,
       parametros: product.parametros || [],
       foto: product.foto || '',
+      precio_compra: product.precio_compra || 0, // Aseguramos que precio_compra tenga un valor
     });
     setImageUrl(product.foto || '');
   }, [product]);
@@ -88,7 +90,7 @@ export default function ProductDialog({
     const { name, value } = e.target;
     setEditedProduct((prev) => ({
       ...prev,
-      [name]: name === 'precio' || name === 'cantidad' ? Number(value) : value,
+      [name]: name === 'precio' || name === 'precio_compra' || name === 'cantidad' ? Number(value) : value,
     }));
   }, []);
 
@@ -152,8 +154,10 @@ export default function ProductDialog({
         tiene_parametros: editedProduct.tieneParametros || false,
         tieneParametros: editedProduct.tieneParametros || false,
         parametros: editedProduct.tieneParametros ? editedProduct.parametros : [],
+        precio_compra: editedProduct.precio_compra || 0, // Aseguramos que se incluya el precio_compra
       };
 
+      console.log('Producto a guardar:', updatedProduct); // Agrega este log para verificar
       await onEdit(updatedProduct, imageUrl);
       setMode('view');
       toast({
@@ -170,6 +174,7 @@ export default function ProductDialog({
       });
     }
   };
+
 
   // Manejo de la entrega del producto
   const handleDeliver = async () => {
@@ -367,13 +372,24 @@ const EditMode = ({
       </div>
 
       <div>
-        <Label>Precio</Label>
+        <Label>Precio de venta</Label>
         <Input
           name="precio"
           type="number"
           value={editedProduct.precio}
           onChange={onInputChange}
-          placeholder="Precio"
+          placeholder="Precio de venta"
+        />
+      </div>
+
+      <div>
+        <Label>Precio de compra</Label>
+        <Input
+          name="precio_compra"
+          type="number"
+          value={editedProduct.precio_compra || 0}
+          onChange={onInputChange}
+          placeholder="Precio de compra"
         />
       </div>
 
@@ -515,8 +531,8 @@ const DeliverMode = ({
             <span className="font-medium">Total: </span>
             <span
               className={`${(product.tiene_parametros ? totalDeliveryQuantity : simpleDeliveryQuantity) > getTotalCantidad()
-                  ? 'text-red-500'
-                  : 'text-green-600'
+                ? 'text-red-500'
+                : 'text-green-600'
                 }`}
             >
               {product.tiene_parametros ? totalDeliveryQuantity : simpleDeliveryQuantity}
@@ -615,7 +631,8 @@ const ViewMode = ({
   <>
     <div className="space-y-4">
       <div className="space-y-2">
-        <p className="text-lg font-medium">Precio: ${product.precio}</p>
+        <p className="text-lg font-medium">Precio de venta: ${product.precio}</p>
+        <p className="text-md text-gray-700">Precio de compra: ${product.precio_compra || 0}</p>
 
         {(product.tiene_parametros || product.tieneParametros) && product.parametros && product.parametros.length > 0 ? (
           <div className="space-y-2">
