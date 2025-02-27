@@ -2,10 +2,29 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { put } from '@vercel/blob';
 
+// Definir interfaces para mejorar el tipado
+interface Parametro {
+    nombre: string;
+    cantidad: number;
+}
+
+interface ParametroAntiguo {
+    nombre: string;
+}
+
+interface UsuarioProducto {
+    usuario_id: string;
+}
+
+interface ParametroVendedor {
+    nombre: string;
+    cantidad: number;
+}
+
 const obtenerProductoConParametros = async (productoId: string) => {
     const result = await query(`
         SELECT 
-            p.*,  -- Esto ya incluirá precio_compra si existe en la tabla
+            p.*,
             COALESCE(
                 json_agg(
                     json_build_object(
@@ -24,7 +43,6 @@ const obtenerProductoConParametros = async (productoId: string) => {
     return result.rows[0];
 };
 
-
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
     try {
         const { id } = params;
@@ -36,7 +54,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         const fotoUrl = formData.get('fotoUrl') as string | null;
         const tieneParametros = formData.get('tiene_parametros') === 'true';
         const parametrosRaw = formData.get('parametros') as string;
-        const parametros = parametrosRaw ? JSON.parse(parametrosRaw) : [];
+        const parametros: Parametro[] = parametrosRaw ? JSON.parse(parametrosRaw) : [];
 
         // Extraer el precio_compra del FormData
         const precioCompra = formData.get('precio_compra') as string;
@@ -73,16 +91,37 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                     Number(cantidad),
                     nuevaFotoUrl,
                     tieneParametros,
-                    precioCompra ? Number(precioCompra) : currentProduct.rows[0].precio_compra || 0, // Usar el valor existente si no se proporciona uno nuevo
+                    precioCompra ? Number(precioCompra) : currentProduct.rows[0].precio_compra || 0,
                     id
                 ]
             );
 
-            // El resto de tu código permanece igual
-            // 2. Eliminar parámetros antiguos del producto principal
+            // 2. Obtener los parámetros antiguos del producto principal para mapeo
+            const parametrosAntiguosResult = await query(
+                'SELECT nombre FROM producto_parametros WHERE producto_id = $1',
+                [id]
+            );
+            
+            // Convertir explícitamente los resultados al tipo deseado
+            const parametrosAntiguos: ParametroAntiguo[] = parametrosAntiguosResult.rows.map(row => ({
+                nombre: row.nombre as string
+            }));
+            
+            // Crear un mapa para relacionar índices de parámetros antiguos con nuevos
+            const mapeoParametros: Record<string, string> = {};
+            if (parametrosAntiguos.length > 0 && parametros.length > 0) {
+                // Mapear por posición si tienen la misma longitud
+                if (parametrosAntiguos.length === parametros.length) {
+                    for (let i = 0; i < parametrosAntiguos.length; i++) {
+                        mapeoParametros[parametrosAntiguos[i].nombre] = parametros[i].nombre;
+                    }
+                }
+            }
+
+            // 3. Eliminar parámetros antiguos del producto principal
             await query('DELETE FROM producto_parametros WHERE producto_id = $1', [id]);
 
-            // 3. Insertar nuevos parámetros para el producto principal
+            // 4. Insertar nuevos parámetros para el producto principal
             if (tieneParametros && parametros.length > 0) {
                 for (const param of parametros) {
                     await query(
@@ -92,26 +131,65 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                 }
             }
 
-            // 4. Obtener todos los vendedores que tienen este producto
-            const vendedoresConProducto = await query(
+            // 5. Obtener todos los vendedores que tienen este producto
+            const vendedoresConProductoResult = await query(
                 'SELECT usuario_id FROM usuario_productos WHERE producto_id = $1',
                 [id]
             );
+            
+            // Convertir explícitamente los resultados al tipo deseado
+            const vendedoresConProducto: UsuarioProducto[] = vendedoresConProductoResult.rows.map(row => ({
+                usuario_id: row.usuario_id as string
+            }));
 
-            // 5. Para cada vendedor, actualizar sus parámetros
-            for (const vendedor of vendedoresConProducto.rows) {
-                // 5.1 Eliminar parámetros antiguos del vendedor
+            // 6. Para cada vendedor, actualizar sus parámetros
+            for (const vendedor of vendedoresConProducto) {
+                // 6.1 Obtener los parámetros actuales del vendedor con sus cantidades
+                const parametrosVendedorResult = await query(
+                    'SELECT nombre, cantidad FROM usuario_producto_parametros WHERE producto_id = $1 AND usuario_id = $2',
+                    [id, vendedor.usuario_id]
+                );
+                
+                // Convertir explícitamente los resultados al tipo deseado
+                const parametrosVendedor: ParametroVendedor[] = parametrosVendedorResult.rows.map(row => ({
+                    nombre: row.nombre as string,
+                    cantidad: row.cantidad as number
+                }));
+                
+                // Crear un mapa de los parámetros actuales del vendedor para acceso rápido
+                const mapaParametrosVendedor: Record<string, number> = {};
+                parametrosVendedor.forEach(param => {
+                    mapaParametrosVendedor[param.nombre] = param.cantidad;
+                });
+                
+                // 6.2 Eliminar parámetros antiguos del vendedor
                 await query(
                     'DELETE FROM usuario_producto_parametros WHERE producto_id = $1 AND usuario_id = $2',
                     [id, vendedor.usuario_id]
                 );
 
-                // 5.2 Insertar nuevos parámetros para el vendedor
+                // 6.3 Insertar parámetros actualizados para el vendedor
                 if (tieneParametros && parametros.length > 0) {
                     for (const param of parametros) {
+                        let cantidadFinal = param.cantidad; // Valor predeterminado
+                        
+                        // Buscar si existe un mapeo directo de parámetro antiguo a nuevo
+                        for (const nombreAntiguo in mapeoParametros) {
+                            if (mapeoParametros[nombreAntiguo] === param.nombre && 
+                                mapaParametrosVendedor[nombreAntiguo] !== undefined) {
+                                cantidadFinal = mapaParametrosVendedor[nombreAntiguo];
+                                break;
+                            }
+                        }
+                        
+                        // Si no hay mapeo, buscar si ya existía un parámetro con el mismo nombre
+                        if (mapaParametrosVendedor[param.nombre] !== undefined) {
+                            cantidadFinal = mapaParametrosVendedor[param.nombre];
+                        }
+                        
                         await query(
                             'INSERT INTO usuario_producto_parametros (producto_id, usuario_id, nombre, cantidad) VALUES ($1, $2, $3, $4)',
-                            [id, vendedor.usuario_id, param.nombre, param.cantidad]
+                            [id, vendedor.usuario_id, param.nombre, cantidadFinal]
                         );
                     }
                 }
