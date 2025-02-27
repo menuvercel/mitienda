@@ -1559,17 +1559,17 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
         </DialogContent>
       </Dialog>
       <Dialog open={showComparativeTable} onOpenChange={setShowComparativeTable}>
-        <DialogContent className="w-[95vw] max-w-3xl mx-auto p-4 sm:p-6">
-          <DialogHeader className="w-full">
-            <DialogTitle className="text-center">Comparativa con Almacén</DialogTitle>
+        <DialogContent className="w-[95vw] max-w-3xl mx-auto p-2 sm:p-4 overflow-hidden">
+          <DialogHeader className="w-full mb-2">
+            <DialogTitle className="text-center text-lg sm:text-xl">Comparativa con Almacén</DialogTitle>
             <DialogDescription className="sr-only">
               Tabla comparativa de productos entre vendedor y almacén
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col items-center w-full gap-4">
+          <div className="flex flex-col items-center w-full gap-2">
             {/* Controles de búsqueda y filtro */}
-            <div className="flex flex-col sm:flex-row justify-between gap-4 w-full">
+            <div className="flex flex-col sm:flex-row justify-between gap-2 w-full">
               <Input
                 placeholder="Buscar producto..."
                 value={searchTerm}
@@ -1577,7 +1577,7 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                 className="w-full sm:max-w-[250px]"
               />
               <select
-                className="border rounded-md px-2 py-1 w-full sm:w-auto"
+                className="border rounded-md px-2 py-1 w-full sm:w-auto text-sm"
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value as 'all' | 'lessThan5' | 'outOfStock' | 'notInVendor')}
               >
@@ -1588,93 +1588,97 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
               </select>
             </div>
 
-            {/* Tabla */}
-            <div className="w-full border rounded-md overflow-hidden max-h-[400px] overflow-y-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-white">
-                  <TableRow>
-                    <TableHead className="w-[40%]">Producto</TableHead>
-                    <TableHead
-                      className="text-right w-[20%] cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleComparativeSort('precio')}
-                    >
-                      <div className="flex items-center justify-end gap-2">
-                        Precio
-                        {sortField === 'precio' && (
-                          <span className="text-xs">
-                            {sortDirection === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="text-right w-[20%] cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleComparativeSort('cantidadVendedor')}
-                    >
-                      <div className="flex items-center justify-end gap-2">
-                        Cantidad Vendedor
-                        {sortField === 'cantidadVendedor' && (
-                          <span className="text-xs">
-                            {sortDirection === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="text-right w-[20%] cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleComparativeSort('cantidadAlmacen')}
-                    >
-                      <div className="flex items-center justify-end gap-2">
-                        Cantidad Almacén
-                        {sortField === 'cantidadAlmacen' && (
-                          <span className="text-xs">
-                            {sortDirection === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {getComparativeData().length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-4 text-gray-500">
-                        {filterType === 'all' && searchTerm
-                          ? 'No se encontraron productos que coincidan con la búsqueda.'
-                          : filterType === 'lessThan5'
-                            ? 'No hay productos con menos de 5 unidades.'
-                            : filterType === 'outOfStock'
-                              ? 'No hay productos sin existencias.'
-                              : filterType === 'notInVendor'
-                                ? 'No hay productos que no estén disponibles en el vendedor.'
-                                : 'No hay productos disponibles.'}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    getComparativeData().map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="break-words">{item.nombre}</TableCell>
-                        <TableCell className="text-right">${formatPrice(item.precio)}</TableCell>
-                        <TableCell
-                          className={`text-right ${item.cantidadVendedor === 0
-                              ? 'text-red-500'
-                              : item.cantidadVendedor < 5
-                                ? 'text-yellow-600'
-                                : ''
-                            }`}
+            {/* Contenedor de tabla con restricción estricta */}
+            <div className="w-full overflow-x-hidden">
+              <div className="w-full overflow-x-auto">
+                <div className="border rounded-md overflow-hidden max-h-[350px] overflow-y-auto">
+                  <table className="w-full border-collapse">
+                    <thead className="sticky top-0 bg-white">
+                      <tr>
+                        <th className="text-left p-2 border-b w-[40%] text-sm">Producto</th>
+                        <th
+                          className="text-right p-2 border-b text-sm cursor-pointer hover:bg-gray-50"
+                          onClick={() => handleComparativeSort('precio')}
                         >
-                          {item.cantidadVendedor}
-                        </TableCell>
-                        <TableCell className="text-right">{item.cantidadAlmacen}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                          <div className="flex items-center justify-end gap-1">
+                            Precio
+                            {sortField === 'precio' && (
+                              <span className="text-xs">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th
+                          className="text-right p-2 border-b text-sm cursor-pointer hover:bg-gray-50"
+                          onClick={() => handleComparativeSort('cantidadVendedor')}
+                        >
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="hidden xs:inline">Cant.</span> Vend.
+                            {sortField === 'cantidadVendedor' && (
+                              <span className="text-xs">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th
+                          className="text-right p-2 border-b text-sm cursor-pointer hover:bg-gray-50"
+                          onClick={() => handleComparativeSort('cantidadAlmacen')}
+                        >
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="hidden xs:inline">Cant.</span> Alm.
+                            {sortField === 'cantidadAlmacen' && (
+                              <span className="text-xs">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getComparativeData().length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="text-center py-4 text-gray-500 text-sm">
+                            {filterType === 'all' && searchTerm
+                              ? 'No se encontraron productos que coincidan con la búsqueda.'
+                              : filterType === 'lessThan5'
+                                ? 'No hay productos con menos de 5 unidades.'
+                                : filterType === 'outOfStock'
+                                  ? 'No hay productos sin existencias.'
+                                  : filterType === 'notInVendor'
+                                    ? 'No hay productos que no estén disponibles en el vendedor.'
+                                    : 'No hay productos disponibles.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        getComparativeData().map((item, index) => (
+                          <tr key={index} className="border-b last:border-b-0 hover:bg-gray-50">
+                            <td className="p-2 text-sm break-words">{item.nombre}</td>
+                            <td className="p-2 text-right text-sm whitespace-nowrap">${formatPrice(item.precio)}</td>
+                            <td
+                              className={`p-2 text-right text-sm ${item.cantidadVendedor === 0
+                                  ? 'text-red-500'
+                                  : item.cantidadVendedor < 5
+                                    ? 'text-yellow-600'
+                                    : ''
+                                }`}
+                            >
+                              {item.cantidadVendedor}
+                            </td>
+                            <td className="p-2 text-right text-sm">{item.cantidadAlmacen}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
 
             {/* Botón de cerrar */}
-            <div className="flex justify-center w-full">
+            <div className="flex justify-center w-full mt-2">
               <Button
                 variant="outline"
                 onClick={() => setShowComparativeTable(false)}
@@ -1691,6 +1695,8 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
           </DialogClose>
         </DialogContent>
       </Dialog>
+
+
 
 
 
