@@ -104,9 +104,9 @@ export async function POST(request: NextRequest) {
           // Actualizar parámetros del usuario
           await query(
             `INSERT INTO usuario_producto_parametros (usuario_id, producto_id, nombre, cantidad)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (usuario_id, producto_id, nombre)
-             DO UPDATE SET cantidad = usuario_producto_parametros.cantidad + $4`,
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (usuario_id, producto_id, nombre)
+            DO UPDATE SET cantidad = usuario_producto_parametros.cantidad + $4`,
             [vendedorId, productoId, param.nombre, param.cantidad]
           );
         }

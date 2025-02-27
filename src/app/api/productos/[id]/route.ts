@@ -49,19 +49,47 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         await query('BEGIN');
 
         try {
+            // 1. Actualizar el producto principal
             const result = await query(
                 'UPDATE productos SET nombre = $1, precio = $2, cantidad = $3, foto = $4, tiene_parametros = $5 WHERE id = $6 RETURNING *',
                 [nombre, Number(precio), Number(cantidad), nuevaFotoUrl, tieneParametros, id]
             );
 
+            // 2. Eliminar parámetros antiguos del producto principal
             await query('DELETE FROM producto_parametros WHERE producto_id = $1', [id]);
 
+            // 3. Insertar nuevos parámetros para el producto principal
             if (tieneParametros && parametros.length > 0) {
                 for (const param of parametros) {
                     await query(
                         'INSERT INTO producto_parametros (producto_id, nombre, cantidad) VALUES ($1, $2, $3)',
                         [id, param.nombre, param.cantidad]
                     );
+                }
+            }
+
+            // 4. Obtener todos los vendedores que tienen este producto
+            const vendedoresConProducto = await query(
+                'SELECT usuario_id FROM usuario_productos WHERE producto_id = $1',
+                [id]
+            );
+            
+            // 5. Para cada vendedor, actualizar sus parámetros
+            for (const vendedor of vendedoresConProducto.rows) {
+                // 5.1 Eliminar parámetros antiguos del vendedor
+                await query(
+                    'DELETE FROM usuario_producto_parametros WHERE producto_id = $1 AND usuario_id = $2',
+                    [id, vendedor.usuario_id]
+                );
+                
+                // 5.2 Insertar nuevos parámetros para el vendedor
+                if (tieneParametros && parametros.length > 0) {
+                    for (const param of parametros) {
+                        await query(
+                            'INSERT INTO usuario_producto_parametros (producto_id, usuario_id, nombre, cantidad) VALUES ($1, $2, $3, $4)',
+                            [id, vendedor.usuario_id, param.nombre, param.cantidad]
+                        );
+                    }
                 }
             }
 
@@ -195,14 +223,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 }
 
-
-
-
-
-
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
     try {
-
         const { id } = params;
 
         const result = await query(`
@@ -228,7 +250,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             WHERE up.usuario_id = $1
             GROUP BY up.producto_id, p.nombre, p.precio, up.cantidad, p.foto, p.tiene_parametros
         `, [id]);
-
 
         return NextResponse.json(result.rows);
     } catch (error) {

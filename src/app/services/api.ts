@@ -45,7 +45,7 @@ export const uploadImage = async (file: File) => {
 export const getCurrentUser = async (): Promise<User> => {
   try {
     const response = await api.get<User>('/users/me');
-    
+
     // Verificar que response.data existe y tiene un id
     if (!response.data || !response.data.id) {
       throw new Error('Respuesta inválida del servidor: datos de usuario incompletos');
@@ -57,7 +57,7 @@ export const getCurrentUser = async (): Promise<User> => {
     };
   } catch (error) {
     console.error('Error al obtener el usuario actual:', error);
-    
+
     // Mejorar el mensaje de error basado en el tipo de error
     if (axios.isAxiosError(error)) {
       if (error.response?.status === 401) {
@@ -68,7 +68,7 @@ export const getCurrentUser = async (): Promise<User> => {
         throw new Error('Error de conexión. Por favor, verifica tu conexión a internet.');
       }
     }
-    
+
     throw new Error('No se pudo obtener la información del usuario. Por favor, inicia sesión nuevamente.');
   }
 };
@@ -144,8 +144,26 @@ export const agregarProducto = async (formData: FormData) => {
   try {
     const parametrosRaw = formData.get('parametros');
     if (parametrosRaw) {
-      const parametros = JSON.parse(parametrosRaw as string);
-      formData.set('parametros', JSON.stringify(parametros));
+      try {
+        // Mantener el mismo nombre de variable
+        const parametros = JSON.parse(parametrosRaw as string);
+
+        // Validar que sea un array con la estructura correcta
+        if (Array.isArray(parametros)) {
+          const parametrosValidados = parametros.filter(p =>
+            p && typeof p === 'object' &&
+            'nombre' in p &&
+            'cantidad' in p
+          );
+
+          // Volver a usar el mismo nombre de formData
+          formData.set('parametros', JSON.stringify(parametrosValidados));
+        }
+      } catch (parseError) {
+        console.error('Error al parsear parametros:', parseError);
+        // En caso de error, mantener un array vacío
+        formData.set('parametros', JSON.stringify([]));
+      }
     }
 
     const response = await api.post('/productos', formData, {
@@ -161,8 +179,30 @@ export const agregarProducto = async (formData: FormData) => {
 };
 
 
+
 export const editarProducto = async (id: string, formData: FormData) => {
   try {
+    const parametrosRaw = formData.get('parametros');
+    if (parametrosRaw) {
+      try {
+        const parametros = JSON.parse(parametrosRaw as string);
+
+        // Validar que sea un array con la estructura correcta
+        if (Array.isArray(parametros)) {
+          const parametrosValidados = parametros.filter(p =>
+            p && typeof p === 'object' &&
+            'nombre' in p &&
+            'cantidad' in p
+          );
+
+          formData.set('parametros', JSON.stringify(parametrosValidados));
+        }
+      } catch (parseError) {
+        console.error('Error al parsear parametros en edición:', parseError);
+        formData.set('parametros', JSON.stringify([]));
+      }
+    }
+
     const response = await api.put(`/productos/${id}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -176,16 +216,17 @@ export const editarProducto = async (id: string, formData: FormData) => {
 };
 
 
+
 export const entregarProducto = async (
-  productoId: string, 
-  vendedorId: string, 
+  productoId: string,
+  vendedorId: string,
   cantidad: number,
   parametros?: Array<{ nombre: string; cantidad: number }>
 ) => {
   try {
-    const response = await api.post('/transacciones', { 
-      productoId, 
-      vendedorId, 
+    const response = await api.post('/transacciones', {
+      productoId,
+      vendedorId,
       cantidad,
       tipo: 'Entrega',
       parametros
@@ -230,8 +271,8 @@ export const crearBajaTransaccion = async (productoId: string, vendedorId: strin
 };
 
 export const realizarVenta = async (
-  productoId: string, 
-  cantidad: number, 
+  productoId: string,
+  cantidad: number,
   fecha: string,
   parametros?: VentaParametro[],
   vendedorId?: string
@@ -244,14 +285,14 @@ export const realizarVenta = async (
     const fechaAjustada = new Date(fecha + 'T12:00:00');
     const fechaISO = fechaAjustada.toISOString();
 
-    const response = await api.post<Venta>('/ventas', { 
-      productoId, 
-      cantidad, 
+    const response = await api.post<Venta>('/ventas', {
+      productoId,
+      cantidad,
       fecha: fechaISO,
       vendedorId,
       parametros
     });
-    
+
     return response.data;
   } catch (error) {
     console.error('Error al realizar la venta:', error);
@@ -277,7 +318,7 @@ export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
 
   // Eliminamos el cálculo de fechas y los parámetros de fecha en la solicitud
   const response = await api.get(`/ventas?vendedorId=${vendedorId}`);
-  
+
   return response.data;
 };
 
@@ -317,21 +358,21 @@ const handleApiError = (error: unknown, context: string) => {
 /*estas son las funciones nuevas*/
 
 export const reducirProductoVendedor = async (
-  productoId: string, 
-  vendedorId: string, 
+  productoId: string,
+  vendedorId: string,
   cantidad: number,
   parametros?: Array<{ nombre: string; cantidad: number }>
 ) => {
   try {
-    const payload = { 
-      productoId, 
-      vendedorId, 
+    const payload = {
+      productoId,
+      vendedorId,
       cantidad,
       parametros
     };
-    
+
     console.log('Enviando datos:', payload); // Para depuración
-    
+
     const response = await api.put(`/productos/reducir`, payload);
     return response.data;
   } catch (error: any) {
@@ -367,12 +408,12 @@ export const getVentasVendedor = async (vendedorId: string): Promise<Venta[]> =>
 export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor & { newPassword?: string }): Promise<void> => {
   try {
     const vendorData: Vendedor = { ...editedVendor };
-    
+
     // If a new password is provided, include it in the request
     if (editedVendor.newPassword) {
       vendorData.password = editedVendor.newPassword;
     }
-    
+
     // Remove the newPassword field from the request payload
     delete (vendorData as any).newPassword;
 
@@ -382,8 +423,8 @@ export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor 
     if (axios.isAxiosError(error) && error.response) {
       console.error('Respuesta del servidor:', error.response.data);
     }
-    throw new Error(axios.isAxiosError(error) && error.response?.data?.message 
-      ? error.response.data.message 
+    throw new Error(axios.isAxiosError(error) && error.response?.data?.message
+      ? error.response.data.message
       : `No se pudo editar el vendedor: ${(error as Error).message}`);
   }
 };
@@ -409,8 +450,8 @@ export const getTransaccionesProducto = async (productoId: string): Promise<Tran
 };
 
 export const getVentasProducto = async (
-  productoId: string, 
-  startDate?: string, 
+  productoId: string,
+  startDate?: string,
   endDate?: string
 ): Promise<Venta[]> => {
   try {
@@ -438,7 +479,7 @@ export const deleteSale = async (saleId: string, vendedorId: string): Promise<vo
   if (!vendedorId) {
     throw new Error('El ID del vendedor es requerido');
   }
-  
+
   try {
     await api.delete(`/ventas/${saleId}?vendedorId=${vendedorId}`);
   } catch (error) {
@@ -529,7 +570,7 @@ export const transferProduct = async ({
       cantidad,
       parametros
     });
-    
+
     return response.data;
   } catch (error) {
     console.error('Error al transferir producto:', error);
