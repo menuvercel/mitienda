@@ -1559,15 +1559,15 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
         </DialogContent>
       </Dialog>
       <Dialog open={showComparativeTable} onOpenChange={setShowComparativeTable}>
-        <DialogContent className="max-w-3xl mx-auto">
-          <DialogHeader>
+        <DialogContent className="w-[95vw] max-w-3xl mx-auto p-4 sm:p-6">
+          <DialogHeader className="w-full">
             <DialogTitle className="text-center">Comparativa con Almacén</DialogTitle>
             <DialogDescription className="sr-only">
               Tabla comparativa de productos entre vendedor y almacén
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4 w-full">
+          <div className="flex flex-col items-center w-full gap-4">
             {/* Controles de búsqueda y filtro */}
             <div className="flex flex-col sm:flex-row justify-between gap-4 w-full">
               <Input
@@ -1653,7 +1653,7 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                   ) : (
                     getComparativeData().map((item, index) => (
                       <TableRow key={index}>
-                        <TableCell>{item.nombre}</TableCell>
+                        <TableCell className="break-words">{item.nombre}</TableCell>
                         <TableCell className="text-right">${formatPrice(item.precio)}</TableCell>
                         <TableCell
                           className={`text-right ${item.cantidadVendedor === 0
@@ -1674,13 +1674,15 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
             </div>
 
             {/* Botón de cerrar */}
-            <Button
-              variant="outline"
-              onClick={() => setShowComparativeTable(false)}
-              className="mx-auto w-full sm:w-auto"
-            >
-              Cerrar
-            </Button>
+            <div className="flex justify-center w-full">
+              <Button
+                variant="outline"
+                onClick={() => setShowComparativeTable(false)}
+                className="w-full sm:w-auto"
+              >
+                Cerrar
+              </Button>
+            </div>
           </div>
 
           <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
@@ -1689,6 +1691,7 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
           </DialogClose>
         </DialogContent>
       </Dialog>
+
 
 
 
