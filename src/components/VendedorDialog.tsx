@@ -211,7 +211,6 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
 
 
 
-
   const handleComparativeSort = (field: 'cantidadVendedor' | 'cantidadAlmacen' | 'precio') => {
     if (sortField === field) {
       if (sortDirection === 'asc') {
@@ -406,6 +405,7 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
   const sortAndFilterProducts = useCallback((products: Producto[]) => {
     const calcularCantidadTotal = (producto: Producto) => {
       if (producto.parametros && producto.parametros.length > 0) {
+        console.log('Parámetros del producto:', producto.nombre, producto.parametros); // Log temporal
         return producto.parametros
           .filter(param => param.cantidad > 0) // Solo contar parámetros con cantidad > 0
           .reduce((total, param) => total + (param.cantidad || 0), 0)
@@ -776,24 +776,35 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
 
     const calcularCantidadTotal = (producto: Producto) => {
       if (producto.parametros && producto.parametros.length > 0) {
-        return producto.parametros
-          .filter(param => param.cantidad > 0) // Solo contar parámetros con cantidad > 0
-          .reduce((total, param) => total + (param.cantidad || 0), 0)
+        // Filtrar parámetros válidos (no numéricos y cantidad > 0)
+        const parametrosValidos = producto.parametros.filter(param => 
+          param.cantidad > 0 && 
+          isNaN(Number(param.nombre)) && // Excluir nombres que son solo números
+          param.nombre.trim() !== '' // Excluir nombres vacíos
+        );
+        
+        return parametrosValidos.reduce((total, param) => total + param.cantidad, 0);
       }
-      return producto.cantidad
+      return producto.cantidad;
     }
 
     return (
       <div className="space-y-2">
         {filteredAndSortedProducts.map(producto => {
-          const parametrosFiltrados = producto.parametros?.filter(param => param.cantidad > 0) || []
-          const hasParameters = parametrosFiltrados.length > 0
-          const isExpanded = expandedProducts[producto.id] || false
-          const cantidadTotal = calcularCantidadTotal(producto)
+          // Filtrar parámetros válidos
+          const parametrosValidos = producto.parametros?.filter(param => 
+            param.cantidad > 0 && 
+            isNaN(Number(param.nombre)) && // Excluir nombres que son solo números
+            param.nombre.trim() !== '' // Excluir nombres vacíos
+          ) || [];
 
-          // Si el producto tiene parámetros pero todos están en 0, no lo mostramos
-          if (producto.parametros && producto.parametros.length > 0 && parametrosFiltrados.length === 0) {
-            return null
+          const hasParameters = parametrosValidos.length > 0;
+          const isExpanded = expandedProducts[producto.id] || false;
+          const cantidadTotal = calcularCantidadTotal(producto);
+
+          // Si el producto tiene parámetros pero ninguno es válido, no lo mostramos
+          if (producto.parametros && producto.parametros.length > 0 && !hasParameters) {
+            return null;
           }
 
           return (
@@ -839,7 +850,7 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
               {isExpanded && hasParameters && (
                 <div className="px-4 pb-4 bg-gray-50 border-t">
                   <div className="space-y-2 mt-2">
-                    {producto.parametros?.map((parametro, index) => (
+                    {parametrosValidos.map((parametro, index) => (
                       <div key={index} className="flex justify-between items-center space-x-4 p-2 border rounded-lg">
                         <p className="font-medium">{parametro.nombre}</p>
                         <p className="text-sm text-gray-500">Disponible: {parametro.cantidad}</p>
@@ -849,11 +860,11 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                 </div>
               )}
             </div>
-          )
+          );
         })}
       </div>
-    )
-  }, [expandedProducts, handleReduceProduct, isLoading, toggleExpandProd, setProductToReduce, setReduceDialogOpen])
+    );
+  }, [expandedProducts, isLoading, toggleExpandProd, setProductToReduce, setReduceDialogOpen, formatPrice])
 
   const renderVentasList = () => {
     return (
