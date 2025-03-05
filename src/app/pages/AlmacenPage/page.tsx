@@ -32,7 +32,8 @@ import {
   createMerma,
   getMermas,
   transferProduct,
-  deleteMerma
+  deleteMerma,
+  verificarNombreProducto
 } from '../../services/api'
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
@@ -150,7 +151,7 @@ export default function AlmacenPage() {
   const [newProduct, setNewProduct] = useState<NewProduct>({
     nombre: '',
     precio: 0,
-    precioCompra: 0, // Nuevo campo inicializado
+    precioCompra: 0,
     cantidad: 0,
     foto: '',
     tieneParametros: false,
@@ -183,6 +184,8 @@ export default function AlmacenPage() {
   const [mermaSearchTerm, setMermaSearchTerm] = useState("")
   const [mermaSortOrder, setMermaSortOrder] = useState<'asc' | 'desc'>('asc')
   const [mermaSortBy, setMermaSortBy] = useState<'nombre' | 'cantidad'>('nombre')
+  const [nombreExiste, setNombreExiste] = useState(false);
+  const [verificandoNombre, setVerificandoNombre] = useState(false);
 
   const isProductoAgotado = (producto: Producto): boolean => {
     if (producto.tiene_parametros && producto.parametros) {
@@ -638,6 +641,28 @@ export default function AlmacenPage() {
   };
 
 
+  useEffect(() => {
+    const verificarNombre = async () => {
+      if (!newProduct.nombre.trim()) {
+        setNombreExiste(false);
+        return;
+      }
+
+      setVerificandoNombre(true);
+      try {
+        const existe = await verificarNombreProducto(newProduct.nombre);
+        setNombreExiste(existe);
+      } catch (error) {
+        console.error('Error al verificar nombre:', error);
+      } finally {
+        setVerificandoNombre(false);
+      }
+    };
+
+    const timeoutId = setTimeout(verificarNombre, 500);
+    return () => clearTimeout(timeoutId);
+  }, [newProduct.nombre]);
+
   const handleProductInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target
 
@@ -663,10 +688,19 @@ export default function AlmacenPage() {
 
   const handleAddProduct = async () => {
     try {
+      if (nombreExiste) {
+        toast({
+          title: "Error",
+          description: "El nombre del producto ya existe",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const formData = new FormData();
       formData.append('nombre', newProduct.nombre);
       formData.append('precio', newProduct.precio.toString());
-      formData.append('precioCompra', newProduct.precioCompra.toString()); // Nuevo campo agregado
+      formData.append('precioCompra', newProduct.precioCompra.toString());
 
       if (newProduct.tieneParametros) {
         formData.append('tieneParametros', 'true');
@@ -678,7 +712,6 @@ export default function AlmacenPage() {
         formData.append('cantidad', newProduct.cantidad.toString());
       }
 
-      // Si hay una URL de imagen, la incluimos
       if (newProduct.foto) {
         formData.append('fotoUrl', newProduct.foto);
       }
@@ -688,7 +721,7 @@ export default function AlmacenPage() {
       setNewProduct({
         nombre: '',
         precio: 0,
-        precioCompra: 0, // Reiniciar el nuevo campo
+        precioCompra: 0,
         cantidad: 0,
         foto: '',
         tieneParametros: false,
@@ -1511,6 +1544,12 @@ export default function AlmacenPage() {
                 onChange={handleProductInputChange}
                 placeholder="Nombre del producto"
               />
+              {verificandoNombre && (
+                <p className="text-sm text-gray-500 mt-1">Verificando nombre...</p>
+              )}
+              {!verificandoNombre && nombreExiste && (
+                <p className="text-sm text-red-500 mt-1">Este nombre de producto ya existe</p>
+              )}
             </div>
 
             <div>
@@ -1634,8 +1673,8 @@ export default function AlmacenPage() {
           {/* Botones fijos en la parte inferior */}
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
             <div className="max-w-[calc(100%-2rem)] mx-auto">
-              <Button onClick={handleAddProduct} className="w-full">
-                Agregar
+              <Button onClick={handleAddProduct} className="w-full" disabled={nombreExiste || verificandoNombre}>
+                {verificandoNombre ? 'Verificando...' : 'Agregar'}
               </Button>
             </div>
           </div>

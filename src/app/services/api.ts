@@ -3,11 +3,9 @@ import { Venta, Vendedor, Transaccion, VentaParametro, TransferProductParams } f
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: API_URL
 });
-
-
 
 interface User {
   id: string;
@@ -29,7 +27,6 @@ interface Producto {
     cantidad: number;
   }>;
 }
-
 
 export const uploadImage = async (file: File) => {
   const formData = new FormData();
@@ -73,7 +70,6 @@ export const getCurrentUser = async (): Promise<User> => {
   }
 };
 
-
 export const login = async (nombre: string, password: string): Promise<User> => {
   try {
     const response = await api.post('/auth/login', { nombre, password });
@@ -94,7 +90,6 @@ export const login = async (nombre: string, password: string): Promise<User> => 
   }
 };
 
-
 export const logout = async (): Promise<void> => {
   try {
     await api.post('/auth/logout');
@@ -105,7 +100,6 @@ export const logout = async (): Promise<void> => {
     throw error;
   }
 };
-
 
 export const getVendedores = async (): Promise<Vendedor[]> => {
   const response = await api.get('/users/vendedores');
@@ -179,9 +173,6 @@ export const agregarProducto = async (formData: FormData) => {
   }
 };
 
-
-
-
 export const editarProducto = async (id: string, formData: FormData) => {
   try {
     // Procesar los parámetros como ya lo estás haciendo
@@ -225,9 +216,6 @@ export const editarProducto = async (id: string, formData: FormData) => {
   }
 };
 
-
-
-
 export const entregarProducto = async (
   productoId: string,
   vendedorId: string,
@@ -249,12 +237,10 @@ export const entregarProducto = async (
   }
 };
 
-
 export const getTransacciones = async () => {
   const response = await api.get('/transacciones');
   return response.data;
 };
-
 
 export const eliminarProducto = async (productId: string) => {
   try {
@@ -322,14 +308,8 @@ export const realizarVenta = async (
   }
 };
 
-
-
-
 export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
-
-  // Eliminamos el cálculo de fechas y los parámetros de fecha en la solicitud
   const response = await api.get(`/ventas?vendedorId=${vendedorId}`);
-
   return response.data;
 };
 
@@ -366,8 +346,6 @@ const handleApiError = (error: unknown, context: string) => {
   }
 };
 
-/*estas son las funciones nuevas*/
-
 export const reducirProductoVendedor = async (
   productoId: string,
   vendedorId: string,
@@ -396,8 +374,6 @@ export const reducirProductoVendedor = async (
   }
 };
 
-
-
 export const getVentasVendedor = async (vendedorId: string): Promise<Venta[]> => {
   try {
     const response = await api.get<Venta[]>(`/ventas`, {
@@ -414,7 +390,6 @@ export const getVentasVendedor = async (vendedorId: string): Promise<Venta[]> =>
     throw new Error('No se pudieron obtener las ventas');
   }
 };
-
 
 export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor & { newPassword?: string }): Promise<void> => {
   try {
@@ -440,13 +415,6 @@ export const editarVendedor = async (vendedorId: string, editedVendor: Vendedor 
   }
 };
 
-
-
-
-/*panel individual del vendedor*/
-
-// ... (existing imports and functions)
-
 export const getTransaccionesProducto = async (productoId: string): Promise<Transaccion[]> => {
   try {
     const response = await api.get<Transaccion[]>(`/transacciones`, {
@@ -463,12 +431,14 @@ export const getTransaccionesProducto = async (productoId: string): Promise<Tran
 export const getVentasProducto = async (
   productoId: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  vendedorId?: string
 ): Promise<Venta[]> => {
   try {
     const params: Record<string, string> = { productoId };
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
+    if (vendedorId) params.vendedorId = vendedorId;
 
     const response = await api.get<Venta[]>(`/ventas`, { params });
     return response.data;
@@ -478,9 +448,6 @@ export const getVentasProducto = async (
     throw new Error('No se pudieron obtener las ventas del producto');
   }
 };
-
-
-//ultimo edit
 
 export const deleteSale = async (saleId: string, vendedorId: string): Promise<void> => {
   if (!saleId) {
@@ -501,9 +468,6 @@ export const deleteSale = async (saleId: string, vendedorId: string): Promise<vo
 
 export default api;
 
-
-
-// merma
 export const createMerma = async (
   producto_id: string,
   usuario_id: string,
@@ -530,8 +494,6 @@ export const createMerma = async (
   return response.json();
 };
 
-
-
 export const getMermas = async (usuario_id?: string) => {
   const response = await fetch(`/api/merma${usuario_id ? `?usuario_id=${usuario_id}` : ''}`);
   if (!response.ok) {
@@ -541,11 +503,9 @@ export const getMermas = async (usuario_id?: string) => {
   return data;
 };
 
-
-
 export const deleteMerma = async (productoId: string): Promise<void> => {
   try {
-    const response = await fetch(`/api/merma?producto_id=${productoId}`, {  // <- Cambio aquí
+    const response = await fetch(`/api/merma?producto_id=${productoId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -562,9 +522,6 @@ export const deleteMerma = async (productoId: string): Promise<void> => {
   }
 };
 
-
-
-// transferencia
 export const transferProduct = async ({
   productId,
   fromVendorId,
@@ -593,5 +550,15 @@ export const transferProduct = async ({
       }
     }
     throw new Error('No se pudo completar la transferencia del producto');
+  }
+};
+
+export const verificarNombreProducto = async (nombre: string): Promise<boolean> => {
+  try {
+    const response = await api.get(`/productos/verificar-nombre?nombre=${encodeURIComponent(nombre)}`);
+    return response.data.exists;
+  } catch (error) {
+    console.error('Error al verificar nombre del producto:', error);
+    throw new Error('Error al verificar el nombre del producto');
   }
 };

@@ -147,12 +147,15 @@ export async function GET(request: NextRequest) {
     `;
 
     if (productoId) {
+      const vendedorFilter = vendedorId ? 'AND v.vendedor = $2' : '';
+      const params = vendedorId ? [productoId, vendedorId] : [productoId];
+      
       result = await query(
         `${baseQuery}
-         WHERE v.producto = $1
+         WHERE v.producto = $1 ${vendedorFilter}
          GROUP BY v.id, p.nombre, p.foto
          ORDER BY v.fecha DESC`,
-        [productoId]
+        params
       );
     } else if (vendedorId) {
       result = await query(

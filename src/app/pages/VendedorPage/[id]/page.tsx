@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Button } from "@/components/ui/button"
@@ -88,18 +88,13 @@ interface Venta {
   total: number | string;
   vendedor: string;
   fecha: string;
-  parametros?: ProductoParametro[]; // Agregamos los parámetros
+  parametros?: ProductoParametro[];
 }
 
-interface ProductoVenta extends Producto {
-  cantidadVendida: number;
-  parametrosVenta?: VentaParametro[];
-}
-
-interface VentaAgrupada {
+interface VentaDia {
   fecha: string;
   ventas: Venta[];
-  total: number | string;
+  total: number;
 }
 
 interface VentaSemana {
@@ -108,6 +103,12 @@ interface VentaSemana {
   ventas: Venta[];
   total: number;
   ganancia: number;
+}
+
+interface VentaAgrupada {
+  fecha: string;
+  ventas: Venta[];
+  total: number | string;
 }
 
 interface VentaDia {
@@ -405,21 +406,24 @@ const formatPrice = (price: number | string | undefined): string => {
   return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2);
 }
 
-const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
+const VentaDiaDesplegable = ({ venta, busqueda }: { venta: VentaDia, busqueda: string }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Función para calcular el total de una venta individual
-  const calcularTotalVenta = (venta: Venta) => {
-    if (venta.parametros && venta.parametros.length > 0) {
-      const cantidadTotal = venta.parametros.reduce((sum, param) => sum + param.cantidad, 0);
-      return cantidadTotal * venta.precio_unitario;
-    }
-    return venta.cantidad * venta.precio_unitario;
-  };
+  // Filtrar las ventas basadas en la búsqueda
+  const ventasFiltradas = busqueda
+    ? venta.ventas.filter(v =>
+        v.producto_nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+        formatDate(v.fecha).toLowerCase().includes(busqueda.toLowerCase()) ||
+        v.total.toString().includes(busqueda)
+      )
+    : venta.ventas;
 
-  // Función para calcular el total del día (suma de todas las ventas)
-  const calcularTotalDia = (ventaDia: VentaDia) => {
-    return ventaDia.ventas.reduce((total, venta) => total + calcularTotalVenta(venta), 0);
+  // Calcular el total solo de las ventas filtradas
+  const calcularTotalVentasFiltradas = () => {
+    return ventasFiltradas.reduce((total, v) => {
+      const ventaTotal = typeof v.total === 'string' ? parseFloat(v.total) : v.total;
+      return total + (ventaTotal || 0);
+    }, 0);
   };
 
   return (
@@ -430,13 +434,13 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
       >
         <span>{formatDate(venta.fecha)}</span>
         <div className="flex items-center">
-          <span className="mr-2">${formatPrice(calcularTotalDia(venta))}</span>
+          <span className="mr-2">${formatPrice(calcularTotalVentasFiltradas())}</span>
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </div>
       </div>
       {isOpen && (
         <div className="p-4 bg-gray-50">
-          {venta.ventas.map((v) => (
+          {ventasFiltradas.map((v) => (
             <div key={v.id} className="flex flex-col border-b py-4 last:border-b-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -461,7 +465,6 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
                         </div>
                       </div>
                     ) : (
-                      // Mostrar la cantidad vendida para productos sin parámetros
                       <div className="text-sm text-gray-600">
                         Cantidad: {v.cantidad}
                       </div>
@@ -473,7 +476,7 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
                     Precio unitario: ${formatPrice(v.precio_unitario)}
                   </div>
                   <div className="font-medium text-green-600">
-                    Total: ${formatPrice(calcularTotalVenta(v))}
+                    Total: ${formatPrice(v.total)}
                   </div>
                 </div>
               </div>
@@ -486,16 +489,20 @@ const VentaDiaDesplegable = ({ venta }: { venta: VentaDia }) => {
 };
 
 
-const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
+const VentaSemanaDesplegable = ({ venta, busqueda }: { venta: VentaSemana, busqueda: string }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const parsePrice = (price: number | string): number => {
-    if (typeof price === 'number') return price;
-    const parsed = parseFloat(price);
-    return isNaN(parsed) ? 0 : parsed;
-  };
+  // Filtrar las ventas basadas en la búsqueda
+  const ventasFiltradas = busqueda
+    ? venta.ventas.filter(v =>
+        v.producto_nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+        formatDate(v.fecha).toLowerCase().includes(busqueda.toLowerCase()) ||
+        v.total.toString().includes(busqueda)
+      )
+    : venta.ventas;
 
-  const ventasPorDia = venta.ventas.reduce((acc: Record<string, Venta[]>, v) => {
+  // Agrupar las ventas filtradas por día
+  const ventasPorDia = ventasFiltradas.reduce((acc: Record<string, Venta[]>, v) => {
     const fecha = parseISO(v.fecha);
     if (!isValid(fecha)) {
       console.error(`Invalid date in venta: ${v.fecha}`);
@@ -509,6 +516,14 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
     return acc;
   }, {});
 
+  // Calcular el total solo de las ventas filtradas
+  const totalFiltrado = ventasFiltradas.reduce((total, v) => {
+    const ventaTotal = typeof v.total === 'string' ? parseFloat(v.total) : v.total;
+    return total + (ventaTotal || 0);
+  }, 0);
+
+  const gananciaFiltrada = totalFiltrado * 0.08;
+
   return (
     <div className="border rounded-lg mb-2">
       <div
@@ -517,8 +532,8 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
       >
         <span>Semana {formatDate(venta.fechaInicio)} - {formatDate(venta.fechaFin)}</span>
         <div className="flex items-center space-x-4">
-          <span>${formatPrice(venta.total)}</span>
-          <span className="text-green-600">Ganancia: ${formatPrice(venta.ganancia)}</span>
+          <span>${formatPrice(totalFiltrado)}</span>
+          <span className="text-green-600">Ganancia: ${formatPrice(gananciaFiltrada)}</span>
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </div>
       </div>
@@ -526,14 +541,14 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
         <div className="p-4 bg-gray-50">
           {Object.entries(ventasPorDia)
             .sort(([dateA], [dateB]) => {
-              const a = parseISO(dateA)
-              const b = parseISO(dateB)
-              return isValid(a) && isValid(b) ? a.getTime() - b.getTime() : 0
+              const a = parseISO(dateA);
+              const b = parseISO(dateB);
+              return isValid(a) && isValid(b) ? a.getTime() - b.getTime() : 0;
             })
             .map(([fecha, ventasDia]) => {
-              const fechaVenta = parseISO(fecha)
-              const fechaInicio = parseISO(venta.fechaInicio)
-              const fechaFin = parseISO(venta.fechaFin)
+              const fechaVenta = parseISO(fecha);
+              const fechaInicio = parseISO(venta.fechaInicio);
+              const fechaFin = parseISO(venta.fechaFin);
               if (isValid(fechaVenta) && isValid(fechaInicio) && isValid(fechaFin) &&
                 fechaVenta >= fechaInicio && fechaVenta <= fechaFin) {
                 return (
@@ -542,12 +557,16 @@ const VentaSemanaDesplegable = ({ venta }: { venta: VentaSemana }) => {
                     venta={{
                       fecha,
                       ventas: ventasDia,
-                      total: ventasDia.reduce((sum, v) => sum + parsePrice(v.total), 0)
+                      total: ventasDia.reduce((sum, v) => {
+                        const ventaTotal = typeof v.total === 'string' ? parseFloat(v.total) : v.total;
+                        return sum + (ventaTotal || 0);
+                      }, 0)
                     }}
+                    busqueda={busqueda}
                   />
-                )
+                );
               }
-              return null
+              return null;
             })}
         </div>
       )}
@@ -692,6 +711,78 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
 
+  // Función para agrupar ventas por día
+  const agruparVentasPorDia = useCallback((ventas: Venta[]) => {
+    const ventasDiarias: VentaDia[] = [];
+    ventas.forEach((venta) => {
+      const fecha = parseISO(venta.fecha);
+      if (!isValid(fecha)) {
+        console.error(`Invalid date in venta: ${venta.fecha}`);
+        return;
+      }
+      const fechaStr = format(fecha, 'yyyy-MM-dd');
+      const diaExistente = ventasDiarias.find((d) => d.fecha === fechaStr);
+      if (diaExistente) {
+        diaExistente.ventas.push(venta);
+        diaExistente.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0;
+      } else {
+        ventasDiarias.push({
+          fecha: fechaStr,
+          ventas: [venta],
+          total: typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0,
+        });
+      }
+    });
+    return ventasDiarias.sort((a, b) => {
+      const dateA = parseISO(a.fecha);
+      const dateB = parseISO(b.fecha);
+      return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0;
+    });
+  }, []);
+
+  // Función para agrupar ventas por semana
+  const agruparVentasPorSemana = useCallback((ventas: Venta[]) => {
+    const weekMap = new Map<string, VentaSemana>();
+
+    const getWeekKey = (date: Date) => {
+      const mondayOfWeek = startOfWeek(date, { weekStartsOn: 1 });
+      const sundayOfWeek = endOfWeek(date, { weekStartsOn: 1 });
+      return `${format(mondayOfWeek, 'yyyy-MM-dd')}_${format(sundayOfWeek, 'yyyy-MM-dd')}`;
+    };
+
+    ventas.forEach((venta) => {
+      const ventaDate = parseISO(venta.fecha);
+      if (!isValid(ventaDate)) {
+        console.error(`Invalid date in venta: ${venta.fecha}`);
+        return;
+      }
+      const weekKey = getWeekKey(ventaDate);
+
+      if (!weekMap.has(weekKey)) {
+        const mondayOfWeek = startOfWeek(ventaDate, { weekStartsOn: 1 });
+        const sundayOfWeek = endOfWeek(ventaDate, { weekStartsOn: 1 });
+        weekMap.set(weekKey, {
+          fechaInicio: format(mondayOfWeek, 'yyyy-MM-dd'),
+          fechaFin: format(sundayOfWeek, 'yyyy-MM-dd'),
+          ventas: [],
+          total: 0,
+          ganancia: 0,
+        });
+      }
+
+      const currentWeek = weekMap.get(weekKey)!;
+      currentWeek.ventas.push(venta);
+      currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0;
+      currentWeek.ganancia = parseFloat((currentWeek.total * 0.08).toFixed(2));
+    });
+
+    return Array.from(weekMap.values()).sort((a, b) => {
+      const dateA = parseISO(a.fechaInicio);
+      const dateB = parseISO(b.fechaInicio);
+      return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0;
+    });
+  }, []);
+
   const calcularCantidadTotal = (parametros?: ProductoParametro[]): number => {
     if (!parametros) return 0;
     return parametros.reduce((total, param) => total + param.cantidad, 0);
@@ -707,7 +798,7 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
 
       const [transaccionesData, ventasData] = await Promise.all([
         getTransaccionesProducto(producto.id),
-        getVentasProducto(producto.id, startDate, endDate)
+        getVentasProducto(producto.id, startDate, endDate, vendedorId)
       ]);
 
       setTransacciones(transaccionesData);
@@ -718,56 +809,15 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
     } finally {
       setIsLoading(false);
     }
-  }, [producto.id]);
+  }, [producto.id, vendedorId]);
 
   const handleCardClick = () => {
     setIsDialogOpen(true)
     fetchProductData()
   }
 
-  const filterItems = useCallback((items: any[], term: string) => {
-    return items.filter(item =>
-      Object.values(item).some(value =>
-        value && value.toString().toLowerCase().includes(term.toLowerCase())
-      )
-    )
-  }, [])
-
-  const formatPrice = (price: number | string): string => {
-    const numPrice = typeof price === 'string' ? parseFloat(price) : price
-    return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
-  }
-
-  const VentaItem = ({ venta }: { venta: Venta }) => {
-    const cantidadTotal = venta.parametros
-      ? venta.parametros.reduce((sum, param) => sum + param.cantidad, 0)
-      : venta.cantidad;
-
-    return (
-      <div className="flex items-center justify-between bg-white p-2 rounded-lg shadow border-l-4 border-green-500">
-        <div className="flex items-center space-x-2">
-          <DollarSign className="w-5 h-5 text-green-500 flex-shrink-0" />
-          <p className="font-semibold text-sm">{formatDate(venta.fecha)}</p>
-        </div>
-        <p className="text-sm">Cantidad: {cantidadTotal}</p>
-      </div>
-    );
-  };
-
-  const renderVentasList = () => {
-    const filteredVentas = filterItems(ventas, searchTerm)
-    return (
-      <div className="space-y-2">
-        {filteredVentas.length > 0 ? (
-          filteredVentas.map(venta => (
-            <VentaItem key={venta.id} venta={venta} />
-          ))
-        ) : (
-          <div className="text-center py-4">No hay ventas registradas</div>
-        )}
-      </div>
-    )
-  }
+  const ventasDiarias = useMemo(() => agruparVentasPorDia(ventas), [ventas, agruparVentasPorDia]);
+  const ventasSemanales = useMemo(() => agruparVentasPorSemana(ventas), [ventas, agruparVentasPorSemana]);
 
   return (
     <>
@@ -853,7 +903,6 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
                           <div className="mt-4">
                             <h4 className="font-medium mb-2">Parámetros:</h4>
                             <div className="space-y-2">
-                              {/* Filtrar los parámetros con cantidad > 0 */}
                               {producto.parametros
                                 ?.filter(parametro => parametro.cantidad > 0)
                                 ?.map((parametro) => (
@@ -899,20 +948,61 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
                   </TabsContent>
 
                   <TabsContent value="ventas" className="h-full overflow-auto mt-0 border-0">
-                    <div className="sticky top-0 bg-white z-10 pb-4">
-                      <div className="relative">
-                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <Input
-                          type="search"
-                          placeholder="Buscar..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-                    <div className="overflow-auto">
-                      {renderVentasList()}
+                    <div className="space-y-4">
+                      <Tabs defaultValue="por-dia">
+                        <TabsList>
+                          <TabsTrigger value="por-dia">Por día</TabsTrigger>
+                          <TabsTrigger value="por-semana">Por semana</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="por-dia">
+                          <div className="space-y-4">
+                            <div className="relative mb-4">
+                              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                              <Input
+                                placeholder="Buscar ventas..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-10"
+                              />
+                            </div>
+                            {ventasDiarias.length > 0 ? (
+                              ventasDiarias.map((venta) => (
+                                <VentaDiaDesplegable 
+                                  key={venta.fecha} 
+                                  venta={venta} 
+                                  busqueda={searchTerm}
+                                />
+                              ))
+                            ) : (
+                              <div className="text-center py-4">No hay ventas registradas</div>
+                            )}
+                          </div>
+                        </TabsContent>
+                        <TabsContent value="por-semana">
+                          <div className="space-y-4">
+                            <div className="relative mb-4">
+                              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                              <Input
+                                placeholder="Buscar ventas..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-10"
+                              />
+                            </div>
+                            {ventasSemanales.length > 0 ? (
+                              ventasSemanales.map((venta) => (
+                                <VentaSemanaDesplegable 
+                                  key={`${venta.fechaInicio}-${venta.fechaFin}`} 
+                                  venta={venta}
+                                  busqueda={searchTerm}
+                                />
+                              ))
+                            ) : (
+                              <div className="text-center py-4">No hay ventas registradas</div>
+                            )}
+                          </div>
+                        </TabsContent>
+                      </Tabs>
                     </div>
                   </TabsContent>
                 </div>
@@ -1490,9 +1580,21 @@ export default function VendedorPage() {
                         />
                       </div>
                       {ventasDiarias.length > 0 ? (
-                        ventasDiarias.map((venta) => (
-                          <VentaDiaDesplegable key={venta.fecha} venta={venta} />
-                        ))
+                        ventasDiarias
+                          .filter(venta => 
+                            venta.ventas.some(v => 
+                              v.producto_nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+                              formatDate(v.fecha).toLowerCase().includes(busqueda.toLowerCase()) ||
+                              v.total.toString().includes(busqueda)
+                            )
+                          )
+                          .map((venta) => (
+                            <VentaDiaDesplegable 
+                              key={venta.fecha} 
+                              venta={venta} 
+                              busqueda={busqueda}
+                            />
+                          ))
                       ) : (
                         <div className="text-center py-4">No hay ventas registradas</div>
                       )}
@@ -1510,9 +1612,23 @@ export default function VendedorPage() {
                         />
                       </div>
                       {ventasSemanales.length > 0 ? (
-                        ventasSemanales.map((venta) => (
-                          <VentaSemanaDesplegable key={`${venta.fechaInicio}-${venta.fechaFin}`} venta={venta} />
-                        ))
+                        ventasSemanales
+                          .filter(venta => 
+                            venta.ventas.some(v => 
+                              v.producto_nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+                              formatDate(v.fecha).toLowerCase().includes(busqueda.toLowerCase()) ||
+                              v.total.toString().includes(busqueda)
+                            ) ||
+                            formatDate(venta.fechaInicio).toLowerCase().includes(busqueda.toLowerCase()) ||
+                            formatDate(venta.fechaFin).toLowerCase().includes(busqueda.toLowerCase())
+                          )
+                          .map((venta) => (
+                            <VentaSemanaDesplegable 
+                              key={`${venta.fechaInicio}-${venta.fechaFin}`} 
+                              venta={venta}
+                              busqueda={busqueda}
+                            />
+                          ))
                       ) : (
                         <div className="text-center py-4">No hay ventas registradas</div>
                       )}

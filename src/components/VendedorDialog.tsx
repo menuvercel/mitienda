@@ -57,7 +57,26 @@ interface ComparativeData {
   tieneParametros: boolean;
 }
 
-
+interface InconsistenciaData {
+  id: string;
+  nombre: string;
+  cantidadActual: number;
+  cantidadCalculada: number;
+  diferencia: number;
+  entregas: number;
+  bajas: number;
+  ventas: number;
+  parametros?: Array<{
+    nombre: string;
+    cantidadActual: number;
+    cantidadCalculada: number;
+    diferencia: number;
+    entregas: number;
+    bajas: number;
+    ventas: number;
+  }>;
+  tieneParametros: boolean;
+}
 
 interface VentaSemana {
   fechaInicio: string
@@ -75,7 +94,7 @@ interface VentaDia {
 
 
 export default function VendorDialog({ vendor, almacen, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce, onDeleteSale, onProductMerma, vendedores, onProductTransfer, onDeleteVendorData }: VendorDialogProps) {
-  const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones'>('view')
+  const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones' | 'inconsistencias'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
   const [searchTerm, setSearchTerm] = useState('')
   const [ventasLocales, setVentasLocales] = useState<Venta[]>(ventas)
@@ -105,6 +124,8 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
   const [sortField, setSortField] = useState<keyof Pick<ComparativeData, 'cantidadVendedor' | 'cantidadAlmacen' | 'precio'> | null>(null);
   const [expandedComparativeProducts, setExpandedComparativeProducts] = useState<Record<string, boolean>>({});
+  const [showInconsistenciasTable, setShowInconsistenciasTable] = useState(false);
+  const [expandedInconsistencias, setExpandedInconsistencias] = useState<Record<string, boolean>>({});
 
 
 
@@ -1084,10 +1105,277 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
     setVentasSemanales(agruparVentasPorSemana(ventasLocales))
   }, [ventasLocales, agruparVentasPorSemana])
 
+  const calcularInconsistencias = useCallback((): InconsistenciaData[] => {
+    const calcularCantidadPorTransacciones = (productoId: string, parametroNombre?: string) => {
+      let entregas = 0;
+      let bajas = 0;
+      let ventasTotal = 0;
+      const vendorId = vendor.id.toString();
+      
+      // Obtener el producto
+      const producto = productos.find(p => p.id === productoId);
+      if (!producto) return { entregas: 0, bajas: 0, ventasTotal: 0, cantidad: 0 };
+      
+      // Filtrar transacciones
+      const transaccionesVendedor = transacciones.filter(transaccion => {
+        const transaccionDesde = transaccion.desde?.toString();
+        const transaccionHacia = transaccion.hacia?.toString();
+        const productoTransaccion = productos.find(p => p.nombre === transaccion.producto);
+
+        if (!productoTransaccion) return false;
+
+        if (transaccionDesde === vendorId && transaccion.tipo === 'Baja' && productoTransaccion.id === productoId) {
+          return true;
+        }
+        if (transaccionHacia === vendorId && transaccion.tipo === 'Entrega' && productoTransaccion.id === productoId) {
+          return true;
+        }
+        return false;
+      });
+
+      // Procesar las transacciones filtradas
+      transaccionesVendedor.forEach(transaccion => {
+        const productoTransaccion = productos.find(p => p.nombre === transaccion.producto);
+        if (productoTransaccion && productoTransaccion.id === productoId) {
+          if (parametroNombre && transaccion.parametros) {
+            const parametro = transaccion.parametros.find(p => p.nombre === parametroNombre);
+            if (parametro) {
+              if (transaccion.tipo === 'Entrega') {
+                entregas += parametro.cantidad;
+              } else if (transaccion.tipo === 'Baja') {
+                bajas += parametro.cantidad;
+              }
+            }
+          } else if (!parametroNombre) {
+            if (transaccion.tipo === 'Entrega') {
+              entregas += transaccion.cantidad;
+            } else if (transaccion.tipo === 'Baja') {
+              bajas += transaccion.cantidad;
+            }
+          }
+        }
+      });
+
+      // Calcular ventas
+      ventas.forEach(venta => {
+        const productoVenta = productos.find(p => p.nombre === venta.producto_nombre);
+        if (productoVenta && productoVenta.id === productoId) {
+          if (parametroNombre && venta.parametros) {
+            const parametro = venta.parametros.find(p => p.nombre === parametroNombre);
+            if (parametro) {
+              ventasTotal += parametro.cantidad;
+            }
+          } else if (!parametroNombre) {
+            ventasTotal += venta.cantidad;
+          }
+        }
+      });
+
+      return { entregas, bajas, ventasTotal, cantidad: entregas - bajas - ventasTotal };
+    };
+
+    return productos
+      .map(producto => {
+        let inconsistenciaData: InconsistenciaData;
+
+        if (producto.parametros && producto.parametros.length > 0) {
+          // Calcular inconsistencias para productos con parámetros
+          const parametrosInconsistentes = producto.parametros
+            .filter(parametro => parametro.cantidad > 0 || parametro.nombre.trim() !== '')
+            .map(parametro => {
+              const resultado = calcularCantidadPorTransacciones(producto.id, parametro.nombre);
+              return {
+                nombre: parametro.nombre,
+                cantidadActual: parametro.cantidad,
+                cantidadCalculada: resultado.cantidad,
+                diferencia: parametro.cantidad - resultado.cantidad,
+                entregas: resultado.entregas,
+                bajas: resultado.bajas,
+                ventas: resultado.ventasTotal
+              };
+            });
+
+          const totales = parametrosInconsistentes.reduce((acc, param) => ({
+            entregas: acc.entregas + param.entregas,
+            bajas: acc.bajas + param.bajas,
+            ventas: acc.ventas + param.ventas,
+            cantidadActual: acc.cantidadActual + param.cantidadActual,
+            cantidadCalculada: acc.cantidadCalculada + param.cantidadCalculada
+          }), { entregas: 0, bajas: 0, ventas: 0, cantidadActual: 0, cantidadCalculada: 0 });
+
+          inconsistenciaData = {
+            id: producto.id,
+            nombre: producto.nombre,
+            cantidadActual: totales.cantidadActual,
+            cantidadCalculada: totales.cantidadCalculada,
+            diferencia: totales.cantidadActual - totales.cantidadCalculada,
+            entregas: totales.entregas,
+            bajas: totales.bajas,
+            ventas: totales.ventas,
+            parametros: parametrosInconsistentes,
+            tieneParametros: true
+          };
+        } else {
+          // Calcular inconsistencias para productos sin parámetros
+          const resultado = calcularCantidadPorTransacciones(producto.id);
+          inconsistenciaData = {
+            id: producto.id,
+            nombre: producto.nombre,
+            cantidadActual: producto.cantidad,
+            cantidadCalculada: resultado.cantidad,
+            diferencia: producto.cantidad - resultado.cantidad,
+            entregas: resultado.entregas,
+            bajas: resultado.bajas,
+            ventas: resultado.ventasTotal,
+            tieneParametros: false
+          };
+        }
+
+        return inconsistenciaData;
+      })
+      .filter(item => 
+        item.diferencia !== 0 || 
+        (item.parametros && item.parametros.some(p => p.diferencia !== 0))
+      );
+  }, [productos, transacciones, ventas, vendor.id]);
+
+  const renderInconsistenciasTable = () => {
+    const inconsistencias = calcularInconsistencias();
+    const inconsistenciasFiltradas = inconsistencias.filter(item =>
+      item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return (
+      <div className="w-full">
+        <div className="relative mb-4">
+          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Input
+            type="search"
+            placeholder="Buscar productos..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="w-full overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="inline-block min-w-full border rounded-md">
+            <div className="max-h-[350px] overflow-y-auto">
+              <table className="min-w-full border-collapse table-fixed">
+                <thead className="sticky top-0 bg-white">
+                  <tr>
+                    <th className="text-left p-2 border-b w-[120px] min-w-[120px] text-sm">Producto</th>
+                    <th className="text-right p-2 border-b w-[60px] min-w-[60px] text-sm">Actual</th>
+                    <th className="text-right p-2 border-b w-[70px] min-w-[70px] text-sm">Calculada</th>
+                    <th className="text-right p-2 border-b w-[70px] min-w-[70px] text-sm">Diferencia</th>
+                    <th className="text-right p-2 border-b w-[60px] min-w-[60px] text-sm">Entregas</th>
+                    <th className="text-right p-2 border-b w-[60px] min-w-[60px] text-sm">Bajas</th>
+                    <th className="text-right p-2 border-b w-[60px] min-w-[60px] text-sm">Ventas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inconsistenciasFiltradas.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-4 text-gray-500 text-sm">
+                        {searchTerm 
+                          ? 'No se encontraron productos que coincidan con la búsqueda.'
+                          : 'No se encontraron inconsistencias en el inventario.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    inconsistenciasFiltradas.map((item) => (
+                      <React.Fragment key={item.id}>
+                        <tr
+                          className={`border-b hover:bg-gray-50 ${item.tieneParametros ? 'cursor-pointer' : ''}`}
+                          onClick={() => {
+                            if (item.tieneParametros) {
+                              setExpandedInconsistencias(prev => ({
+                                ...prev,
+                                [item.id]: !prev[item.id]
+                              }));
+                            }
+                          }}
+                        >
+                          <td className="p-2 text-sm break-words">
+                            <div className="flex items-center">
+                              {item.nombre}
+                              {item.tieneParametros && (
+                                <ChevronDown
+                                  className={`ml-2 h-4 w-4 transition-transform ${
+                                    expandedInconsistencias[item.id] ? 'rotate-180' : ''
+                                  }`}
+                                />
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-2 text-right text-sm whitespace-nowrap">{item.cantidadActual}</td>
+                          <td className="p-2 text-right text-sm whitespace-nowrap">{item.cantidadCalculada}</td>
+                          <td className={`p-2 text-right text-sm whitespace-nowrap ${
+                            item.diferencia > 0 ? 'text-green-600' : 
+                            item.diferencia < 0 ? 'text-red-600' : ''
+                          }`}>
+                            {item.diferencia}
+                          </td>
+                          <td className="p-2 text-right text-sm whitespace-nowrap text-green-600">{item.entregas}</td>
+                          <td className="p-2 text-right text-sm whitespace-nowrap text-red-600">{item.bajas}</td>
+                          <td className="p-2 text-right text-sm whitespace-nowrap text-blue-600">{item.ventas}</td>
+                        </tr>
+
+                        {item.tieneParametros && expandedInconsistencias[item.id] && item.parametros && (
+                          <tr className="bg-gray-50">
+                            <td colSpan={7} className="p-0">
+                              <div className="p-2 pl-6">
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-xs border-separate border-spacing-0">
+                                    <thead className="bg-gray-100">
+                                      <tr>
+                                        <th className="p-1 text-left min-w-[100px]">Parámetro</th>
+                                        <th className="p-1 text-right min-w-[50px]">Actual</th>
+                                        <th className="p-1 text-right min-w-[60px]">Calculada</th>
+                                        <th className="p-1 text-right min-w-[60px]">Diferencia</th>
+                                        <th className="p-1 text-right min-w-[50px]">Entregas</th>
+                                        <th className="p-1 text-right min-w-[50px]">Bajas</th>
+                                        <th className="p-1 text-right min-w-[50px]">Ventas</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {item.parametros.map((param, idx) => (
+                                        <tr key={idx} className="hover:bg-gray-100">
+                                          <td className="p-1">{param.nombre}</td>
+                                          <td className="p-1 text-right whitespace-nowrap">{param.cantidadActual}</td>
+                                          <td className="p-1 text-right whitespace-nowrap">{param.cantidadCalculada}</td>
+                                          <td className={`p-1 text-right whitespace-nowrap ${
+                                            param.diferencia > 0 ? 'text-green-600' : 
+                                            param.diferencia < 0 ? 'text-red-600' : ''
+                                          }`}>
+                                            {param.diferencia}
+                                          </td>
+                                          <td className="p-1 text-right whitespace-nowrap text-green-600">{param.entregas}</td>
+                                          <td className="p-1 text-right whitespace-nowrap text-red-600">{param.bajas}</td>
+                                          <td className="p-1 text-right whitespace-nowrap text-blue-600">{param.ventas}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader className="p-4">
           <DialogTitle>{vendor.nombre}</DialogTitle>
         </DialogHeader>
@@ -1230,12 +1518,20 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                 {renderTransaccionesList()}
               </div>
             </div>
+          ) : mode === 'inconsistencias' ? (
+            <div className="max-h-[600px] overflow-y-auto">
+              <div>
+                <h2 className="text-lg font-bold mb-4">Inconsistencias en Inventario</h2>
+                {renderInconsistenciasTable()}
+              </div>
+            </div>
           ) : (
             <div className="flex flex-col space-y-2">
               <Button onClick={() => setMode('edit')}>Editar</Button>
               <Button onClick={() => setMode('productos')}>Productos</Button>
               <Button onClick={() => setMode('ventas')}>Ventas</Button>
               <Button onClick={() => setMode('transacciones')}>Transacciones</Button>
+              <Button onClick={() => setMode('inconsistencias')}>Inconsistencias</Button>
               <Button
                 onClick={() => setShowComparativeTable(true)}
                 className="w-full md:w-auto"
