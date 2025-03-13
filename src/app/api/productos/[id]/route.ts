@@ -171,20 +171,21 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                 // 6.3 Insertar parámetros actualizados para el vendedor
                 if (tieneParametros && parametros.length > 0) {
                     for (const param of parametros) {
-                        let cantidadFinal = param.cantidad; // Valor predeterminado
+                        let cantidadFinal = 0; // Inicializar en 0 por defecto
                         
-                        // Buscar si existe un mapeo directo de parámetro antiguo a nuevo
-                        for (const nombreAntiguo in mapeoParametros) {
-                            if (mapeoParametros[nombreAntiguo] === param.nombre && 
-                                mapaParametrosVendedor[nombreAntiguo] !== undefined) {
-                                cantidadFinal = mapaParametrosVendedor[nombreAntiguo];
-                                break;
+                        // Solo buscar cantidad existente si el parámetro ya existía
+                        const parametroExistente = parametrosVendedor.find(p => p.nombre === param.nombre);
+                        if (parametroExistente) {
+                            cantidadFinal = parametroExistente.cantidad;
+                        } else {
+                            // Si es un parámetro mapeado de uno antiguo, usar esa cantidad
+                            for (const nombreAntiguo in mapeoParametros) {
+                                if (mapeoParametros[nombreAntiguo] === param.nombre && 
+                                    mapaParametrosVendedor[nombreAntiguo] !== undefined) {
+                                    cantidadFinal = mapaParametrosVendedor[nombreAntiguo];
+                                    break;
+                                }
                             }
-                        }
-                        
-                        // Si no hay mapeo, buscar si ya existía un parámetro con el mismo nombre
-                        if (mapaParametrosVendedor[param.nombre] !== undefined) {
-                            cantidadFinal = mapaParametrosVendedor[param.nombre];
                         }
                         
                         await query(

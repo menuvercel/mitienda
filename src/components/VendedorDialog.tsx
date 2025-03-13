@@ -2173,7 +2173,7 @@ export default function VendorDialog({
       </Dialog>
 
       <Dialog open={showEditQuantityDialog} onOpenChange={setShowEditQuantityDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px] max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Editar cantidad de {productToEdit?.nombre}</DialogTitle>
             <DialogDescription>
@@ -2181,54 +2181,56 @@ export default function VendorDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            {productToEdit?.tieneParametros && productToEdit.parametros ? (
-              // Formulario para productos con parámetros
-              productToEdit.parametros.map((param, index) => (
-                <div key={index} className="flex flex-col space-y-2">
+          <div className="flex-1 overflow-y-auto py-4 px-2">
+            <div className="space-y-4">
+              {productToEdit?.tieneParametros && productToEdit.parametros ? (
+                // Formulario para productos con parámetros
+                productToEdit.parametros.map((param, index) => (
+                  <div key={index} className="flex flex-col space-y-2">
+                    <label className="text-sm font-medium">
+                      {param.nombre}
+                      <span className="text-gray-500 text-xs ml-2">
+                        (Actual: {param.cantidadActual})
+                      </span>
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={newQuantities[param.nombre] || 0}
+                      onChange={(e) => {
+                        const value = Math.max(0, parseInt(e.target.value) || 0);
+                        setNewQuantities(prev => ({
+                          ...prev,
+                          [param.nombre]: value
+                        }));
+                      }}
+                    />
+                  </div>
+                ))
+              ) : (
+                // Formulario para productos sin parámetros
+                <div className="flex flex-col space-y-2">
                   <label className="text-sm font-medium">
-                    {param.nombre}
+                    Cantidad
                     <span className="text-gray-500 text-xs ml-2">
-                      (Actual: {param.cantidadActual})
+                      (Actual: {productToEdit?.cantidadActual})
                     </span>
                   </label>
                   <Input
                     type="number"
                     min="0"
-                    value={newQuantities[param.nombre] || 0}
+                    value={newQuantities.total || 0}
                     onChange={(e) => {
                       const value = Math.max(0, parseInt(e.target.value) || 0);
-                      setNewQuantities(prev => ({
-                        ...prev,
-                        [param.nombre]: value
-                      }));
+                      setNewQuantities({ total: value });
                     }}
                   />
                 </div>
-              ))
-            ) : (
-              // Formulario para productos sin parámetros
-              <div className="flex flex-col space-y-2">
-                <label className="text-sm font-medium">
-                  Cantidad
-                  <span className="text-gray-500 text-xs ml-2">
-                    (Actual: {productToEdit?.cantidadActual})
-                  </span>
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={newQuantities.total || 0}
-                  onChange={(e) => {
-                    const value = Math.max(0, parseInt(e.target.value) || 0);
-                    setNewQuantities({ total: value });
-                  }}
-                />
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="border-t pt-4">
             <Button
               variant="outline"
               onClick={() => {
