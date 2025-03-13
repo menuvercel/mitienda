@@ -162,6 +162,23 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                     mapaParametrosVendedor[param.nombre] = param.cantidad;
                 });
                 
+                // Actualizar nombres en transaccion_parametros si hay mapeo de parámetros
+                if (Object.keys(mapeoParametros).length > 0) {
+                    for (const nombreAntiguo in mapeoParametros) {
+                        const nombreNuevo = mapeoParametros[nombreAntiguo];
+                        await query(`
+                            UPDATE transaccion_parametros 
+                            SET nombre = $1 
+                            WHERE nombre = $2 
+                            AND transaccion_id IN (
+                                SELECT id FROM transacciones 
+                                WHERE producto = $3
+                            )`,
+                            [nombreNuevo, nombreAntiguo, id]
+                        );
+                    }
+                }
+                
                 // 6.2 Eliminar parámetros antiguos del vendedor
                 await query(
                     'DELETE FROM usuario_producto_parametros WHERE producto_id = $1 AND usuario_id = $2',
