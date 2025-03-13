@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion, TransaccionParametro } from '@/types'
-import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, ArrowUpDown, FileDown, X } from 'lucide-react'
+import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, ArrowUpDown, FileDown, X, Edit2 } from 'lucide-react'
 import { format, parseISO, startOfWeek, endOfWeek, isValid, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import * as XLSX from 'xlsx'
@@ -44,6 +44,12 @@ interface VendorDialogProps {
     parametros?: Array<{ nombre: string; cantidad: number }>
   ) => Promise<void>;
   onDeleteVendorData: (vendorId: string) => Promise<void>;
+  onUpdateProductQuantity?: (
+    vendorId: string,
+    productId: string,
+    newQuantity: number,
+    parametros?: Array<{ nombre: string; cantidad: number }>
+  ) => Promise<void>;
 }
 
 interface ComparativeData {
@@ -93,7 +99,24 @@ interface VentaDia {
 }
 
 
-export default function VendorDialog({ vendor, almacen, onClose, onEdit, productos, transacciones, ventas, ventasSemanales, ventasDiarias, onProductReduce, onDeleteSale, onProductMerma, vendedores, onProductTransfer, onDeleteVendorData }: VendorDialogProps) {
+export default function VendorDialog({ 
+  vendor, 
+  almacen, 
+  onClose, 
+  onEdit, 
+  productos, 
+  transacciones, 
+  ventas, 
+  ventasSemanales, 
+  ventasDiarias, 
+  onProductReduce, 
+  onDeleteSale, 
+  onProductMerma, 
+  vendedores, 
+  onProductTransfer, 
+  onDeleteVendorData,
+  onUpdateProductQuantity 
+}: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones' | 'inconsistencias'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
   const [searchTerm, setSearchTerm] = useState('')
@@ -126,6 +149,10 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
   const [expandedComparativeProducts, setExpandedComparativeProducts] = useState<Record<string, boolean>>({});
   const [showInconsistenciasTable, setShowInconsistenciasTable] = useState(false);
   const [expandedInconsistencias, setExpandedInconsistencias] = useState<Record<string, boolean>>({});
+  const [showEditQuantityDialog, setShowEditQuantityDialog] = useState(false);
+  const [productToEdit, setProductToEdit] = useState<InconsistenciaData | null>(null);
+  const [newQuantities, setNewQuantities] = useState<Record<string, number>>({});
+  const [isUpdatingQuantity, setIsUpdatingQuantity] = useState(false);
 
 
 
@@ -1176,7 +1203,7 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
 
     return productos
       .map(producto => {
-        let inconsistenciaData: InconsistenciaData;
+        let inconsistenciaData: InconsistenciaData; 
 
         if (producto.parametros && producto.parametros.length > 0) {
           // Calcular inconsistencias para productos con parámetros
@@ -1270,12 +1297,13 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                     <th className="text-right p-2 border-b w-[60px] min-w-[60px] text-sm">Entregas</th>
                     <th className="text-right p-2 border-b w-[60px] min-w-[60px] text-sm">Bajas</th>
                     <th className="text-right p-2 border-b w-[60px] min-w-[60px] text-sm">Ventas</th>
+                    <th className="text-center p-2 border-b w-[50px] min-w-[50px] text-sm">Editar</th>
                   </tr>
                 </thead>
                 <tbody>
                   {inconsistenciasFiltradas.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-4 text-gray-500 text-sm">
+                      <td colSpan={8} className="text-center py-4 text-gray-500 text-sm">
                         {searchTerm 
                           ? 'No se encontraron productos que coincidan con la búsqueda.'
                           : 'No se encontraron inconsistencias en el inventario.'}
@@ -1318,11 +1346,33 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                           <td className="p-2 text-right text-sm whitespace-nowrap text-green-600">{item.entregas}</td>
                           <td className="p-2 text-right text-sm whitespace-nowrap text-red-600">{item.bajas}</td>
                           <td className="p-2 text-right text-sm whitespace-nowrap text-blue-600">{item.ventas}</td>
+                          <td className="p-2 text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setProductToEdit(item);
+                                setShowEditQuantityDialog(true);
+                                if (item.tieneParametros && item.parametros) {
+                                  const initialQuantities: Record<string, number> = {};
+                                  item.parametros.forEach(param => {
+                                    initialQuantities[param.nombre] = param.cantidadActual;
+                                  });
+                                  setNewQuantities(initialQuantities);
+                                } else {
+                                  setNewQuantities({ total: item.cantidadActual });
+                                }
+                              }}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          </td>
                         </tr>
 
                         {item.tieneParametros && expandedInconsistencias[item.id] && item.parametros && (
                           <tr className="bg-gray-50">
-                            <td colSpan={7} className="p-0">
+                            <td colSpan={8} className="p-0">
                               <div className="p-2 pl-6">
                                 <div className="overflow-x-auto">
                                   <table className="w-full text-xs border-separate border-spacing-0">
@@ -1335,6 +1385,7 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                                         <th className="p-1 text-right min-w-[50px]">Entregas</th>
                                         <th className="p-1 text-right min-w-[50px]">Bajas</th>
                                         <th className="p-1 text-right min-w-[50px]">Ventas</th>
+                                        <th className="p-1 text-right min-w-[50px]"></th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -1352,6 +1403,7 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
                                           <td className="p-1 text-right whitespace-nowrap text-green-600">{param.entregas}</td>
                                           <td className="p-1 text-right whitespace-nowrap text-red-600">{param.bajas}</td>
                                           <td className="p-1 text-right whitespace-nowrap text-blue-600">{param.ventas}</td>
+                                          <td className="p-1"></td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -2120,11 +2172,131 @@ export default function VendorDialog({ vendor, almacen, onClose, onEdit, product
         </DialogContent>
       </Dialog>
 
+      <Dialog open={showEditQuantityDialog} onOpenChange={setShowEditQuantityDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar cantidad de {productToEdit?.nombre}</DialogTitle>
+            <DialogDescription>
+              Ajusta las cantidades del producto
+            </DialogDescription>
+          </DialogHeader>
 
+          <div className="space-y-4 py-4">
+            {productToEdit?.tieneParametros && productToEdit.parametros ? (
+              // Formulario para productos con parámetros
+              productToEdit.parametros.map((param, index) => (
+                <div key={index} className="flex flex-col space-y-2">
+                  <label className="text-sm font-medium">
+                    {param.nombre}
+                    <span className="text-gray-500 text-xs ml-2">
+                      (Actual: {param.cantidadActual})
+                    </span>
+                  </label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={newQuantities[param.nombre] || 0}
+                    onChange={(e) => {
+                      const value = Math.max(0, parseInt(e.target.value) || 0);
+                      setNewQuantities(prev => ({
+                        ...prev,
+                        [param.nombre]: value
+                      }));
+                    }}
+                  />
+                </div>
+              ))
+            ) : (
+              // Formulario para productos sin parámetros
+              <div className="flex flex-col space-y-2">
+                <label className="text-sm font-medium">
+                  Cantidad
+                  <span className="text-gray-500 text-xs ml-2">
+                    (Actual: {productToEdit?.cantidadActual})
+                  </span>
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={newQuantities.total || 0}
+                  onChange={(e) => {
+                    const value = Math.max(0, parseInt(e.target.value) || 0);
+                    setNewQuantities({ total: value });
+                  }}
+                />
+              </div>
+            )}
+          </div>
 
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEditQuantityDialog(false);
+                setProductToEdit(null);
+                setNewQuantities({});
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!productToEdit || !onUpdateProductQuantity) return;
 
+                setIsUpdatingQuantity(true);
+                try {
+                  if (productToEdit.tieneParametros) {
+                    const parametros = Object.entries(newQuantities).map(([nombre, cantidad]) => ({
+                      nombre,
+                      cantidad
+                    }));
+                    await onUpdateProductQuantity(
+                      vendor.id,
+                      productToEdit.id,
+                      0, // La cantidad total se calcula a partir de los parámetros
+                      parametros
+                    );
+                  } else {
+                    await onUpdateProductQuantity(
+                      vendor.id,
+                      productToEdit.id,
+                      newQuantities.total || 0
+                    );
+                  }
 
+                  toast({
+                    title: "Éxito",
+                    description: "Cantidad actualizada correctamente",
+                  });
 
+                  setShowEditQuantityDialog(false);
+                  setProductToEdit(null);
+                  setNewQuantities({});
+                } catch (error) {
+                  console.error('Error al actualizar la cantidad:', error);
+                  toast({
+                    title: "Error",
+                    description: "No se pudo actualizar la cantidad",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setIsUpdatingQuantity(false);
+                }
+              }}
+              disabled={isUpdatingQuantity}
+            >
+              {isUpdatingQuantity ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Actualizando...
+                </>
+              ) : (
+                'Actualizar cantidad'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }

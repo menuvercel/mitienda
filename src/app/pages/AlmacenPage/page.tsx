@@ -41,6 +41,7 @@ import SalesSection from '@/components/SalesSection'
 import { ImageUpload } from '@/components/ImageUpload'
 import { Producto, Vendedor, Venta, Transaccion, Merma, Parametro } from '@/types'
 import { toast } from "@/hooks/use-toast";
+import { useVendorProducts } from '@/hooks/use-vendor-products';
 
 
 interface VentaSemana {
@@ -186,6 +187,7 @@ export default function AlmacenPage() {
   const [mermaSortBy, setMermaSortBy] = useState<'nombre' | 'cantidad'>('nombre')
   const [nombreExiste, setNombreExiste] = useState(false);
   const [verificandoNombre, setVerificandoNombre] = useState(false);
+  const { updateProductQuantity } = useVendorProducts();
 
   const isProductoAgotado = (producto: Producto): boolean => {
     if (producto.tiene_parametros && producto.parametros) {
@@ -617,28 +619,29 @@ export default function AlmacenPage() {
     try {
       const [productos, ventas, transacciones] = await Promise.all([
         getProductosVendedor(vendedor.id),
-        getVentasVendedor(vendedor.id), // Ahora no es necesario pasar las fechas
+        getVentasVendedor(vendedor.id),
         getTransaccionesVendedor(vendedor.id)
-      ]);
+      ])
 
-      // Calcular ventas diarias
-      const ventasDiarias = calcularVentasDiarias(ventas);
+      setProductosVendedor(productos)
+      setVentasVendedor(ventas)
+      setTransaccionesVendedor(transacciones)
+      setVendedorSeleccionado(vendedor)
 
-      // Calcular ventas semanales
-      const ventasSemanales = calcularVentasSemanales(ventas);
+      const ventasDiariasCalculadas = calcularVentasDiarias(ventas)
+      const ventasSemanalesCalculadas = calcularVentasSemanales(ventas)
 
-      setProductosVendedor(productos);
-      setVentasVendedor(ventas);
-      setVentasDiarias(ventasDiarias);
-      setVentasSemanales(ventasSemanales);
-      setTransaccionesVendedor(transacciones);
-      setVendedorSeleccionado(vendedor);
+      setVentasDiarias(ventasDiariasCalculadas)
+      setVentasSemanales(ventasSemanalesCalculadas)
     } catch (error) {
-      console.error('Error al obtener datos del vendedor:', error);
-      alert('No se pudieron cargar todos los datos del vendedor. Algunos datos pueden estar incompletos.');
-      setVendedorSeleccionado(vendedor);
+      console.error('Error al cargar datos del vendedor:', error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los datos del vendedor",
+        variant: "destructive",
+      })
     }
-  };
+  }
 
 
   useEffect(() => {
@@ -922,6 +925,24 @@ export default function AlmacenPage() {
   const filteredInventario = sortedInventario.filter((producto) =>
     producto.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  const handleUpdateProductQuantity = async (
+    vendorId: string,
+    productId: string,
+    newQuantity: number,
+    parametros?: Array<{ nombre: string; cantidad: number }>
+  ) => {
+    try {
+      await updateProductQuantity(vendorId, productId, newQuantity, parametros);
+      // Actualizar los productos del vendedor después de la actualización
+      if (vendedorSeleccionado) {
+        const updatedProducts = await getProductosVendedor(vendedorSeleccionado.id);
+        setProductosVendedor(updatedProducts);
+      }
+    } catch (error) {
+      console.error('Error al actualizar la cantidad:', error);
+    }
+  };
 
   if (!isAuthenticated) {
     return <div>Cargando...</div>
@@ -1720,7 +1741,7 @@ export default function AlmacenPage() {
 
       {vendedorSeleccionado && (
         <VendorDialog
-          almacen={inventario} // Añadir esta línea
+          almacen={inventario}
           vendor={vendedorSeleccionado}
           onClose={() => setVendedorSeleccionado(null)}
           onEdit={handleEditVendedor}
@@ -1735,6 +1756,7 @@ export default function AlmacenPage() {
           onProductTransfer={handleProductTransfer}
           vendedores={vendedores}
           onDeleteVendorData={handleDeleteVendorData}
+          onUpdateProductQuantity={handleUpdateProductQuantity}
         />
       )}
     </div>
