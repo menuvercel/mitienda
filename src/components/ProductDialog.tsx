@@ -138,8 +138,8 @@ export default function ProductDialog({
   // Guardar cambios en el producto
   const handleEdit = async () => {
     try {
-      console.log('URL de la imagen antes de guardar:', imageUrl);
-      if (!imageUrl) {
+      // Solo verificamos la imagen si se está intentando subir una nueva
+      if (imageUrl !== product.foto && !imageUrl) {
         toast({
           title: "Advertencia",
           description: "Espera a que la imagen se suba completamente.",
@@ -150,15 +150,15 @@ export default function ProductDialog({
 
       const updatedProduct: Producto = {
         ...editedProduct,
-        foto: imageUrl,
+        foto: imageUrl || product.foto, // Usar la foto existente si no hay nueva
         tiene_parametros: editedProduct.tieneParametros || false,
         tieneParametros: editedProduct.tieneParametros || false,
         parametros: editedProduct.tieneParametros ? editedProduct.parametros : [],
-        precio_compra: editedProduct.precio_compra || 0, // Aseguramos que se incluya el precio_compra
+        precio_compra: editedProduct.precio_compra || 0,
       };
 
-      console.log('Producto a guardar:', updatedProduct); // Agrega este log para verificar
-      await onEdit(updatedProduct, imageUrl);
+      console.log('Producto a guardar:', updatedProduct);
+      await onEdit(updatedProduct, imageUrl !== product.foto ? imageUrl : undefined);
       setMode('view');
       toast({
         title: "Éxito",

@@ -29,33 +29,22 @@ export async function POST(request: NextRequest) {
         const formData = await request.formData();
         const nombre = formData.get('nombre') as string;
         const precio = formData.get('precio') as string;
-        const precioCompra = formData.get('precioCompra') as string; // Nuevo campo
+        const precioCompra = formData.get('precioCompra') as string;
         const cantidad = formData.get('cantidad') as string;
-        const foto = formData.get('foto') as File | null;
+        const foto = formData.get('foto') as string;
         const tieneParametros = formData.get('tieneParametros') === 'true';
         const parametrosRaw = formData.get('parametros') as string;
         const parametros = parametrosRaw ? JSON.parse(parametrosRaw) : [];
 
         let fotoUrl = '';
 
-        if (foto && foto instanceof File) {
-            try {
-                console.log('Uploading image:', foto.name);
-                const blob = await put(foto.name, foto, {
-                    access: 'public',
-                });
-                fotoUrl = blob.url;
-                console.log('Image uploaded successfully:', fotoUrl);
-            } catch (error) {
-                console.error('Error uploading image:', error);
-                return NextResponse.json({ error: 'Error al subir la imagen' }, { status: 500 });
-            }
+        if (foto) {
+            fotoUrl = foto;
         }
 
         await query('BEGIN');
 
         try {
-            // Actualizar la consulta SQL para incluir el campo precio_compra
             const result = await query(
                 'INSERT INTO productos (nombre, precio, precio_compra, cantidad, foto, tiene_parametros) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
                 [nombre, Number(precio), Number(precioCompra), Number(cantidad), fotoUrl, tieneParametros]

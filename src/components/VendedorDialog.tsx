@@ -850,9 +850,33 @@ export default function VendorDialog({
           const isExpanded = expandedProducts[producto.id] || false;
           const cantidadTotal = calcularCantidadTotal(producto);
 
-          // Si el producto tiene parámetros pero ninguno es válido, no lo mostramos
+          // Si el producto tiene parámetros pero ninguno es válido, lo mostramos como agotado
           if (producto.parametros && producto.parametros.length > 0 && !hasParameters) {
-            return null;
+            return (
+              <div
+                key={producto.id}
+                className="bg-white rounded-lg shadow overflow-hidden"
+              >
+                <div className="flex items-center p-4">
+                  <div className="w-[50px] h-[50px] relative mr-4">
+                    <Image
+                      src={producto.foto || '/placeholder.svg'}
+                      alt={producto.nombre}
+                      fill
+                      className="object-cover rounded"
+                    />
+                  </div>
+                  <div className="flex-grow">
+                    <div className="flex items-center">
+                      <h3 className="font-bold">{producto.nombre}</h3>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      ${formatPrice(producto.precio)} - Agotado
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
           }
 
           return (
@@ -915,6 +939,37 @@ export default function VendorDialog({
   }, [expandedProducts, isLoading, toggleExpandProd, setProductToReduce, setReduceDialogOpen, formatPrice])
 
   const renderVentasList = () => {
+    const filtrarVentas = (ventas: VentaDia[]) => {
+      if (!searchTerm) return ventas;
+      
+      return ventas.map(ventaDia => ({
+        ...ventaDia,
+        ventas: ventaDia.ventas.filter(venta =>
+          venta.producto_nombre.toLowerCase().includes(searchTerm.toLowerCase())
+        ),
+        total: ventaDia.ventas
+          .filter(venta => venta.producto_nombre.toLowerCase().includes(searchTerm.toLowerCase()))
+          .reduce((sum, venta) => sum + parseFloat(venta.total.toString()), 0)
+      })).filter(ventaDia => ventaDia.ventas.length > 0);
+    };
+
+    const filtrarVentasSemanales = (ventas: VentaSemana[]) => {
+      if (!searchTerm) return ventas;
+
+      return ventas.map(ventaSemana => ({
+        ...ventaSemana,
+        ventas: ventaSemana.ventas.filter(venta =>
+          venta.producto_nombre.toLowerCase().includes(searchTerm.toLowerCase())
+        ),
+        total: ventaSemana.ventas
+          .filter(venta => venta.producto_nombre.toLowerCase().includes(searchTerm.toLowerCase()))
+          .reduce((sum, venta) => sum + parseFloat(venta.total.toString()), 0),
+        ganancia: ventaSemana.ventas
+          .filter(venta => venta.producto_nombre.toLowerCase().includes(searchTerm.toLowerCase()))
+          .reduce((sum, venta) => sum + parseFloat(venta.total.toString()), 0) * 0.08
+      })).filter(ventaSemana => ventaSemana.ventas.length > 0);
+    };
+
     return (
       <Tabs defaultValue="por-dia">
         <TabsList>
@@ -934,7 +989,7 @@ export default function VendorDialog({
               />
             </div>
             {ventasDiariasLocales.length > 0 ? (
-              ventasDiariasLocales.map((venta) => (
+              filtrarVentas(ventasDiariasLocales).map((venta) => (
                 <VentaDiaDesplegable
                   key={venta.fecha}
                   venta={venta}
@@ -957,7 +1012,7 @@ export default function VendorDialog({
               />
             </div>
             {ventasSemanalesState.length > 0 ? (
-              ventasSemanalesState.map((venta) => (
+              filtrarVentasSemanales(ventasSemanalesState).map((venta) => (
                 <VentaSemanaDesplegable key={`${venta.fechaInicio}-${venta.fechaFin}`} venta={venta} />
               ))
             ) : (

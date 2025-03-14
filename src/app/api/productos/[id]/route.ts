@@ -55,20 +55,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         const tieneParametros = formData.get('tiene_parametros') === 'true';
         const parametrosRaw = formData.get('parametros') as string;
         const parametros: Parametro[] = parametrosRaw ? JSON.parse(parametrosRaw) : [];
-
-        // Extraer el precio_compra del FormData
         const precioCompra = formData.get('precio_compra') as string;
-
-        // Log para depuración
-        console.log('Datos recibidos en el endpoint PUT:', {
-            id,
-            nombre,
-            precio,
-            precio_compra: precioCompra,
-            cantidad,
-            tieneParametros,
-            parametros: parametros.length
-        });
 
         const currentProduct = await query('SELECT * FROM productos WHERE id = $1', [id]);
 
@@ -76,13 +63,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
             return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
         }
 
-        // Si no se proporciona una nueva URL de imagen, usa la existente
-        const nuevaFotoUrl = fotoUrl || currentProduct.rows[0].foto;
+        // Solo actualizar la foto si se proporciona una nueva
+        const nuevaFotoUrl = fotoUrl ? fotoUrl : currentProduct.rows[0].foto;
 
         await query('BEGIN');
 
         try {
-            // 1. Actualizar el producto principal - INCLUIR precio_compra
             const result = await query(
                 'UPDATE productos SET nombre = $1, precio = $2, cantidad = $3, foto = $4, tiene_parametros = $5, precio_compra = $6 WHERE id = $7 RETURNING *',
                 [

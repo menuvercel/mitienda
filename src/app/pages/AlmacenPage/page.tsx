@@ -715,11 +715,12 @@ export default function AlmacenPage() {
         formData.append('cantidad', newProduct.cantidad.toString());
       }
 
-      if (newProduct.foto) {
-        formData.append('fotoUrl', newProduct.foto);
+      if (newProduct.foto && typeof newProduct.foto === 'string' && newProduct.foto.trim() !== '') {
+        formData.append('foto', newProduct.foto);
       }
 
       await agregarProducto(formData);
+      await fetchInventario();
       setShowAddProductModal(false);
       setNewProduct({
         nombre: '',
@@ -730,7 +731,6 @@ export default function AlmacenPage() {
         tieneParametros: false,
         parametros: []
       });
-      await fetchInventario();
 
       toast({
         title: "Éxito",
@@ -973,7 +973,6 @@ export default function AlmacenPage() {
               </Button>
               <Button
                 variant="ghost"
-
                 className={activeSection === 'vendedores' ? 'bg-accent' : ''}
                 onClick={() => {
                   setActiveSection('vendedores')
@@ -1374,10 +1373,9 @@ export default function AlmacenPage() {
               />
               <div className="max-h-[55vh] overflow-y-auto space-y-2 pr-2">
                 {filteredInventarioForMassDelivery.map((producto) => (
-                  <div key={producto.id} className="flex flex-col space-y-2 p-2 border rounded">
-                    <div className="flex items-start space-x-3">
-                      {/* Checkbox y foto en una columna */}
-                      <div className="flex flex-col items-center space-y-2">
+                  <div key={producto.id} className="flex flex-col p-3 border rounded-lg bg-white">
+                    <div className="flex items-start gap-3">
+                      <div className="flex items-center h-5">
                         <Checkbox
                           id={`product-${producto.id}`}
                           checked={!!selectedProducts[producto.id]}
@@ -1387,7 +1385,7 @@ export default function AlmacenPage() {
                                 ...prev,
                                 [producto.id]: {
                                   cantidad: 0,
-                                  parametros: producto.tiene_parametros ? (producto.parametros || {}) : undefined,
+                                  parametros: producto.tiene_parametros ? {} : undefined,
                                 },
                               }));
                             } else {
@@ -1398,30 +1396,33 @@ export default function AlmacenPage() {
                             }
                           }}
                         />
-                        <div className="w-12 h-12 relative overflow-hidden rounded-md flex-shrink-0">
-                          <Image
-                            src={producto.foto || '/placeholder.svg'}
-                            alt={producto.nombre}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-
                       </div>
 
-                      {/* Información del producto y controles */}
-                      <div className="flex-grow min-w-0">
-                        <label htmlFor={`product-${producto.id}`} className="font-medium text-sm block truncate">
+                      <div className="w-16 h-16 relative rounded-md overflow-hidden flex-shrink-0">
+                        <Image
+                          src={producto.foto || '/placeholder.svg'}
+                          alt={producto.nombre}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <label htmlFor={`product-${producto.id}`} className="font-medium text-sm block">
                           {producto.nombre}
                         </label>
-                        <div className="text-xs text-gray-600 mt-1">
-                          <span className="mr-2">Precio: ${producto.precio}</span>
-                          <span>Disponible: {producto.cantidad}</span>
+                        <div className="text-xs text-gray-600 mt-1 space-y-1">
+                          <p>Precio: ${producto.precio}</p>
+                          <p>Disponible: {producto.cantidad}</p>
                         </div>
+                      </div>
+                    </div>
 
-                        {/* Input para cantidad si no tiene parámetros */}
-                        {!producto.tiene_parametros && (
-                          <div className="mt-2">
+                    {selectedProducts[producto.id] && (
+                      <div className="mt-3 pl-8 space-y-3">
+                        {!producto.tiene_parametros ? (
+                          <div className="flex items-center gap-2">
+                            <label className="text-sm text-gray-600 flex-shrink-0">Cantidad:</label>
                             <Input
                               type="number"
                               value={selectedProducts[producto.id]?.cantidad || ''}
@@ -1434,45 +1435,45 @@ export default function AlmacenPage() {
                                   },
                                 }))
                               }
-                              className="w-20 h-8 text-sm"
+                              className="w-24 h-8"
                               min={1}
                               max={producto.cantidad}
                             />
                           </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Parámetros */}
-                    {producto.tiene_parametros && selectedProducts[producto.id] && (
-                      <div className="ml-4 space-y-2">
-                        {producto.parametros?.map((parametro) => (
-                          <div key={parametro.nombre} className="flex items-center space-x-2">
-                            <label className="flex-grow text-xs">
-                              {parametro.nombre} (Max: {parametro.cantidad})
-                            </label>
-                            <Input
-                              type="number"
-                              value={selectedProducts[producto.id]?.parametros?.[parametro.nombre] || ''}
-                              onChange={(e) => {
-                                const value = parseInt(e.target.value, 10) || 0;
-                                setSelectedProducts((prev) => ({
-                                  ...prev,
-                                  [producto.id]: {
-                                    ...prev[producto.id],
-                                    parametros: {
-                                      ...prev[producto.id]?.parametros,
-                                      [parametro.nombre]: value,
-                                    },
-                                  },
-                                }));
-                              }}
-                              className="w-16 h-7 text-sm"
-                              min={0}
-                              max={parametro.cantidad}
-                            />
+                        ) : (
+                          <div className="space-y-2">
+                            {producto.parametros?.map((parametro) => (
+                              <div key={parametro.nombre} className="flex items-center gap-2">
+                                <label className="text-sm text-gray-600 flex-1">
+                                  {parametro.nombre}:
+                                  <span className="text-xs text-gray-500 ml-1">
+                                    (Máx: {parametro.cantidad})
+                                  </span>
+                                </label>
+                                <Input
+                                  type="number"
+                                  value={selectedProducts[producto.id]?.parametros?.[parametro.nombre] || ''}
+                                  onChange={(e) => {
+                                    const value = parseInt(e.target.value, 10) || 0;
+                                    setSelectedProducts((prev) => ({
+                                      ...prev,
+                                      [producto.id]: {
+                                        ...prev[producto.id],
+                                        parametros: {
+                                          ...prev[producto.id]?.parametros,
+                                          [parametro.nombre]: value,
+                                        },
+                                      },
+                                    }));
+                                  }}
+                                  className="w-24 h-8"
+                                  min={0}
+                                  max={parametro.cantidad}
+                                />
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
                     )}
                   </div>
