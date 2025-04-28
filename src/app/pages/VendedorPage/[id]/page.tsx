@@ -147,6 +147,11 @@ const useVendedorData = (vendedorId: string) => {
   const [sortBy, setSortBy] = useState<'nombre' | 'cantidad'>('nombre')
   const [productosSeleccionados, setProductosSeleccionados] = useState<ProductoVenta[]>([]);
   const [fecha, setFecha] = useState('');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [productosConParametrosEnEspera, setProductosConParametrosEnEspera] = useState<ProductoVenta[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null);
+  const [parametrosDialogOpen, setParametrosDialogOpen] = useState(false);
+  const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
 
   const handleEnviarVenta = async () => {
     if (productosSeleccionados.length === 0) {
@@ -380,7 +385,17 @@ const useVendedorData = (vendedorId: string) => {
     productosSeleccionados,
     setProductosSeleccionados,
     fecha,
-    setFecha
+    setFecha,
+    selectedProductIds,
+    setSelectedProductIds,
+    productosConParametrosEnEspera,
+    setProductosConParametrosEnEspera,
+    selectedProduct,
+    setSelectedProduct,
+    parametrosDialogOpen,
+    setParametrosDialogOpen,
+    productQuantities,
+    setProductQuantities
   }
 }
 
@@ -1160,19 +1175,23 @@ export default function VendedorPage() {
     productosSeleccionados,
     setProductosSeleccionados,
     fecha,
-    setFecha
+    setFecha,
+    selectedProductIds,
+    setSelectedProductIds,
+    productosConParametrosEnEspera,
+    setProductosConParametrosEnEspera,
+    selectedProduct,
+    setSelectedProduct,
+    parametrosDialogOpen,
+    setParametrosDialogOpen,
+    productQuantities,
+    setProductQuantities
   } = useVendedorData(vendedorId)
 
   const [busqueda, setBusqueda] = useState('')
   const [seccionActual, setSeccionActual] = useState<'productos' | 'ventas' | 'registro'>('productos')
   const [menuAbierto, setMenuAbierto] = useState(false)
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [parametrosDialogOpen, setParametrosDialogOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null);
-  const [productosConParametrosEnEspera, setProductosConParametrosEnEspera] = useState<ProductoVenta[]>([]);
-
-
 
   const handleSort = (key: 'nombre' | 'cantidad') => {
     if (sortBy === key) {
@@ -1199,7 +1218,6 @@ export default function VendedorPage() {
     p.nombre.toLowerCase().includes(busqueda.toLowerCase())
   )
 
-
   const handleProductSelect = (producto: Producto) => {
     if (producto.tiene_parametros) {
       // Si ya está seleccionado, lo quitamos
@@ -1214,15 +1232,36 @@ export default function VendedorPage() {
         setParametrosDialogOpen(true);
       }
     } else {
-      // Lógica existente para productos sin parámetros
-      setSelectedProductIds(prev =>
-        prev.includes(producto.id)
-          ? prev.filter(id => id !== producto.id)
-          : [...prev, producto.id]
-      );
+      // Para productos sin parámetros
+      if (selectedProductIds.includes(producto.id)) {
+        // Si ya está seleccionado, lo quitamos
+        setSelectedProductIds(prev => prev.filter(id => id !== producto.id));
+        setProductQuantities(prev => {
+          const newQuantities = { ...prev };
+          delete newQuantities[producto.id];
+          return newQuantities;
+        });
+      } else {
+        // Si no está seleccionado, lo añadimos y establecemos cantidad 1 por defecto
+        setSelectedProductIds(prev => [...prev, producto.id]);
+        setProductQuantities(prev => ({ ...prev, [producto.id]: 1 }));
+      }
     }
   };
 
+  const handleQuantityChange = (productoId: string, cantidad: number) => {
+    // Asegurarse de que la cantidad esté entre 1 y el máximo disponible
+    const producto = productosDisponibles.find(p => p.id === productoId);
+    if (!producto) return;
+    
+    const maxCantidad = producto.cantidad;
+    const validCantidad = Math.max(1, Math.min(cantidad, maxCantidad));
+    
+    setProductQuantities(prev => ({
+      ...prev,
+      [productoId]: validCantidad
+    }));
+  };
 
   const handleParametrosSubmit = (parametros: ProductoParametro[]) => {
     if (!selectedProduct) return;
@@ -1248,9 +1287,6 @@ export default function VendedorPage() {
     setSelectedProduct(null);
   };
 
-
-
-
   const handleConfirmSelection = () => {
     // Productos sin parámetros
     const newSelectedProducts = productosDisponibles
@@ -1260,7 +1296,7 @@ export default function VendedorPage() {
       )
       .map(producto => ({
         ...producto,
-        cantidadVendida: 1
+        cantidadVendida: productQuantities[producto.id] || 1
       }));
 
     // Combinar productos normales y productos con parámetros
@@ -1273,6 +1309,7 @@ export default function VendedorPage() {
     // Reiniciar las selecciones
     setSelectedProductIds([]);
     setProductosConParametrosEnEspera([]);
+    setProductQuantities({});
     setIsDialogOpen(false);
   };
 
@@ -1280,10 +1317,9 @@ export default function VendedorPage() {
   const handleDialogClose = () => {
     setSelectedProductIds([]);
     setProductosConParametrosEnEspera([]);
+    setProductQuantities({});
     setIsDialogOpen(false);
   };
-
-
 
   const handleAjustarCantidad = (id: string, incremento: number) => {
     setProductosSeleccionados(prev => prev.reduce((acc, p) => {
@@ -1297,7 +1333,6 @@ export default function VendedorPage() {
       return [...acc, p];
     }, [] as ProductoVenta[]))
   }
-
 
   const productosAgotadosFiltrados = productosAgotados.filter(p =>
     p.nombre.toLowerCase().includes(busqueda.toLowerCase())
@@ -1446,49 +1481,84 @@ export default function VendedorPage() {
                         p.nombre.toLowerCase().includes(busqueda.toLowerCase())
                       ).map((producto) => (
                         <Card key={producto.id} className="mb-2">
-                          <CardContent className="p-4 flex items-center justify-between">
-                            <div className="flex items-center">
-                              <Checkbox
-                                id={`product-${producto.id}`}
-                                checked={selectedProductIds.includes(producto.id)}
-                                onCheckedChange={() => handleProductSelect(producto)}
-                              />
-                              <OptimizedImage
-                                src={producto.foto || '/placeholder.svg'}
-                                fallbackSrc="/placeholder.svg"
-                                alt={producto.nombre}
-                                width={40}
-                                height={40}
-                                className="rounded-md ml-4 mr-4"
-                              />
-                              <div>
-                                <label htmlFor={`product-${producto.id}`} className="font-medium">
-                                  {producto.nombre}
-                                </label>
-                                <p className="text-sm text-gray-500">
-                                  Cantidad: {producto.tiene_parametros
-                                    ? calcularCantidadTotal(producto)
-                                    : producto.cantidad}
-                                </p>
-                                <p className="text-sm text-gray-500">Precio: ${formatPrice(producto.precio)}</p>
-
-                                {/* Mostrar los parámetros si ya están configurados */}
-                                {producto.tiene_parametros && selectedProductIds.includes(producto.id) && (
-                                  <div className="mt-2 text-sm text-gray-600">
-                                    {productosConParametrosEnEspera
-                                      .find(p => p.id === producto.id)
-                                      ?.parametrosVenta
-                                      ?.filter(param => param.cantidad > 0) // Filtrar solo parámetros con cantidad > 0
-                                      ?.map(param => (
-                                        <div key={param.nombre} className="flex justify-between">
-                                          <span>{param.nombre}:</span>
-                                          <span>{param.cantidad}</span>
-                                        </div>
-                                      ))}
-                                  </div>
-                                )}
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center">
+                                <Checkbox
+                                  id={`product-${producto.id}`}
+                                  checked={selectedProductIds.includes(producto.id)}
+                                  onCheckedChange={() => handleProductSelect(producto)}
+                                />
+                                <OptimizedImage
+                                  src={producto.foto || '/placeholder.svg'}
+                                  fallbackSrc="/placeholder.svg"
+                                  alt={producto.nombre}
+                                  width={40}
+                                  height={40}
+                                  className="rounded-md ml-4 mr-4"
+                                />
+                                <div>
+                                  <label htmlFor={`product-${producto.id}`} className="font-medium">
+                                    {producto.nombre}
+                                  </label>
+                                  <p className="text-sm text-gray-500">
+                                    Disponible: {producto.tiene_parametros
+                                      ? calcularCantidadTotal(producto)
+                                      : producto.cantidad}
+                                  </p>
+                                  <p className="text-sm text-gray-500">Precio: ${formatPrice(producto.precio)}</p>
+                                </div>
                               </div>
+                              
+                              {/* Control de cantidad para productos seleccionados */}
+                              {selectedProductIds.includes(producto.id) && !producto.tiene_parametros && (
+                                <div className="flex items-center space-x-2">
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleQuantityChange(producto.id, (productQuantities[producto.id] || 1) - 1);
+                                    }}
+                                    disabled={(productQuantities[producto.id] || 1) <= 1}
+                                  >
+                                    <Minus className="h-4 w-4" />
+                                  </Button>
+                                  <span className="w-8 text-center">
+                                    {productQuantities[producto.id] || 1}
+                                  </span>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleQuantityChange(producto.id, (productQuantities[producto.id] || 1) + 1);
+                                    }}
+                                    disabled={(productQuantities[producto.id] || 1) >= producto.cantidad}
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              )}
                             </div>
+                            
+                            {/* Mostrar los parámetros si ya están configurados */}
+                            {producto.tiene_parametros && selectedProductIds.includes(producto.id) && (
+                              <div className="mt-2 text-sm text-gray-600">
+                                {productosConParametrosEnEspera
+                                  .find(p => p.id === producto.id)
+                                  ?.parametrosVenta
+                                  ?.filter(param => param.cantidad > 0) // Filtrar solo parámetros con cantidad > 0
+                                  ?.map(param => (
+                                    <div key={param.nombre} className="flex justify-between">
+                                      <span>{param.nombre}:</span>
+                                      <span>{param.cantidad}</span>
+                                    </div>
+                                  ))}
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       ))}

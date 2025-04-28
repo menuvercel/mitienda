@@ -562,3 +562,29 @@ export const verificarNombreProducto = async (nombre: string): Promise<boolean> 
     throw new Error('Error al verificar el nombre del producto');
   }
 };
+
+export const deleteVendorData = async (vendorId: string): Promise<void> => {
+  if (!vendorId) {
+    throw new Error('El ID del vendedor es requerido');
+  }
+
+  try {
+    await api.delete(`/users/vendedores?id=${vendorId}`);
+  } catch (error) {
+    console.error('Error al eliminar datos del vendedor:', error);
+    throw new Error('No se pudo eliminar los datos del vendedor');
+  }
+};
+
+export const deleteVendor = async (vendorId: string): Promise<void> => {
+  if (!vendorId) {
+    throw new Error('El ID del vendedor es requerido');
+  }
+
+  try {
+    await api.delete(`/users/vendedores?id=${vendorId}&deleteCompleteVendor=true`);
+  } catch (error) {
+    console.error('Error al eliminar el vendedor:', error);
+    throw new Error('No se pudo eliminar el vendedor');
+  }
+};

@@ -33,7 +33,8 @@ import {
   getMermas,
   transferProduct,
   deleteMerma,
-  verificarNombreProducto
+  verificarNombreProducto,
+  deleteVendor
 } from '../../services/api'
 import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
@@ -144,7 +145,7 @@ export default function AlmacenPage() {
   })
   const [productosVendedor, setProductosVendedor] = useState<Producto[]>([])
   const [ventasVendedor, setVentasVendedor] = useState<Venta[]>([])
-  const [transaccionesVendedor, setTransaccionesVendedor] = useState<Transaccion[]>([])
+  const [transacciones, setTransacciones] = useState<Transaccion[]>([])
   const [vendedorSeleccionado, setVendedorSeleccionado] = useState<Vendedor | null>(null)
   const [ventasSemanales, setVentasSemanales] = useState<VentaSemana[]>([])
   const [ventasDiarias, setVentasDiarias] = useState<VentaDia[]>([])
@@ -231,7 +232,24 @@ export default function AlmacenPage() {
     }
   };
 
-
+  const handleDeleteVendor = async (vendorId: string) => {
+    try {
+      await deleteVendor(vendorId);
+      await fetchVendedores();
+      toast({
+        title: "Éxito",
+        description: "Vendedor eliminado correctamente"
+      });
+    } catch (error) {
+      console.error('Error al eliminar el vendedor:', error);
+      toast({
+        title: "Error", 
+        description: "No se pudo eliminar el vendedor. Por favor, inténtelo de nuevo.",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
 
   const toggleMermaExpansion = (mermaId: string) => {
     setExpandedMermas(prev => {
@@ -617,31 +635,27 @@ export default function AlmacenPage() {
 
   const handleVerVendedor = async (vendedor: Vendedor) => {
     try {
-      const [productos, ventas, transacciones] = await Promise.all([
-        getProductosVendedor(vendedor.id),
-        getVentasVendedor(vendedor.id),
-        getTransaccionesVendedor(vendedor.id)
-      ])
+      const productos = await getProductosVendedor(vendedor.id);
+      const ventasData = await getVentasVendedor(vendedor.id);
+      const transData = await getTransaccionesVendedor(vendedor.id);
+      const calcularSemanas = calcularVentasSemanales(ventasData);
+      const calcularDias = calcularVentasDiarias(ventasData);
 
-      setProductosVendedor(productos)
-      setVentasVendedor(ventas)
-      setTransaccionesVendedor(transacciones)
-      setVendedorSeleccionado(vendedor)
-
-      const ventasDiariasCalculadas = calcularVentasDiarias(ventas)
-      const ventasSemanalesCalculadas = calcularVentasSemanales(ventas)
-
-      setVentasDiarias(ventasDiariasCalculadas)
-      setVentasSemanales(ventasSemanalesCalculadas)
+      setProductosVendedor(productos);
+      setVentasVendedor(ventasData);
+      setVentasSemanales(calcularSemanas);
+      setVentasDiarias(calcularDias);
+      setTransacciones(transData);
+      setVendedorSeleccionado(vendedor);
     } catch (error) {
-      console.error('Error al cargar datos del vendedor:', error)
+      console.error('Error al obtener datos del vendedor:', error);
       toast({
         title: "Error",
         description: "No se pudieron cargar los datos del vendedor",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
 
   useEffect(() => {
@@ -832,7 +846,7 @@ export default function AlmacenPage() {
         const updatedProducts = await getProductosVendedor(vendedorSeleccionado.id);
         setProductosVendedor(updatedProducts);
         const updatedTransactions = await getTransaccionesVendedor(vendedorSeleccionado.id);
-        setTransaccionesVendedor(updatedTransactions);
+        setTransacciones(updatedTransactions);
       }
 
       await fetchInventario();
@@ -881,7 +895,7 @@ export default function AlmacenPage() {
         setProductosVendedor(updatedProducts);
 
         const updatedTransactions = await getTransaccionesVendedor(vendedorSeleccionado.id);
-        setTransaccionesVendedor(updatedTransactions);
+        setTransacciones(updatedTransactions);
       }
 
       await fetchInventario();
@@ -1742,21 +1756,22 @@ export default function AlmacenPage() {
 
       {vendedorSeleccionado && (
         <VendorDialog
-          almacen={inventario}
           vendor={vendedorSeleccionado}
+          almacen={inventario}
           onClose={() => setVendedorSeleccionado(null)}
           onEdit={handleEditVendedor}
           productos={productosVendedor}
           ventas={ventasVendedor}
           ventasSemanales={ventasSemanales}
           ventasDiarias={ventasDiarias}
-          transacciones={transaccionesVendedor}
+          transacciones={transacciones}
           onProductReduce={handleReduceVendorProduct}
           onDeleteSale={deleteSale}
           onProductMerma={handleProductMerma}
-          onProductTransfer={handleProductTransfer}
           vendedores={vendedores}
+          onProductTransfer={handleProductTransfer}
           onDeleteVendorData={handleDeleteVendorData}
+          onDeleteVendor={handleDeleteVendor}
           onUpdateProductQuantity={handleUpdateProductQuantity}
         />
       )}

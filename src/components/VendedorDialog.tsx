@@ -44,6 +44,7 @@ interface VendorDialogProps {
     parametros?: Array<{ nombre: string; cantidad: number }>
   ) => Promise<void>;
   onDeleteVendorData: (vendorId: string) => Promise<void>;
+  onDeleteVendor?: (vendorId: string) => Promise<void>;
   onUpdateProductQuantity?: (
     vendorId: string,
     productId: string,
@@ -115,6 +116,7 @@ export default function VendorDialog({
   vendedores, 
   onProductTransfer, 
   onDeleteVendorData,
+  onDeleteVendor,
   onUpdateProductQuantity 
 }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones' | 'inconsistencias'>('view')
@@ -141,7 +143,9 @@ export default function VendorDialog({
   const [parameterQuantities, setParameterQuantities] = useState<Record<string, number>>({})
   const [expandedTransactions, setExpandedTransactions] = useState<Record<string, boolean>>({});
   const [deleteConfirmDialogOpen, setDeleteConfirmDialogOpen] = useState(false);
+  const [deleteVendorConfirmDialogOpen, setDeleteVendorConfirmDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeletingVendor, setIsDeletingVendor] = useState(false);
   const [showComparativeTable, setShowComparativeTable] = useState(false)
   const [filterType, setFilterType] = useState<'all' | 'lessThan5' | 'outOfStock' | 'notInVendor'>('all');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
@@ -295,6 +299,37 @@ export default function VendorDialog({
       });
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteVendor = async () => {
+    if (!onDeleteVendor) {
+      toast({
+        title: "Error",
+        description: "No se puede realizar esta acción.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsDeletingVendor(true);
+      await onDeleteVendor(vendor.id);
+      toast({
+        title: "Éxito",
+        description: "El vendedor ha sido eliminado completamente.",
+      });
+      setDeleteVendorConfirmDialogOpen(false);
+      onClose(); // Cerrar el diálogo principal
+    } catch (error) {
+      console.error('Error al eliminar el vendedor:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el vendedor. Por favor, inténtelo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingVendor(false);
     }
   };
 
@@ -1526,8 +1561,8 @@ export default function VendorDialog({
                 )}
               </Button>
 
-              {/* Nuevo botón para eliminar datos */}
-              <div className="pt-4 border-t mt-4">
+              {/* Opciones de eliminación */}
+              <div className="pt-4 border-t mt-4 space-y-4">
                 <Button
                   variant="destructive"
                   className="w-full"
@@ -1535,6 +1570,16 @@ export default function VendorDialog({
                 >
                   Eliminar datos del vendedor
                 </Button>
+                
+                {onDeleteVendor && (
+                  <Button
+                    variant="destructive"
+                    className="w-full"
+                    onClick={() => setDeleteVendorConfirmDialogOpen(true)}
+                  >
+                    Eliminar vendedor completamente
+                  </Button>
+                )}
               </div>
             </div>
           ) : mode === 'productos' ? (
@@ -2011,6 +2056,52 @@ export default function VendorDialog({
                 </>
               ) : (
                 'Eliminar datos'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteVendorConfirmDialogOpen} onOpenChange={setDeleteVendorConfirmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar eliminación del vendedor</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-red-500 font-medium mb-2">¡Advertencia! Acción irreversible</p>
+            <p className="text-gray-600">
+              Esta acción eliminará <span className="font-bold">permanentemente</span> al vendedor {vendor.nombre} y todos sus datos asociados, incluyendo:
+            </p>
+            <ul className="list-disc pl-5 mt-2 text-gray-600 space-y-1">
+              <li>Cuenta de usuario y credenciales</li>
+              <li>Ventas y transacciones</li>
+              <li>Productos asignados</li>
+              <li>Toda la información relacionada</li>
+            </ul>
+            <p className="text-gray-600 mt-4 font-semibold">
+              Esta acción no se puede deshacer y eliminará completamente al vendedor del sistema.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteVendorConfirmDialogOpen(false)}
+              disabled={isDeletingVendor}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteVendor}
+              disabled={isDeletingVendor}
+            >
+              {isDeletingVendor ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar vendedor'
               )}
             </Button>
           </DialogFooter>

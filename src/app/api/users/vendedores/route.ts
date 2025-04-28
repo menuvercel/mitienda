@@ -50,6 +50,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
+  const deleteCompleteVendor = searchParams.get('deleteCompleteVendor') === 'true';
 
   if (!id) {
     return NextResponse.json({ error: 'ID no proporcionado' }, { status: 400 });
@@ -84,12 +85,38 @@ export async function DELETE(request: NextRequest) {
         WHERE desde = $1 OR hacia = $1
       `, [id]);
 
-      await query('COMMIT');
+      // 5. Si se debe eliminar completamente el vendedor, eliminar también sus productos y el usuario
+      if (deleteCompleteVendor) {
+        // 5.1 Eliminar los parámetros de productos del vendedor
+        await query(`
+          DELETE FROM usuario_producto_parametros
+          WHERE usuario_id = $1
+        `, [id]);
 
-      return NextResponse.json({
-        message: 'Ventas y transacciones eliminadas correctamente',
-        vendedorId: id
-      });
+        // 5.2 Eliminar los productos del vendedor
+        await query(`
+          DELETE FROM usuario_productos
+          WHERE usuario_id = $1
+        `, [id]);
+
+        // 5.3 Finalmente eliminar el usuario
+        await query(`
+          DELETE FROM usuarios
+          WHERE id = $1
+        `, [id]);
+
+        await query('COMMIT');
+        return NextResponse.json({
+          message: 'Vendedor eliminado completamente',
+          vendedorId: id
+        });
+      } else {
+        await query('COMMIT');
+        return NextResponse.json({
+          message: 'Ventas y transacciones eliminadas correctamente',
+          vendedorId: id
+        });
+      }
 
     } catch (error) {
       await query('ROLLBACK');
@@ -97,9 +124,9 @@ export async function DELETE(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('Error al eliminar ventas y transacciones:', error);
+    console.error('Error al eliminar datos del vendedor:', error);
     return NextResponse.json(
-      { error: 'Error al eliminar ventas y transacciones' },
+      { error: `Error al eliminar datos del vendedor: ${error}` },
       { status: 500 }
     );
   }
