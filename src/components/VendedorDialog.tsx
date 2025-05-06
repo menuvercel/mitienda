@@ -2133,7 +2133,7 @@ export default function VendorDialog({
                 <option value="all">Todos los productos</option>
                 <option value="lessThan5">Menos de 5 unidades</option>
                 <option value="outOfStock">Sin existencias</option>
-                <option value="notInVendor">No disponible en vendedor</option>
+                <option value="notInVendor">No disponible en vendedora</option>
               </select>
             </div>
 
