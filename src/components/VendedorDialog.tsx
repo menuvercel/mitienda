@@ -239,9 +239,12 @@ export default function VendorDialog({
       .filter(item => {
         switch (filterType) {
           case 'lessThan5':
-            return item.cantidadVendedor < 5 && item.cantidadVendedor > 0;
+            return (item.cantidadVendedor < 5 && item.cantidadVendedor > 0) ||
+                   (item.parametrosVendedor &&
+                    item.parametrosVendedor.some(p => p.cantidad < 5 && p.cantidad > 0));
           case 'outOfStock':
-            return item.cantidadVendedor === 0;
+            return item.cantidadVendedor === 0 ||
+                   (item.parametrosVendedor && item.parametrosVendedor.some(p => p.cantidad === 0));
           case 'notInVendor':
             return item.cantidadVendedor === 0 && item.cantidadAlmacen > 0;
           default:

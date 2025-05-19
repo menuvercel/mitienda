@@ -1043,32 +1043,32 @@ export default function AlmacenPage() {
 
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Lista de productos</CardTitle>
-                <div className="flex space-x-2">
-                  <Button
-                    variant={activeProductTab === 'inventario' ? "default" : "outline"}
-                    onClick={() => setActiveProductTab('inventario')}
-                    size="sm"
-                  >
-                    Inventario
-                  </Button>
-                  <Button
-                    variant={activeProductTab === 'agotados' ? "default" : "outline"}
-                    onClick={() => setActiveProductTab('agotados')}
-                    size="sm"
-                    className="relative"
-                  >
-                    Agotados
-                  </Button>
-                  <Button
-                    variant={activeProductTab === 'merma' ? "default" : "outline"}
-                    onClick={() => setActiveProductTab('merma')}
-                    size="sm"
-                  >
-                    Merma
-                  </Button>
-                </div>
+              <CardTitle className="text-center mb-4">Lista de productos</CardTitle>
+              <div className="flex justify-center space-x-2 mb-4">
+                <Button
+                  variant={activeProductTab === 'inventario' ? "default" : "outline"}
+                  onClick={() => setActiveProductTab('inventario')}
+                  size="sm"
+                  className="flex-1 max-w-xs"
+                >
+                  Inventario
+                </Button>
+                <Button
+                  variant={activeProductTab === 'agotados' ? "default" : "outline"}
+                  onClick={() => setActiveProductTab('agotados')}
+                  size="sm"
+                  className="flex-1 max-w-xs relative"
+                >
+                  Agotados
+                </Button>
+                <Button
+                  variant={activeProductTab === 'merma' ? "default" : "outline"}
+                  onClick={() => setActiveProductTab('merma')}
+                  size="sm"
+                  className="flex-1 max-w-xs"
+                >
+                  Merma
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
