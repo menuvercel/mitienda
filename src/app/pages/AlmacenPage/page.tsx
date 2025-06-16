@@ -207,6 +207,30 @@ export default function AlmacenPage() {
     }))
   }, [])
 
+  // Función para obtener productos de un vendedor específico con manejo de errores mejorado
+  const getVendorProducts = useCallback(async (vendorId: string): Promise<Producto[]> => {
+    try {
+      // Verificar que el vendedor existe
+      const vendedor = vendedores.find(v => v.id === vendorId);
+      if (!vendedor) {
+        throw new Error(`Vendedor con ID ${vendorId} no encontrado`);
+      }
+
+      const productos = await getProductosVendedor(vendorId);
+
+      // Asegurar que siempre retornamos un array
+      return Array.isArray(productos) ? productos : [];
+    } catch (error) {
+      console.error(`Error al obtener productos del vendedor ${vendorId}:`, error);
+
+      // En caso de error, retornar array vacío en lugar de lanzar error
+      // para que la UI no se rompa
+      return [];
+    }
+  }, [vendedores]);
+
+
+
 
   const fetchAllSales = useCallback(async () => {
     setIsLoadingContabilidad(true)
@@ -2136,8 +2160,10 @@ export default function AlmacenPage() {
           onEdit={handleEditProduct}
           onDelete={handleDeleteProduct}
           onDeliver={handleProductDelivery}
+          getVendorProducts={getVendorProducts} // NUEVA PROP AGREGADA
         />
       )}
+
 
       {vendedorSeleccionado && (
         <VendorDialog

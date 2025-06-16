@@ -9,6 +9,8 @@ import { toast } from "@/hooks/use-toast";
 import { Producto, Vendedor, Parametro } from '@/types';
 import { Plus, Minus } from 'lucide-react';
 import { ImageUpload } from '@/components/ImageUpload';
+import { ChevronDown } from 'lucide-react';
+
 
 interface ProductDialogProps {
   product: Producto;
@@ -22,9 +24,154 @@ interface ProductDialogProps {
     cantidadTotal: number,
     parametros: { nombre: string; cantidad: number }[]
   ) => Promise<void>;
+  // NUEVA PROP AGREGADA
+  getVendorProducts?: (vendorId: string) => Promise<Producto[]>;
 }
 
+
 type ModeType = 'view' | 'edit' | 'deliver';
+
+  const VendorsTab = ({
+    vendorsData,
+    isLoading,
+    onRefresh,
+    productName,
+  }: {
+    vendorsData: Array<{
+      vendedor: Vendedor;
+      cantidad: number;
+      parametros?: Array<{ nombre: string; cantidad: number }>;
+    }>;
+    isLoading: boolean;
+    onRefresh: () => void;
+    productName: string;
+  }) => {
+    const [expandedVendors, setExpandedVendors] = useState<Record<string, boolean>>({});
+
+    const toggleExpand = (vendorId: string) => {
+      setExpandedVendors(prev => ({
+        ...prev,
+        [vendorId]: !prev[vendorId]
+      }));
+    };
+
+    if (isLoading) {
+      return (
+        <div className="flex justify-center items-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
+            <p className="text-sm text-gray-600">Cargando datos de vendedores...</p>
+          </div>
+        </div>
+      );
+    }
+
+    const totalEnVendedores = vendorsData.reduce((sum, item) => sum + item.cantidad, 0);
+    const vendedoresConStock = vendorsData.filter(item => item.cantidad > 0).length;
+
+    return (
+      <div className="space-y-4">
+        {/* Resumen */}
+        <div className="bg-gray-50 p-3 rounded-lg">
+          <h4 className="font-medium text-sm mb-2">Resumen de distribución</h4>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-600">Total en vendedores:</span>
+              <span className="font-semibold ml-1">{totalEnVendedores}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Botón de actualizar */}
+        <div className="flex justify-between items-center">
+          <h4 className="font-medium">Distribución por vendedor</h4>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRefresh}
+            disabled={isLoading}
+          >
+            Actualizar
+          </Button>
+        </div>
+
+        {/* Lista de vendedores */}
+        <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          {vendorsData.map((item) => (
+            <div
+              key={item.vendedor.id}
+              className={`border rounded-lg p-3 ${item.cantidad > 0 ? 'bg-white' : 'bg-gray-50'
+                }`}
+            >
+              <div
+                className={`flex justify-between items-center ${item.parametros ? 'cursor-pointer' : ''
+                  }`}
+                onClick={() => {
+                  if (item.parametros) {
+                    toggleExpand(item.vendedor.id);
+                  }
+                }}
+              >
+                <div className="flex items-center space-x-2">
+                  <span className="font-medium">{item.vendedor.nombre}</span>
+                  {item.parametros && (
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${expandedVendors[item.vendedor.id] ? 'rotate-180' : ''
+                        }`}
+                    />
+                  )}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`font-semibold ${item.cantidad > 0
+                      ? item.cantidad < 5
+                        ? 'text-yellow-600'
+                        : 'text-green-600'
+                      : 'text-gray-400'
+                      }`}
+                  >
+                    {item.cantidad}
+                  </span>
+                  {item.cantidad > 0 && (
+                    <div
+                      className={`w-2 h-2 rounded-full ${item.cantidad < 5 ? 'bg-yellow-500' : 'bg-green-500'
+                        }`}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Desglose de parámetros */}
+              {item.parametros && expandedVendors[item.vendedor.id] && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-gray-600 uppercase">
+                      Desglose por parámetros:
+                    </p>
+                    {item.parametros.map((param, index) => (
+                      <div
+                        key={index}
+                        className="flex justify-between items-center py-1 px-2 bg-gray-50 rounded text-sm"
+                      >
+                        <span>{param.nombre}</span>
+                        <span className="font-medium">{param.cantidad}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {vendorsData.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            <p>No hay vendedores disponibles</p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
 export default function ProductDialog({
   product,
@@ -33,6 +180,7 @@ export default function ProductDialog({
   onEdit,
   onDelete,
   onDeliver,
+  getVendorProducts, // ← LÍNEA AGREGADA
 }: ProductDialogProps) {
   const [mode, setMode] = useState<ModeType>('view');
   const [imageUrl, setImageUrl] = useState<string>(product.foto || '');
@@ -51,6 +199,100 @@ export default function ProductDialog({
   const [totalDeliveryQuantity, setTotalDeliveryQuantity] = useState(0);
   const [simpleDeliveryQuantity, setSimpleDeliveryQuantity] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
+  // Agregar estos estados al inicio del componente ProductDialog
+  const [showVendorsTab, setShowVendorsTab] = useState(false);
+  const [vendorsData, setVendorsData] = useState<Array<{
+    vendedor: Vendedor;
+    cantidad: number;
+    parametros?: Array<{ nombre: string; cantidad: number }>;
+  }>>([]);
+  const [isLoadingVendors, setIsLoadingVendors] = useState(false);
+
+
+  // Función para obtener las cantidades del producto en cada vendedor
+  const fetchVendorsData = useCallback(async () => {
+    if (!getVendorProducts) {
+      toast({
+        title: "Error",
+        description: "Función de obtención de productos no disponible.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoadingVendors(true);
+    try {
+      const vendorsInfo = await Promise.all(
+        vendedores.map(async (vendedor) => {
+          try {
+            const productos = await getVendorProducts(vendedor.id);
+            const productoEnVendedor = productos.find(p => p.id === product.id);
+
+            if (productoEnVendedor) {
+              // Calcular cantidad total
+              let cantidadTotal = 0;
+              let parametrosVendedor: Array<{ nombre: string; cantidad: number }> = [];
+
+              if (productoEnVendedor.tiene_parametros && productoEnVendedor.parametros) {
+                parametrosVendedor = productoEnVendedor.parametros.filter(p => p.cantidad > 0);
+                cantidadTotal = parametrosVendedor.reduce((sum, param) => sum + param.cantidad, 0);
+              } else {
+                cantidadTotal = productoEnVendedor.cantidad;
+              }
+
+              return {
+                vendedor,
+                cantidad: cantidadTotal,
+                parametros: parametrosVendedor.length > 0 ? parametrosVendedor : undefined
+              };
+            }
+
+            return {
+              vendedor,
+              cantidad: 0,
+              parametros: undefined
+            };
+          } catch (error) {
+            console.error(`Error al obtener productos del vendedor ${vendedor.nombre}:`, error);
+            return {
+              vendedor,
+              cantidad: 0,
+              parametros: undefined
+            };
+          }
+        })
+      );
+
+      // Ordenar por cantidad (mayor a menor) y luego por nombre
+      const sortedVendors = vendorsInfo.sort((a, b) => {
+        if (b.cantidad !== a.cantidad) {
+          return b.cantidad - a.cantidad;
+        }
+        return a.vendedor.nombre.localeCompare(b.vendedor.nombre);
+      });
+
+      setVendorsData(sortedVendors);
+    } catch (error) {
+      console.error('Error al obtener datos de vendedores:', error);
+      toast({
+        title: "Error",
+        description: "Error al cargar los datos de vendedores.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingVendors(false);
+    }
+  }, [vendedores, product.id, getVendorProducts]);
+
+  // Efecto para cargar datos cuando se abre la pestaña
+  useEffect(() => {
+    if (showVendorsTab && vendorsData.length === 0) {
+      fetchVendorsData();
+    }
+  }, [showVendorsTab, fetchVendorsData, vendorsData.length]);
+
+
+  // Subcomponente para la pestaña de vendedores
 
 
 
@@ -320,6 +562,7 @@ export default function ProductDialog({
               onDeliver={handleDeliver}
               getTotalCantidad={getTotalCantidad}
             />
+            // En la parte del renderizado principal, reemplaza la llamada a ViewMode:
           ) : (
             <ViewMode
               product={product}
@@ -327,8 +570,14 @@ export default function ProductDialog({
               onDeliver={() => setMode('deliver')}
               onDelete={handleDelete}
               getTotalCantidad={getTotalCantidad}
+              showVendorsTab={showVendorsTab}
+              setShowVendorsTab={setShowVendorsTab}
+              vendorsData={vendorsData}
+              isLoadingVendors={isLoadingVendors}
+              onRefreshVendors={fetchVendorsData}
             />
           )}
+
         </div>
       </DialogContent>
     </Dialog>
@@ -615,55 +864,103 @@ const DeliverMode = ({
 );
 
 // Subcomponente para el modo de visualización
+// Subcomponente para el modo de visualización con pestañas
 const ViewMode = ({
   product,
   onEdit,
   onDeliver,
   onDelete,
   getTotalCantidad,
+  showVendorsTab,
+  setShowVendorsTab,
+  vendorsData,
+  isLoadingVendors,
+  onRefreshVendors,
 }: {
   product: Producto;
   onEdit: () => void;
   onDeliver: () => void;
   onDelete: () => void;
   getTotalCantidad: () => number;
+  showVendorsTab: boolean;
+  setShowVendorsTab: (show: boolean) => void;
+  vendorsData: Array<{
+    vendedor: Vendedor;
+    cantidad: number;
+    parametros?: Array<{ nombre: string; cantidad: number }>;
+  }>;
+  isLoadingVendors: boolean;
+  onRefreshVendors: () => void;
 }) => (
   <>
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <p className="text-lg font-medium">Precio de venta: ${product.precio}</p>
-        <p className="text-md text-gray-700">Precio de compra: ${product.precio_compra || 0}</p>
-
-        {(product.tiene_parametros || product.tieneParametros) && product.parametros && product.parametros.length > 0 ? (
-          <div className="space-y-2">
-            <h4 className="font-medium text-sm text-gray-700">Parámetros:</h4>
-            <div className="grid grid-cols-1 gap-2">
-              {product.parametros.map((param, index) => (
-                <div
-                  key={index}
-                  className="p-2 bg-gray-50 rounded-md flex justify-between items-center"
-                >
-                  <span className="font-medium">{param.nombre}:</span>
-                  <span className="text-gray-600">{param.cantidad}</span>
-                </div>
-              ))}
-            </div>
-            <p className="text-sm text-gray-500">
-              Cantidad total: {getTotalCantidad()}
-            </p>
-          </div>
-        ) : (
-          <p className="text-gray-700">Cantidad disponible: {product.cantidad}</p>
-        )}
-      </div>
-
-      <div className="flex justify-between gap-2">
-        <Button onClick={onEdit} className="w-full">Editar</Button>
-        <Button onClick={onDeliver} className="w-full">Entregar</Button>
-        <Button onClick={onDelete} variant="destructive" className="w-full">
-          Eliminar
-        </Button>
-      </div>
+    {/* Pestañas */}
+    <div className="flex border-b border-gray-200 mb-4">
+      <button
+        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${!showVendorsTab
+          ? 'border-blue-500 text-blue-600'
+          : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        onClick={() => setShowVendorsTab(false)}
+      >
+        Información General
+      </button>
+      <button
+        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${showVendorsTab
+          ? 'border-blue-500 text-blue-600'
+          : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        onClick={() => setShowVendorsTab(true)}
+      >
+        En Vendedores
+      </button>
     </div>
+
+    {/* Contenido de las pestañas */}
+    {showVendorsTab ? (
+      <VendorsTab
+        vendorsData={vendorsData}
+        isLoading={isLoadingVendors}
+        onRefresh={onRefreshVendors}
+        productName={product.nombre}
+      />
+    ) : (
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <p className="text-lg font-medium">Precio de venta: ${product.precio}</p>
+          <p className="text-md text-gray-700">Precio de compra: ${product.precio_compra || 0}</p>
+
+          {(product.tiene_parametros || product.tieneParametros) && product.parametros && product.parametros.length > 0 ? (
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm text-gray-700">Parámetros:</h4>
+              <div className="grid grid-cols-1 gap-2">
+                {product.parametros.map((param, index) => (
+                  <div
+                    key={index}
+                    className="p-2 bg-gray-50 rounded-md flex justify-between items-center"
+                  >
+                    <span className="font-medium">{param.nombre}:</span>
+                    <span className="text-gray-600">{param.cantidad}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-gray-500">
+                Cantidad total: {getTotalCantidad()}
+              </p>
+            </div>
+          ) : (
+            <p className="text-gray-700">Cantidad disponible: {product.cantidad}</p>
+          )}
+        </div>
+
+        <div className="flex justify-between gap-2">
+          <Button onClick={onEdit} className="w-full">Editar</Button>
+          <Button onClick={onDeliver} className="w-full">Entregar</Button>
+          <Button onClick={onDelete} variant="destructive" className="w-full">
+            Eliminar
+          </Button>
+        </div>
+      </div>
+    )}
   </>
 );
+
