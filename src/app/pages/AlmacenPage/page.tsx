@@ -14,6 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ChevronDown } from "lucide-react"
+import React from 'react'
+
 import {
   getVendedores,
   getCurrentUser,
@@ -189,6 +193,195 @@ export default function AlmacenPage() {
   const [nombreExiste, setNombreExiste] = useState(false);
   const [verificandoNombre, setVerificandoNombre] = useState(false);
   const { updateProductQuantity } = useVendorProducts();
+  // Agregar estos estados al inicio del componente
+  const [ventasGlobales, setVentasGlobales] = useState<Venta[]>([])
+  const [isLoadingContabilidad, setIsLoadingContabilidad] = useState(false)
+  const [searchTermContabilidad, setSearchTermContabilidad] = useState("")
+  const [sortOrderContabilidad, setSortOrderContabilidad] = useState<'asc' | 'desc'>('desc')
+  const [expandedContabilidadProducts, setExpandedContabilidadProducts] = useState<Record<string, boolean>>({})
+
+  const toggleExpandContabilidad = useCallback((productName: string) => {
+    setExpandedContabilidadProducts(prev => ({
+      ...prev,
+      [productName]: !prev[productName]
+    }))
+  }, [])
+
+
+  const fetchAllSales = useCallback(async () => {
+    setIsLoadingContabilidad(true)
+    try {
+      // Obtener todas las ventas de todos los vendedores
+      const allSales: Venta[] = []
+
+      for (const vendedor of vendedores) {
+        try {
+          const ventasVendedor = await getVentasVendedor(vendedor.id)
+          // Agregar información del vendedor a cada venta
+          const ventasConVendedor = ventasVendedor.map(venta => ({
+            ...venta,
+            vendedor_nombre: vendedor.nombre,
+            vendedor_id: vendedor.id
+          }))
+          allSales.push(...ventasConVendedor)
+        } catch (error) {
+          console.error(`Error al obtener ventas del vendedor ${vendedor.nombre}:`, error)
+        }
+      }
+
+      // Ordenar por fecha (más recientes primero)
+      allSales.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+
+      setVentasGlobales(allSales)
+    } catch (error) {
+      console.error('Error al obtener todas las ventas:', error)
+      toast({
+        title: "Error",
+        description: "Error al cargar la contabilidad global",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingContabilidad(false)
+    }
+  }, [vendedores])
+
+  // Llamar a la función cuando se selecciona la sección de contabilidad
+  useEffect(() => {
+    if (activeSection === 'contabilidad' && vendedores.length > 0) {
+      fetchAllSales()
+    }
+  }, [activeSection, vendedores, fetchAllSales])
+
+  const getContabilidadData = useCallback(() => {
+    // Agrupar ventas por producto
+    const ventasPorProducto = ventasGlobales.reduce((acc, venta) => {
+      const key = venta.producto_nombre
+
+      if (!acc[key]) {
+        acc[key] = {
+          producto: venta.producto_nombre,
+          cantidadTotal: 0,
+          montoTotal: 0,
+          ventas: [],
+          parametros: new Map<string, { cantidad: number; monto: number }>(),
+          tieneParametros: false
+        }
+      }
+
+      // Verificar si tiene parámetros
+      if (venta.parametros && venta.parametros.length > 0) {
+        acc[key].tieneParametros = true
+
+        // Procesar cada parámetro
+        venta.parametros.forEach(param => {
+          if (param.cantidad > 0) {
+            const parametroKey = param.nombre
+            const montoParametro = (parseFloat(venta.total.toString()) / venta.parametros!.reduce((sum, p) => sum + p.cantidad, 0)) * param.cantidad
+
+            if (!acc[key].parametros.has(parametroKey)) {
+              acc[key].parametros.set(parametroKey, { cantidad: 0, monto: 0 })
+            }
+
+            const parametroData = acc[key].parametros.get(parametroKey)!
+            parametroData.cantidad += param.cantidad
+            parametroData.monto += montoParametro
+          }
+        })
+
+        // Calcular cantidad total de parámetros
+        const cantidadVenta = venta.parametros.reduce((sum, param) => sum + param.cantidad, 0)
+        acc[key].cantidadTotal += cantidadVenta
+      } else {
+        // Producto sin parámetros
+        acc[key].cantidadTotal += venta.cantidad
+      }
+
+      acc[key].montoTotal += parseFloat(venta.total.toString())
+      acc[key].ventas.push(venta)
+
+      return acc
+    }, {} as Record<string, {
+      producto: string
+      cantidadTotal: number
+      montoTotal: number
+      ventas: Venta[]
+      parametros: Map<string, { cantidad: number; monto: number }>
+      tieneParametros: boolean
+    }>)
+
+    // Convertir a array y filtrar por búsqueda
+    const resultados = Object.values(ventasPorProducto)
+      .filter(item =>
+        item.producto.toLowerCase().includes(searchTermContabilidad.toLowerCase())
+      )
+      .sort((a, b) => {
+        if (sortOrderContabilidad === 'asc') {
+          return a.montoTotal - b.montoTotal
+        } else {
+          return b.montoTotal - a.montoTotal
+        }
+      })
+
+    return resultados
+  }, [ventasGlobales, searchTermContabilidad, sortOrderContabilidad])
+
+
+  const exportContabilidadToExcel = useCallback(() => {
+    const data = getContabilidadData()
+    const dataToExport: any[] = []
+
+    data.forEach(item => {
+      if (item.tieneParametros && item.parametros.size > 0) {
+        // Agregar fila principal del producto
+        dataToExport.push({
+          Producto: item.producto,
+          Parametro: 'TOTAL',
+          'Cantidad Total Vendida': item.cantidadTotal,
+          'Monto Total': item.montoTotal.toFixed(2),
+          'Número de Ventas': item.ventas.length
+        })
+
+        // Agregar filas de parámetros
+        Array.from(item.parametros.entries()).forEach(([parametroNombre, parametroData]) => {
+          dataToExport.push({
+            Producto: `  └─ ${item.producto}`,
+            Parametro: parametroNombre,
+            'Cantidad Total Vendida': parametroData.cantidad,
+            'Monto Total': parametroData.monto.toFixed(2),
+            'Número de Ventas': '-'
+          })
+        })
+      } else {
+        // Producto sin parámetros
+        dataToExport.push({
+          Producto: item.producto,
+          Parametro: '-',
+          'Cantidad Total Vendida': item.cantidadTotal,
+          'Monto Total': item.montoTotal.toFixed(2),
+          'Número de Ventas': item.ventas.length
+        })
+      }
+    })
+
+    // Agregar fila de totales
+    const totalCantidad = data.reduce((sum, item) => sum + item.cantidadTotal, 0)
+    const totalMonto = data.reduce((sum, item) => sum + item.montoTotal, 0)
+
+    dataToExport.push({
+      Producto: 'TOTAL GENERAL',
+      Parametro: '-',
+      'Cantidad Total Vendida': totalCantidad,
+      'Monto Total': totalMonto.toFixed(2),
+      'Número de Ventas': data.reduce((sum, item) => sum + item.ventas.length, 0)
+    })
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Contabilidad Global")
+    XLSX.writeFile(wb, `contabilidad_global_${format(new Date(), 'yyyy-MM-dd')}.xlsx`)
+  }, [getContabilidadData])
+
+
 
   const isProductoAgotado = (producto: Producto): boolean => {
     if (producto.tiene_parametros && producto.parametros) {
@@ -243,7 +436,7 @@ export default function AlmacenPage() {
     } catch (error) {
       console.error('Error al eliminar el vendedor:', error);
       toast({
-        title: "Error", 
+        title: "Error",
         description: "No se pudo eliminar el vendedor. Por favor, inténtelo de nuevo.",
         variant: "destructive"
       });
@@ -1005,6 +1198,16 @@ export default function AlmacenPage() {
               >
                 Ventas
               </Button>
+              <Button
+                variant="ghost"
+                className={activeSection === 'contabilidad' ? 'bg-accent' : ''}
+                onClick={() => {
+                  setActiveSection('contabilidad')
+                  setIsMenuOpen(false)
+                }}
+              >
+                Contabilidad Global
+              </Button>
             </nav>
           </SheetContent>
         </Sheet>
@@ -1340,6 +1543,188 @@ export default function AlmacenPage() {
       {activeSection === 'ventas' && (
         <SalesSection userRole="Almacen" />
       )}
+
+      {activeSection === 'contabilidad' && (
+        <div>
+          <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
+            <h2 className="text-xl font-bold">Contabilidad Global</h2>
+            <Button
+              onClick={exportContabilidadToExcel}
+              className="bg-green-500 hover:bg-green-600 text-white"
+              disabled={isLoadingContabilidad}
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Exportar Excel
+            </Button>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Resumen de Ventas por Producto</CardTitle>
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  placeholder="Buscar producto..."
+                  value={searchTermContabilidad}
+                  onChange={(e) => setSearchTermContabilidad(e.target.value)}
+                  className="max-w-sm"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => setSortOrderContabilidad(prev => prev === 'asc' ? 'desc' : 'asc')}
+                  className="flex items-center"
+                >
+                  Ordenar por monto
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isLoadingContabilidad ? (
+                <div className="flex justify-center items-center py-8">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
+                    <p>Cargando datos de contabilidad...</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Tabla de resumen expandible */}
+                  <div className="overflow-x-auto">
+                    <div className="border rounded-lg">
+                      <div className="max-h-[500px] overflow-y-auto">
+                        <table className="w-full border-collapse">
+                          <thead className="sticky top-0 bg-white border-b">
+                            <tr>
+                              <th className="text-left p-3 font-medium">Producto</th>
+                              <th className="text-right p-3 font-medium">Cantidad Total</th>
+                              <th className="text-right p-3 font-medium">Monto Total</th>
+                              <th className="text-right p-3 font-medium">N° Ventas</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {getContabilidadData().length === 0 ? (
+                              <tr>
+                                <td colSpan={4} className="text-center py-8 text-gray-500">
+                                  {searchTermContabilidad
+                                    ? 'No se encontraron productos que coincidan con la búsqueda.'
+                                    : 'No hay datos de ventas disponibles.'}
+                                </td>
+                              </tr>
+                            ) : (
+                              getContabilidadData().map((item, index) => (
+                                <React.Fragment key={index}>
+                                  {/* Fila principal del producto */}
+                                  <tr
+                                    className={`border-b hover:bg-gray-50 ${item.tieneParametros ? 'cursor-pointer' : ''
+                                      }`}
+                                    onClick={() => {
+                                      if (item.tieneParametros) {
+                                        toggleExpandContabilidad(item.producto)
+                                      }
+                                    }}
+                                  >
+                                    <td className="p-3">
+                                      <div className="flex items-center">
+                                        <span className="font-medium">{item.producto}</span>
+                                        {item.tieneParametros && (
+                                          <ChevronDown
+                                            className={`ml-2 h-4 w-4 transition-transform ${expandedContabilidadProducts[item.producto] ? 'rotate-180' : ''
+                                              }`}
+                                          />
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="p-3 text-right font-semibold">{item.cantidadTotal}</td>
+                                    <td className="p-3 text-right font-semibold text-green-600">
+                                      ${item.montoTotal.toFixed(2)}
+                                    </td>
+                                    <td className="p-3 text-right">{item.ventas.length}</td>
+                                  </tr>
+
+                                  {/* Filas expandibles para parámetros */}
+                                  {item.tieneParametros &&
+                                    expandedContabilidadProducts[item.producto] &&
+                                    item.parametros.size > 0 && (
+                                      <tr>
+                                        <td colSpan={4} className="p-0">
+                                          <div className="bg-gray-50 border-t">
+                                            <div className="px-6 py-3">
+                                              <div className="text-sm font-medium text-gray-700 mb-2">
+                                                Desglose por parámetros:
+                                              </div>
+                                              <div className="space-y-1">
+                                                {Array.from(item.parametros.entries())
+                                                  .sort(([, a], [, b]) => b.monto - a.monto)
+                                                  .map(([parametroNombre, parametroData], paramIndex) => (
+                                                    <div
+                                                      key={paramIndex}
+                                                      className="flex justify-between items-center py-2 px-3 bg-white rounded border"
+                                                    >
+                                                      <div className="flex items-center">
+                                                        <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                                                        <span className="text-sm font-medium">
+                                                          {parametroNombre}
+                                                        </span>
+                                                      </div>
+                                                      <div className="flex space-x-6 text-sm">
+                                                        <span className="text-gray-600">
+                                                          Cantidad: <span className="font-semibold">{parametroData.cantidad}</span>
+                                                        </span>
+                                                        <span className="text-green-600">
+                                                          Monto: <span className="font-semibold">${parametroData.monto.toFixed(2)}</span>
+                                                        </span>
+                                                      </div>
+                                                    </div>
+                                                  ))}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                </React.Fragment>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Totales */}
+                  <div className="border-t pt-4 mt-4">
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="font-bold text-lg mb-2">Totales Generales</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600">Total Productos Vendidos</p>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {getContabilidadData().reduce((sum, item) => sum + item.cantidadTotal, 0)}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600">Total en Ventas</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            ${getContabilidadData().reduce((sum, item) => sum + item.montoTotal, 0).toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600">Total de Transacciones</p>
+                          <p className="text-2xl font-bold text-purple-600">
+                            {getContabilidadData().reduce((sum, item) => sum + item.ventas.length, 0)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+
 
       <Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
         <DialogContent className="max-w-[95vw] w-full md:max-w-[600px] max-h-[90vh] overflow-y-auto">
