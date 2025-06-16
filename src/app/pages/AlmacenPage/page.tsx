@@ -17,6 +17,11 @@ import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X } 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ChevronDown } from "lucide-react"
 import React from 'react'
+import { Calendar, CalendarDays } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { cn } from "@/lib/utils"
+
 
 import {
   getVendedores,
@@ -199,6 +204,10 @@ export default function AlmacenPage() {
   const [searchTermContabilidad, setSearchTermContabilidad] = useState("")
   const [sortOrderContabilidad, setSortOrderContabilidad] = useState<'asc' | 'desc'>('desc')
   const [expandedContabilidadProducts, setExpandedContabilidadProducts] = useState<Record<string, boolean>>({})
+  // Agregar estos estados cerca de los otros estados de contabilidad
+  const [fechaInicio, setFechaInicio] = useState<Date | null>(null)
+  const [showDatePicker, setShowDatePicker] = useState(false)
+
 
   const toggleExpandContabilidad = useCallback((productName: string) => {
     setExpandedContabilidadProducts(prev => ({
@@ -277,8 +286,16 @@ export default function AlmacenPage() {
   }, [activeSection, vendedores, fetchAllSales])
 
   const getContabilidadData = useCallback(() => {
+    // Filtrar ventas por fecha si hay una fecha de inicio seleccionada
+    const ventasFiltradas = fechaInicio
+      ? ventasGlobales.filter(venta => {
+        const fechaVenta = new Date(venta.fecha);
+        return fechaVenta >= fechaInicio;
+      })
+      : ventasGlobales;
+
     // Agrupar ventas por producto
-    const ventasPorProducto = ventasGlobales.reduce((acc, venta) => {
+    const ventasPorProducto = ventasFiltradas.reduce((acc, venta) => {
       const key = venta.producto_nombre
 
       if (!acc[key]) {
@@ -347,12 +364,25 @@ export default function AlmacenPage() {
       })
 
     return resultados
-  }, [ventasGlobales, searchTermContabilidad, sortOrderContabilidad])
+  }, [ventasGlobales, searchTermContabilidad, sortOrderContabilidad, fechaInicio])
+
 
 
   const exportContabilidadToExcel = useCallback(() => {
     const data = getContabilidadData()
     const dataToExport: any[] = []
+
+    // Agregar información del filtro de fecha al inicio
+    if (fechaInicio) {
+      dataToExport.push({
+        Producto: `FILTRO APLICADO - Desde: ${format(fechaInicio, 'dd/MM/yyyy')}`,
+        Parametro: '-',
+        'Cantidad Total Vendida': '-',
+        'Monto Total': '-',
+        'Número de Ventas': '-'
+      })
+      dataToExport.push({}) // Fila vacía para separar
+    }
 
     data.forEach(item => {
       if (item.tieneParametros && item.parametros.size > 0) {
@@ -402,8 +432,13 @@ export default function AlmacenPage() {
     const ws = XLSX.utils.json_to_sheet(dataToExport)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Contabilidad Global")
-    XLSX.writeFile(wb, `contabilidad_global_${format(new Date(), 'yyyy-MM-dd')}.xlsx`)
-  }, [getContabilidadData])
+
+    const fileName = fechaInicio
+      ? `contabilidad_desde_${format(fechaInicio, 'yyyy-MM-dd')}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`
+      : `contabilidad_global_${format(new Date(), 'yyyy-MM-dd')}.xlsx`
+
+    XLSX.writeFile(wb, fileName)
+  }, [getContabilidadData, fechaInicio])
 
 
 
@@ -1592,6 +1627,53 @@ export default function AlmacenPage() {
                   onChange={(e) => setSearchTermContabilidad(e.target.value)}
                   className="max-w-sm"
                 />
+
+                {/* Selector de fecha */}
+                <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[240px] justify-start text-left font-normal",
+                        !fechaInicio && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      {fechaInicio ? (
+                        `A partir de: ${format(fechaInicio, 'dd/MM/yyyy')}`
+                      ) : (
+                        "Seleccionar fecha inicio"
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={fechaInicio || undefined}
+                      onSelect={(date) => {
+                        setFechaInicio(date || null)
+                        setShowDatePicker(false)
+                      }}
+                      disabled={(date) =>
+                        date > new Date() || date < new Date("1900-01-01")
+                      }
+                      initialFocus
+                    />
+                    <div className="p-3 border-t">
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => {
+                          setFechaInicio(null)
+                          setShowDatePicker(false)
+                        }}
+                      >
+                        Limpiar filtro
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
                 <Button
                   variant="outline"
                   onClick={() => setSortOrderContabilidad(prev => prev === 'asc' ? 'desc' : 'asc')}
@@ -1601,7 +1683,30 @@ export default function AlmacenPage() {
                   <ArrowUpDown className="ml-2 h-4 w-4" />
                 </Button>
               </div>
+
+              {/* Mostrar información del filtro aplicado */}
+              {fechaInicio && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center text-blue-700">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      <span className="text-sm font-medium">
+                        Mostrando ventas desde: {format(fechaInicio, 'dd/MM/yyyy')}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFechaInicio(null)}
+                      className="text-blue-700 hover:text-blue-900"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardHeader>
+
             <CardContent>
               {isLoadingContabilidad ? (
                 <div className="flex justify-center items-center py-8">
@@ -1631,7 +1736,9 @@ export default function AlmacenPage() {
                                 <td colSpan={4} className="text-center py-8 text-gray-500">
                                   {searchTermContabilidad
                                     ? 'No se encontraron productos que coincidan con la búsqueda.'
-                                    : 'No hay datos de ventas disponibles.'}
+                                    : fechaInicio
+                                      ? `No hay datos de ventas desde ${format(fechaInicio, 'dd/MM/yyyy')}.`
+                                      : 'No hay datos de ventas disponibles.'}
                                 </td>
                               </tr>
                             ) : (
@@ -1718,7 +1825,14 @@ export default function AlmacenPage() {
                   {/* Totales */}
                   <div className="border-t pt-4 mt-4">
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <h3 className="font-bold text-lg mb-2">Totales Generales</h3>
+                      <h3 className="font-bold text-lg mb-2">
+                        Totales Generales
+                        {fechaInicio && (
+                          <span className="text-sm font-normal text-gray-600 ml-2">
+                            (desde {format(fechaInicio, 'dd/MM/yyyy')})
+                          </span>
+                        )}
+                      </h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="text-center">
                           <p className="text-sm text-gray-600">Total Productos Vendidos</p>
@@ -1747,6 +1861,7 @@ export default function AlmacenPage() {
           </Card>
         </div>
       )}
+
 
 
 
