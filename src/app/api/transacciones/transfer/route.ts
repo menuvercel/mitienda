@@ -33,12 +33,12 @@ export async function POST(request: NextRequest) {
         'SELECT cantidad, precio FROM usuario_productos WHERE usuario_id = $1 AND producto_id = $2',
         [fromVendorId, productId]
       );
+      const { cantidad: stockVendedor, precio } = vendedorProductoResult.rows[0];
 
       if (vendedorProductoResult.rows.length === 0) {
         throw new Error('El vendedor origen no tiene este producto');
       }
 
-      const { cantidad: stockVendedor, precio } = vendedorProductoResult.rows[0];
 
       if (stockVendedor < cantidad) {
         throw new Error('Stock insuficiente en vendedor origen');
@@ -73,13 +73,13 @@ export async function POST(request: NextRequest) {
 
       // 4. Registrar las transacciones
       const bajaResult = await query(
-        'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [productId, cantidad, 'Baja', fromVendorId, null, new Date()]
+        'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha, precio) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+        [productId, cantidad, 'Baja', fromVendorId, null, new Date(), precio]
       );
 
       const entregaResult = await query(
-        'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [productId, cantidad, 'Entrega', fromVendorId, toVendorId, new Date()]
+        'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha, precio) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+        [productId, cantidad, 'Entrega', fromVendorId, toVendorId, new Date(), precio]
       );
 
 
@@ -197,7 +197,7 @@ export async function GET(request: NextRequest) {
         t.desde,
         t.hacia,
         t.fecha,
-        p.precio,
+        t.precio, 
         p.tiene_parametros,
         COALESCE(
           (
@@ -251,7 +251,7 @@ export async function GET(request: NextRequest) {
         [vendorId]
       );
     }
-    
+
 
     // Transformar los resultados
     const formattedResults = result.rows.map(row => ({

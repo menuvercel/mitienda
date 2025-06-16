@@ -59,9 +59,12 @@ export async function POST(request: NextRequest) {
       }
 
       // Registrar la transacción
+      const productResult = await query('SELECT precio FROM productos WHERE id = $1', [productoId]);
+      const productPrice = productResult.rows[0]?.precio;
+
       const transactionResult = await query(
-        'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [productoId, cantidad, tipo, null, vendedorId, new Date()]
+        'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha, precio) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+        [productoId, cantidad, tipo, null, vendedorId, new Date(), productPrice]
       );
 
       const transaccionId = transactionResult.rows[0].id;
@@ -76,9 +79,6 @@ export async function POST(request: NextRequest) {
           );
         }
       }
-
-      const productResult = await query('SELECT precio FROM productos WHERE id = $1', [productoId]);
-      const productPrice = productResult.rows[0]?.precio;
 
       if (!productPrice) {
         throw new Error('No se pudo obtener el precio del producto');
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
         t.desde, 
         t.hacia, 
         t.fecha, 
-        p.precio,
+        t.precio, 
         p.tiene_parametros
       FROM transacciones t 
       JOIN productos p ON t.producto = p.id 
@@ -193,12 +193,12 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     if (error instanceof Error) {
       return NextResponse.json(
-        { error: 'Error al obtener transacciones', details: error.message }, 
+        { error: 'Error al obtener transacciones', details: error.message },
         { status: 500 }
       );
     } else {
       return NextResponse.json(
-        { error: 'Error desconocido al obtener transacciones' }, 
+        { error: 'Error desconocido al obtener transacciones' },
         { status: 500 }
       );
     }
