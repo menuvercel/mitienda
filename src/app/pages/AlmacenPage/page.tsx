@@ -297,7 +297,6 @@ export default function AlmacenPage() {
         return cumpleFechaInicio && cumpleFechaFin;
       })
       : ventasGlobales;
-
     // Resto de la lógica permanece igual...
     const ventasPorProducto = ventasFiltradas.reduce((acc, venta) => {
       const key = venta.producto_nombre
@@ -459,6 +458,7 @@ export default function AlmacenPage() {
     XLSX.writeFile(wb, fileName)
   }, [getContabilidadData, fechaInicio, fechaFin])
 
+  // Función para limpiar las fechas
   const limpiarFiltroFechas = () => {
     setFechaInicio(null);
     setFechaFin(null);
@@ -471,6 +471,30 @@ export default function AlmacenPage() {
       return "La fecha de inicio no puede ser posterior a la fecha de fin";
     }
     return null;
+  };
+
+  // Función helper para crear el matcher de fechas deshabilitadas
+  const createDisabledMatcher = (fechaComparacion: Date | null, tipo: 'before' | 'after') => {
+    return (date: Date): boolean => {
+      const today = new Date();
+      const minDate = new Date("1900-01-01");
+
+      // Siempre deshabilitar fechas futuras y muy antiguas
+      if (date > today || date < minDate) {
+        return true;
+      }
+
+      // Deshabilitar según el tipo y la fecha de comparación
+      if (fechaComparacion) {
+        if (tipo === 'before') {
+          return date > fechaComparacion;
+        } else {
+          return date < fechaComparacion;
+        }
+      }
+
+      return false;
+    };
   };
 
   const isProductoAgotado = (producto: Producto): boolean => {
@@ -1659,7 +1683,7 @@ export default function AlmacenPage() {
                   className="max-w-sm"
                 />
 
-                {/* Selector de rango de fechas */}
+                {/* Selector de rango de fechas CORREGIDO */}
                 <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
                   <PopoverTrigger asChild>
                     <Button
@@ -1676,7 +1700,9 @@ export default function AlmacenPage() {
                             ? `${format(fechaInicio, 'dd/MM/yyyy')} - ${format(fechaFin, 'dd/MM/yyyy')}`
                             : fechaInicio
                               ? `Desde: ${format(fechaInicio, 'dd/MM/yyyy')}`
-                              : `Hasta: ${format(fechaFin, 'dd/MM/yyyy')}`
+                              : fechaFin
+                                ? `Hasta: ${format(fechaFin, 'dd/MM/yyyy')}`
+                                : ""
                           }
                         </span>
                       ) : (
@@ -1703,11 +1729,7 @@ export default function AlmacenPage() {
                               setFechaFin(null);
                             }
                           }}
-                          disabled={(date) =>
-                            date > new Date() ||
-                            date < new Date("1900-01-01") ||
-                            (fechaFin && date > fechaFin)
-                          }
+                          disabled={createDisabledMatcher(fechaFin, 'before')}
                           initialFocus
                         />
                       </div>
@@ -1725,11 +1747,7 @@ export default function AlmacenPage() {
                               setFechaInicio(null);
                             }
                           }}
-                          disabled={(date) =>
-                            date > new Date() ||
-                            date < new Date("1900-01-01") ||
-                            (fechaInicio && date < fechaInicio)
-                          }
+                          disabled={createDisabledMatcher(fechaInicio, 'after')}
                         />
                       </div>
 
@@ -1784,7 +1802,9 @@ export default function AlmacenPage() {
                           ? `Período: ${format(fechaInicio, 'dd/MM/yyyy')} - ${format(fechaFin, 'dd/MM/yyyy')}`
                           : fechaInicio
                             ? `Desde: ${format(fechaInicio, 'dd/MM/yyyy')}`
-                            : `Hasta: ${format(fechaFin, 'dd/MM/yyyy')}`
+                            : fechaFin
+                              ? `Hasta: ${format(fechaFin, 'dd/MM/yyyy')}`
+                              : ""
                         }
                       </span>
                     </div>
@@ -1927,7 +1947,9 @@ export default function AlmacenPage() {
                               ? `(${format(fechaInicio, 'dd/MM/yyyy')} - ${format(fechaFin, 'dd/MM/yyyy')})`
                               : fechaInicio
                                 ? `(desde ${format(fechaInicio, 'dd/MM/yyyy')})`
-                                : `(hasta ${format(fechaFin, 'dd/MM/yyyy')})`
+                                : fechaFin
+                                  ? `(hasta ${format(fechaFin, 'dd/MM/yyyy')})`
+                                  : ""
                             }
                           </span>
                         )}
@@ -1960,8 +1982,6 @@ export default function AlmacenPage() {
           </Card>
         </div>
       )}
-
-
 
 
       <Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
