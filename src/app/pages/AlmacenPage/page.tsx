@@ -206,7 +206,9 @@ export default function AlmacenPage() {
   const [expandedContabilidadProducts, setExpandedContabilidadProducts] = useState<Record<string, boolean>>({})
   // Agregar estos estados cerca de los otros estados de contabilidad
   const [fechaInicio, setFechaInicio] = useState<Date | null>(null)
+  const [fechaFin, setFechaFin] = useState<Date | null>(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
+
 
 
   const toggleExpandContabilidad = useCallback((productName: string) => {
@@ -286,15 +288,17 @@ export default function AlmacenPage() {
   }, [activeSection, vendedores, fetchAllSales])
 
   const getContabilidadData = useCallback(() => {
-    // Filtrar ventas por fecha si hay una fecha de inicio seleccionada
-    const ventasFiltradas = fechaInicio
+    // Filtrar ventas por rango de fechas si hay fechas seleccionadas
+    const ventasFiltradas = (fechaInicio || fechaFin)
       ? ventasGlobales.filter(venta => {
         const fechaVenta = new Date(venta.fecha);
-        return fechaVenta >= fechaInicio;
+        const cumpleFechaInicio = !fechaInicio || fechaVenta >= fechaInicio;
+        const cumpleFechaFin = !fechaFin || fechaVenta <= fechaFin;
+        return cumpleFechaInicio && cumpleFechaFin;
       })
       : ventasGlobales;
 
-    // Agrupar ventas por producto
+    // Resto de la lógica permanece igual...
     const ventasPorProducto = ventasFiltradas.reduce((acc, venta) => {
       const key = venta.producto_nombre
 
@@ -364,7 +368,7 @@ export default function AlmacenPage() {
       })
 
     return resultados
-  }, [ventasGlobales, searchTermContabilidad, sortOrderContabilidad, fechaInicio])
+  }, [ventasGlobales, searchTermContabilidad, sortOrderContabilidad, fechaInicio, fechaFin])
 
 
 
@@ -373,9 +377,18 @@ export default function AlmacenPage() {
     const dataToExport: any[] = []
 
     // Agregar información del filtro de fecha al inicio
-    if (fechaInicio) {
+    if (fechaInicio || fechaFin) {
+      let filtroTexto = 'FILTRO APLICADO - ';
+      if (fechaInicio && fechaFin) {
+        filtroTexto += `Desde: ${format(fechaInicio, 'dd/MM/yyyy')} hasta: ${format(fechaFin, 'dd/MM/yyyy')}`;
+      } else if (fechaInicio) {
+        filtroTexto += `Desde: ${format(fechaInicio, 'dd/MM/yyyy')}`;
+      } else if (fechaFin) {
+        filtroTexto += `Hasta: ${format(fechaFin, 'dd/MM/yyyy')}`;
+      }
+
       dataToExport.push({
-        Producto: `FILTRO APLICADO - Desde: ${format(fechaInicio, 'dd/MM/yyyy')}`,
+        Producto: filtroTexto,
         Parametro: '-',
         'Cantidad Total Vendida': '-',
         'Monto Total': '-',
@@ -433,14 +446,32 @@ export default function AlmacenPage() {
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Contabilidad Global")
 
-    const fileName = fechaInicio
-      ? `contabilidad_desde_${format(fechaInicio, 'yyyy-MM-dd')}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`
-      : `contabilidad_global_${format(new Date(), 'yyyy-MM-dd')}.xlsx`
+    let fileName = 'contabilidad_global_';
+    if (fechaInicio && fechaFin) {
+      fileName += `${format(fechaInicio, 'yyyy-MM-dd')}_a_${format(fechaFin, 'yyyy-MM-dd')}_`;
+    } else if (fechaInicio) {
+      fileName += `desde_${format(fechaInicio, 'yyyy-MM-dd')}_`;
+    } else if (fechaFin) {
+      fileName += `hasta_${format(fechaFin, 'yyyy-MM-dd')}_`;
+    }
+    fileName += `${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
 
     XLSX.writeFile(wb, fileName)
-  }, [getContabilidadData, fechaInicio])
+  }, [getContabilidadData, fechaInicio, fechaFin])
 
+  const limpiarFiltroFechas = () => {
+    setFechaInicio(null);
+    setFechaFin(null);
+    setShowDatePicker(false);
+  };
 
+  // Función para validar el rango de fechas
+  const validarRangoFechas = (inicio: Date | null, fin: Date | null): string | null => {
+    if (inicio && fin && inicio > fin) {
+      return "La fecha de inicio no puede ser posterior a la fecha de fin";
+    }
+    return null;
+  };
 
   const isProductoAgotado = (producto: Producto): boolean => {
     if (producto.tiene_parametros && producto.parametros) {
@@ -1628,48 +1659,106 @@ export default function AlmacenPage() {
                   className="max-w-sm"
                 />
 
-                {/* Selector de fecha */}
+                {/* Selector de rango de fechas */}
                 <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       className={cn(
-                        "w-[240px] justify-start text-left font-normal",
-                        !fechaInicio && "text-muted-foreground"
+                        "w-[280px] justify-start text-left font-normal",
+                        (!fechaInicio && !fechaFin) && "text-muted-foreground"
                       )}
                     >
                       <CalendarDays className="mr-2 h-4 w-4" />
-                      {fechaInicio ? (
-                        `A partir de: ${format(fechaInicio, 'dd/MM/yyyy')}`
+                      {fechaInicio || fechaFin ? (
+                        <span className="truncate">
+                          {fechaInicio && fechaFin
+                            ? `${format(fechaInicio, 'dd/MM/yyyy')} - ${format(fechaFin, 'dd/MM/yyyy')}`
+                            : fechaInicio
+                              ? `Desde: ${format(fechaInicio, 'dd/MM/yyyy')}`
+                              : `Hasta: ${format(fechaFin, 'dd/MM/yyyy')}`
+                          }
+                        </span>
                       ) : (
-                        "Seleccionar fecha inicio"
+                        "Seleccionar rango de fechas"
                       )}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={fechaInicio || undefined}
-                      onSelect={(date) => {
-                        setFechaInicio(date || null)
-                        setShowDatePicker(false)
-                      }}
-                      disabled={(date) =>
-                        date > new Date() || date < new Date("1900-01-01")
-                      }
-                      initialFocus
-                    />
-                    <div className="p-3 border-t">
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => {
-                          setFechaInicio(null)
-                          setShowDatePicker(false)
-                        }}
-                      >
-                        Limpiar filtro
-                      </Button>
+                    <div className="p-4 space-y-4">
+                      <div className="text-sm font-medium text-gray-700 mb-2">
+                        Seleccionar rango de fechas
+                      </div>
+
+                      {/* Fecha de inicio */}
+                      <div className="space-y-2">
+                        <label className="text-xs text-gray-600">Fecha de inicio:</label>
+                        <CalendarComponent
+                          mode="single"
+                          selected={fechaInicio || undefined}
+                          onSelect={(date) => {
+                            setFechaInicio(date || null);
+                            // Validar que la fecha de inicio no sea posterior a la de fin
+                            if (date && fechaFin && date > fechaFin) {
+                              setFechaFin(null);
+                            }
+                          }}
+                          disabled={(date) =>
+                            date > new Date() ||
+                            date < new Date("1900-01-01") ||
+                            (fechaFin && date > fechaFin)
+                          }
+                          initialFocus
+                        />
+                      </div>
+
+                      {/* Fecha de fin */}
+                      <div className="space-y-2">
+                        <label className="text-xs text-gray-600">Fecha de fin:</label>
+                        <CalendarComponent
+                          mode="single"
+                          selected={fechaFin || undefined}
+                          onSelect={(date) => {
+                            setFechaFin(date || null);
+                            // Validar que la fecha de fin no sea anterior a la de inicio
+                            if (date && fechaInicio && date < fechaInicio) {
+                              setFechaInicio(null);
+                            }
+                          }}
+                          disabled={(date) =>
+                            date > new Date() ||
+                            date < new Date("1900-01-01") ||
+                            (fechaInicio && date < fechaInicio)
+                          }
+                        />
+                      </div>
+
+                      {/* Validación de rango */}
+                      {validarRangoFechas(fechaInicio, fechaFin) && (
+                        <div className="text-xs text-red-500 bg-red-50 p-2 rounded">
+                          {validarRangoFechas(fechaInicio, fechaFin)}
+                        </div>
+                      )}
+
+                      {/* Botones de acción */}
+                      <div className="flex space-x-2 pt-2 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={limpiarFiltroFechas}
+                        >
+                          Limpiar
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => setShowDatePicker(false)}
+                          disabled={!!validarRangoFechas(fechaInicio, fechaFin)}
+                        >
+                          Aplicar
+                        </Button>
+                      </div>
                     </div>
                   </PopoverContent>
                 </Popover>
@@ -1685,19 +1774,24 @@ export default function AlmacenPage() {
               </div>
 
               {/* Mostrar información del filtro aplicado */}
-              {fechaInicio && (
+              {(fechaInicio || fechaFin) && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center text-blue-700">
                       <Calendar className="mr-2 h-4 w-4" />
                       <span className="text-sm font-medium">
-                        Mostrando ventas desde: {format(fechaInicio, 'dd/MM/yyyy')}
+                        {fechaInicio && fechaFin
+                          ? `Período: ${format(fechaInicio, 'dd/MM/yyyy')} - ${format(fechaFin, 'dd/MM/yyyy')}`
+                          : fechaInicio
+                            ? `Desde: ${format(fechaInicio, 'dd/MM/yyyy')}`
+                            : `Hasta: ${format(fechaFin, 'dd/MM/yyyy')}`
+                        }
                       </span>
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setFechaInicio(null)}
+                      onClick={limpiarFiltroFechas}
                       className="text-blue-700 hover:text-blue-900"
                     >
                       <X className="h-4 w-4" />
@@ -1736,8 +1830,8 @@ export default function AlmacenPage() {
                                 <td colSpan={4} className="text-center py-8 text-gray-500">
                                   {searchTermContabilidad
                                     ? 'No se encontraron productos que coincidan con la búsqueda.'
-                                    : fechaInicio
-                                      ? `No hay datos de ventas desde ${format(fechaInicio, 'dd/MM/yyyy')}.`
+                                    : (fechaInicio || fechaFin)
+                                      ? `No hay datos de ventas en el período seleccionado.`
                                       : 'No hay datos de ventas disponibles.'}
                                 </td>
                               </tr>
@@ -1827,9 +1921,14 @@ export default function AlmacenPage() {
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <h3 className="font-bold text-lg mb-2">
                         Totales Generales
-                        {fechaInicio && (
+                        {(fechaInicio || fechaFin) && (
                           <span className="text-sm font-normal text-gray-600 ml-2">
-                            (desde {format(fechaInicio, 'dd/MM/yyyy')})
+                            {fechaInicio && fechaFin
+                              ? `(${format(fechaInicio, 'dd/MM/yyyy')} - ${format(fechaFin, 'dd/MM/yyyy')})`
+                              : fechaInicio
+                                ? `(desde ${format(fechaInicio, 'dd/MM/yyyy')})`
+                                : `(hasta ${format(fechaFin, 'dd/MM/yyyy')})`
+                            }
                           </span>
                         )}
                       </h3>
