@@ -152,6 +152,7 @@ const useVendedorData = (vendedorId: string) => {
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null);
   const [parametrosDialogOpen, setParametrosDialogOpen] = useState(false);
   const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
+  const [isSubmittingVenta, setIsSubmittingVenta] = useState(false) // NUEVO ESTADO
 
   const handleEnviarVenta = async () => {
     if (productosSeleccionados.length === 0) {
@@ -167,6 +168,13 @@ const useVendedorData = (vendedorId: string) => {
       return;
     }
 
+    // Prevenir envíos múltiples
+    if (isSubmittingVenta) {
+      return;
+    }
+
+    setIsSubmittingVenta(true); // ACTIVAR ESTADO DE CARGA
+
     try {
       console.log('Iniciando proceso de venta');
 
@@ -179,7 +187,7 @@ const useVendedorData = (vendedorId: string) => {
 
           const response = await realizarVenta(
             producto.id,
-            cantidadTotal, // Usar la cantidad total calculada
+            cantidadTotal,
             fecha,
             producto.parametrosVenta,
             vendedorId
@@ -201,6 +209,8 @@ const useVendedorData = (vendedorId: string) => {
     } catch (error) {
       console.error('Error al realizar la venta:', error);
       setError(error instanceof Error ? error.message : 'Error al realizar la venta');
+    } finally {
+      setIsSubmittingVenta(false); // DESACTIVAR ESTADO DE CARGA
     }
   };
 
@@ -382,6 +392,7 @@ const useVendedorData = (vendedorId: string) => {
     sortBy,
     setSortBy,
     handleEnviarVenta,
+    isSubmittingVenta,
     productosSeleccionados,
     setProductosSeleccionados,
     fecha,
@@ -427,10 +438,10 @@ const VentaDiaDesplegable = ({ venta, busqueda }: { venta: VentaDia, busqueda: s
   // Filtrar las ventas basadas en la búsqueda
   const ventasFiltradas = busqueda
     ? venta.ventas.filter(v =>
-        v.producto_nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-        formatDate(v.fecha).toLowerCase().includes(busqueda.toLowerCase()) ||
-        v.total.toString().includes(busqueda)
-      )
+      v.producto_nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+      formatDate(v.fecha).toLowerCase().includes(busqueda.toLowerCase()) ||
+      v.total.toString().includes(busqueda)
+    )
     : venta.ventas;
 
   // Calcular el total solo de las ventas filtradas
@@ -510,10 +521,10 @@ const VentaSemanaDesplegable = ({ venta, busqueda }: { venta: VentaSemana, busqu
   // Filtrar las ventas basadas en la búsqueda
   const ventasFiltradas = busqueda
     ? venta.ventas.filter(v =>
-        v.producto_nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-        formatDate(v.fecha).toLowerCase().includes(busqueda.toLowerCase()) ||
-        v.total.toString().includes(busqueda)
-      )
+      v.producto_nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+      formatDate(v.fecha).toLowerCase().includes(busqueda.toLowerCase()) ||
+      v.total.toString().includes(busqueda)
+    )
     : venta.ventas;
 
   // Agrupar las ventas filtradas por día
@@ -982,9 +993,9 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
                             </div>
                             {ventasDiarias.length > 0 ? (
                               ventasDiarias.map((venta) => (
-                                <VentaDiaDesplegable 
-                                  key={venta.fecha} 
-                                  venta={venta} 
+                                <VentaDiaDesplegable
+                                  key={venta.fecha}
+                                  venta={venta}
                                   busqueda={searchTerm}
                                 />
                               ))
@@ -1006,8 +1017,8 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
                             </div>
                             {ventasSemanales.length > 0 ? (
                               ventasSemanales.map((venta) => (
-                                <VentaSemanaDesplegable 
-                                  key={`${venta.fechaInicio}-${venta.fechaFin}`} 
+                                <VentaSemanaDesplegable
+                                  key={`${venta.fechaInicio}-${venta.fechaFin}`}
                                   venta={venta}
                                   busqueda={searchTerm}
                                 />
@@ -1172,6 +1183,7 @@ export default function VendedorPage() {
     sortBy,
     setSortBy,
     handleEnviarVenta,
+    isSubmittingVenta,
     productosSeleccionados,
     setProductosSeleccionados,
     fecha,
@@ -1253,10 +1265,10 @@ export default function VendedorPage() {
     // Asegurarse de que la cantidad esté entre 1 y el máximo disponible
     const producto = productosDisponibles.find(p => p.id === productoId);
     if (!producto) return;
-    
+
     const maxCantidad = producto.cantidad;
     const validCantidad = Math.max(1, Math.min(cantidad, maxCantidad));
-    
+
     setProductQuantities(prev => ({
       ...prev,
       [productoId]: validCantidad
@@ -1509,7 +1521,7 @@ export default function VendedorPage() {
                                   <p className="text-sm text-gray-500">Precio: ${formatPrice(producto.precio)}</p>
                                 </div>
                               </div>
-                              
+
                               {/* Control de cantidad para productos seleccionados */}
                               {selectedProductIds.includes(producto.id) && !producto.tiene_parametros && (
                                 <div className="flex items-center space-x-2">
@@ -1543,7 +1555,7 @@ export default function VendedorPage() {
                                 </div>
                               )}
                             </div>
-                            
+
                             {/* Mostrar los parámetros si ya están configurados */}
                             {producto.tiene_parametros && selectedProductIds.includes(producto.id) && (
                               <div className="mt-2 text-sm text-gray-600">
@@ -1627,7 +1639,28 @@ export default function VendedorPage() {
 
                 </div>
                 <h2 className="text-xl font-semibold">3. Enviar el formulario de ventas</h2>
-                <Button onClick={handleEnviarVenta}>Enviar</Button>
+                {/* BOTÓN ACTUALIZADO CON ESTADO DE CARGA */}
+                <Button
+                  onClick={handleEnviarVenta}
+                  disabled={isSubmittingVenta || productosSeleccionados.length === 0 || !fecha}
+                  className="relative"
+                >
+                  {isSubmittingVenta ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Procesando...
+                    </>
+                  ) : (
+                    'Enviar'
+                  )}
+                </Button>
+
+                {/* Mensaje adicional cuando está procesando */}
+                {isSubmittingVenta && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    Por favor espera, estamos procesando tu venta...
+                  </p>
+                )}
               </div>
             </TabsContent>
             <TabsContent value="registro">
@@ -1651,17 +1684,17 @@ export default function VendedorPage() {
                       </div>
                       {ventasDiarias.length > 0 ? (
                         ventasDiarias
-                          .filter(venta => 
-                            venta.ventas.some(v => 
+                          .filter(venta =>
+                            venta.ventas.some(v =>
                               v.producto_nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
                               formatDate(v.fecha).toLowerCase().includes(busqueda.toLowerCase()) ||
                               v.total.toString().includes(busqueda)
                             )
                           )
                           .map((venta) => (
-                            <VentaDiaDesplegable 
-                              key={venta.fecha} 
-                              venta={venta} 
+                            <VentaDiaDesplegable
+                              key={venta.fecha}
+                              venta={venta}
                               busqueda={busqueda}
                             />
                           ))
@@ -1683,8 +1716,8 @@ export default function VendedorPage() {
                       </div>
                       {ventasSemanales.length > 0 ? (
                         ventasSemanales
-                          .filter(venta => 
-                            venta.ventas.some(v => 
+                          .filter(venta =>
+                            venta.ventas.some(v =>
                               v.producto_nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
                               formatDate(v.fecha).toLowerCase().includes(busqueda.toLowerCase()) ||
                               v.total.toString().includes(busqueda)
@@ -1693,8 +1726,8 @@ export default function VendedorPage() {
                             formatDate(venta.fechaFin).toLowerCase().includes(busqueda.toLowerCase())
                           )
                           .map((venta) => (
-                            <VentaSemanaDesplegable 
-                              key={`${venta.fechaInicio}-${venta.fechaFin}`} 
+                            <VentaSemanaDesplegable
+                              key={`${venta.fechaInicio}-${venta.fechaFin}`}
                               venta={venta}
                               busqueda={busqueda}
                             />
