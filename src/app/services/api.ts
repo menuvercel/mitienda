@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Venta, Vendedor, Transaccion, VentaParametro, TransferProductParams } from '@/types';
+import { Venta, Notificacion, Vendedor, Transaccion, VentaParametro, TransferProductParams } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -27,6 +27,8 @@ interface Producto {
     cantidad: number;
   }>;
 }
+
+
 
 export const uploadImage = async (file: File) => {
   const formData = new FormData();
@@ -586,5 +588,106 @@ export const deleteVendor = async (vendorId: string): Promise<void> => {
   } catch (error) {
     console.error('Error al eliminar el vendedor:', error);
     throw new Error('No se pudo eliminar el vendedor');
+  }
+};
+
+export const getAllNotificaciones = async (): Promise<Notificacion[]> => {
+  try {
+    const response = await api.get('/notificaciones');
+    // ✅ Asegurar que la respuesta tenga la estructura correcta
+    return response.data.notificaciones || response.data;
+  } catch (error) {
+    console.error('Error al obtener notificaciones:', error);
+    throw new Error('No se pudieron obtener las notificaciones');
+  }
+};
+
+// Obtener notificaciones del usuario actual (para vendedores)
+export const getNotificacionesUsuario = async (): Promise<Notificacion[]> => {
+  try {
+    const response = await api.get('/notificaciones/usuario');
+    // ✅ Asegurar que la respuesta tenga la estructura correcta
+    return response.data.notificaciones || response.data;
+  } catch (error) {
+    console.error('Error al obtener notificaciones del usuario:', error);
+    throw new Error('No se pudieron obtener las notificaciones');
+  }
+};
+
+// Crear una nueva notificación
+export const crearNotificacion = async (texto: string, usuarioIds: string[]): Promise<Notificacion> => {
+  try {
+    const response = await api.post('/notificaciones', {
+      texto,
+      usuarioIds  // ✅ CAMBIO: era 'usuarios', ahora 'usuarioIds'
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error al crear notificación:', error);
+    throw new Error('No se pudo crear la notificación');
+  }
+};
+
+// Marcar notificación como leída
+export const marcarComoLeida = async (notificacionId: string): Promise<void> => {
+  try {
+    await api.put(`/notificaciones/${notificacionId}`, {});
+  } catch (error) {
+    console.error('Error al marcar notificación como leída:', error);
+    throw new Error('No se pudo actualizar la notificación');
+  }
+};
+
+// Eliminar notificación
+export const eliminarNotificacion = async (notificacionId: string): Promise<void> => {
+  try {
+    await api.delete(`/notificaciones/${notificacionId}`);
+  } catch (error) {
+    console.error('Error al eliminar notificación:', error);
+    throw new Error('No se pudo eliminar la notificación');
+  }
+};
+
+
+export const getNotificacionesVendedor = async (userId: string): Promise<Notificacion[]> => {
+  try {
+    const response = await api.get(`/notificaciones/usuario?userId=${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener notificaciones del vendedor:', error);
+    throw new Error('No se pudieron obtener las notificaciones');
+  }
+};
+
+// Marcar notificación como leída (para vendedores)
+export const marcarComoLeidaVendedor = async (notificacionId: string, userId: string): Promise<void> => {
+  try {
+    await api.put(`/notificaciones/${notificacionId}`, { userId });
+  } catch (error) {
+    console.error('Error al marcar notificación como leída:', error);
+    throw new Error('No se pudo actualizar la notificación');
+  }
+};
+
+export const eliminarNotificacionPorVendedores = async (
+  notificacionId: string,
+  vendedorIds: number[]
+): Promise<void> => {
+  try {
+    const response = await fetch(`/api/notificaciones/${notificacionId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ vendedorIds }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al eliminar la notificación');
+    }
+  } catch (error) {
+    console.error('Error al eliminar notificación por vendedores:', error);
+    throw error;
   }
 };

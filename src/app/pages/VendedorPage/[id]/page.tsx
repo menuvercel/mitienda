@@ -25,6 +25,7 @@ import {
   getVentasProducto
 } from '../../../services/api'
 import { WeekPicker } from '@/components/Weekpicker'
+import { NotificacionesBell } from '@/components/NotificacionesBell'
 
 interface Producto {
   id: string;
@@ -1384,6 +1385,11 @@ export default function VendedorPage() {
           </nav>
         </SheetContent>
       </Sheet>
+
+      <div className="fixed top-4 right-16 z-50">
+        <NotificacionesBell vendedorId={vendedorId} />
+      </div>
+
 
       <main className="flex-1 p-6 overflow-auto">
         <h1 className="text-2xl font-bold mb-4">Panel de Vendedor</h1>

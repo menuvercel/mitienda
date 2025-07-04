@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Menu, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X } from "lucide-react"
+import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X } from "lucide-react"
 
 import { ChevronDown } from "lucide-react"
 import React from 'react'
@@ -52,6 +52,7 @@ import { ImageUpload } from '@/components/ImageUpload'
 import { Producto, Vendedor, Venta, Transaccion, Merma, Parametro } from '@/types'
 import { toast } from "@/hooks/use-toast";
 import { useVendorProducts } from '@/hooks/use-vendor-products';
+import NotificacionesSystem from '@/components/NotificacionesSystem';
 
 
 interface VentaSemana {
@@ -209,7 +210,10 @@ export default function AlmacenPage() {
   const [fechaFin, setFechaFin] = useState<Date | null>(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
 
-
+  const handleNotificacionesClick = () => {
+    setActiveSection('notificaciones');
+    setIsMenuOpen(false);
+  };
 
   const toggleExpandContabilidad = useCallback((productName: string) => {
     setExpandedContabilidadProducts(prev => ({
@@ -1322,6 +1326,13 @@ export default function AlmacenPage() {
               >
                 Contabilidad Global
               </Button>
+              <Button
+                variant="ghost"
+                className={activeSection === 'notificaciones' ? 'bg-accent' : ''}
+                onClick={handleNotificacionesClick}
+              >
+                Notificaciones
+              </Button>
             </nav>
           </SheetContent>
         </Sheet>
@@ -1981,6 +1992,10 @@ export default function AlmacenPage() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {activeSection === 'notificaciones' && (
+        <NotificacionesSystem mode="admin" />
       )}
 
 

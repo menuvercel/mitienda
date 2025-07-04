@@ -24,7 +24,7 @@ export interface Producto {
   foto: string;
   tiene_parametros: boolean;  // Propiedad del backend
   tieneParametros?: boolean;  // Propiedad del frontend
-  parametros?: Parametro[] 
+  parametros?: Parametro[]
 }
 
 export interface VentaParametro {
@@ -106,5 +106,21 @@ export interface TransferProductParams {
   fromVendorId: string;
   toVendorId: string;
   cantidad: number;
-  parametros?: Array<{ nombre: string; cantidad: number }>; 
+  parametros?: Array<{ nombre: string; cantidad: number }>;
+}
+
+
+export interface Notificacion {
+id: string;
+notificacion_grupo_id?: number;  // ✅ NUEVO CAMPO
+texto: string;
+fecha: string;
+leida?: boolean;
+usuario_id?: string;
+usuarios?: Array<{
+  id: string;
+  nombre: string;
+  leida: boolean;
+  fecha_lectura?: string;
+}>;
 }
