@@ -2443,7 +2443,7 @@ export default function AlmacenPage() {
                 No hay productos en esta sección
               </h3>
               <p className="text-gray-500 mb-4">
-                Usa el botón "Gestionar Productos" para agregar productos a esta sección
+                Usa el botón Gestionar Productos para agregar productos a esta sección
               </p>
             </div>
           )}
