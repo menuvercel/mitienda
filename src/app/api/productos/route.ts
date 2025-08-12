@@ -1,3 +1,5 @@
+//api/productos/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { query } from '@/lib/db';

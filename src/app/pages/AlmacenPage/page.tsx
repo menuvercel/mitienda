@@ -14,10 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X } from "lucide-react"
-
+import ProductoDestacadoCard from '@/components/ProductoDestacadoCard'
+import ProductosDestacadosSelectionDialog from '@/components/ProductosDestacadosSelectionDialog'
+import { getProductosDestacados, updateProductosDestacados } from '../../services/api'
 import { ChevronDown } from "lucide-react"
 import React from 'react'
-import { Calendar, CalendarDays } from "lucide-react"
+import { Calendar, CalendarDays, Star } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
@@ -53,6 +55,20 @@ import { Producto, Vendedor, Venta, Transaccion, Merma, Parametro } from '@/type
 import { toast } from "@/hooks/use-toast";
 import { useVendorProducts } from '@/hooks/use-vendor-products';
 import NotificacionesSystem from '@/components/NotificacionesSystem';
+// Agregar estos imports a los existentes
+import { Seccion } from '@/types'
+import {
+  getSecciones,
+  createSeccion,
+  updateSeccion,
+  deleteSeccion,
+  getProductosBySeccion,
+  updateProductosEnSeccion
+} from '../../services/api'
+import SeccionCard from '@/components/SeccionCard'
+import SeccionDialog from '@/components/SeccionDialog'
+import ProductSelectionDialog from '@/components/ProductSelectionDialog'
+import { Store, Settings, LayoutGrid  } from "lucide-react"
 
 
 interface VentaSemana {
@@ -89,12 +105,13 @@ interface NewProduct {
   }>;
 }
 
-
 const useAlmacenData = () => {
   const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [vendedores, setVendedores] = useState<Vendedor[]>([])
   const [inventario, setInventario] = useState<Producto[]>([])
+  const [secciones, setSecciones] = useState<(Seccion & { productos_count?: number })[]>([])
+  const [productosDestacados, setProductosDestacados] = useState<Producto[]>([])
 
   const fetchVendedores = useCallback(async () => {
     try {
@@ -112,7 +129,13 @@ const useAlmacenData = () => {
   const fetchInventario = useCallback(async () => {
     try {
       const data = await getInventario()
-      setInventario(data as Producto[])
+      // CAMBIAR esta línea para manejar mejor los tipos
+      const productosConTipoCorregido = data.map((producto: any) => ({
+        ...producto,
+        tiene_parametros: producto.tiene_parametros || false,
+        parametros: producto.parametros || []
+      }))
+      setInventario(productosConTipoCorregido as Producto[])
     } catch (error) {
       toast({
         title: "Error",
@@ -122,13 +145,50 @@ const useAlmacenData = () => {
     }
   }, [])
 
+  const fetchSecciones = useCallback(async () => {
+    try {
+      const data = await getSecciones()
+      setSecciones(data)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las secciones",
+        variant: "destructive",
+      })
+    }
+  }, [])
+  const fetchProductosDestacados = useCallback(async () => {
+    try {
+      const data = await getProductosDestacados()
+      // Asegurar que los productos tengan el tipo correcto
+      const productosConTipoCorregido = data.map((producto: any) => ({
+        ...producto,
+        tiene_parametros: producto.tiene_parametros || false,
+        parametros: producto.parametros || []
+      }))
+      setProductosDestacados(productosConTipoCorregido as Producto[])
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los productos destacados",
+        variant: "destructive",
+      })
+    }
+  }, [])
+
+  // Modificar el useEffect
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const user = await getCurrentUser()
         if (user?.rol === 'Almacen') {
           setIsAuthenticated(true)
-          await Promise.all([fetchVendedores(), fetchInventario()])
+          await Promise.all([
+            fetchVendedores(),
+            fetchInventario(),
+            fetchSecciones(),
+            fetchProductosDestacados()
+          ])
         } else {
           router.push('/pages/LoginPage')
         }
@@ -138,14 +198,44 @@ const useAlmacenData = () => {
     }
 
     checkAuth()
-  }, [router, fetchVendedores, fetchInventario])
+  }, [router, fetchVendedores, fetchInventario, fetchSecciones, fetchProductosDestacados])
 
-  return { isAuthenticated, vendedores, inventario, fetchVendedores, fetchInventario, setInventario }
+
+  // MODIFICAR EL RETURN PARA INCLUIR setSecciones
+  return {
+    isAuthenticated,
+    vendedores,
+    inventario,
+    secciones,
+    productosDestacados, // AGREGAR
+    fetchVendedores,
+    fetchInventario,
+    fetchSecciones,
+    fetchProductosDestacados, // AGREGAR
+    setSecciones,
+    setInventario,
+    setProductosDestacados // AGREGAR
+  }
 }
 
 
+
 export default function AlmacenPage() {
-  const { isAuthenticated, vendedores, inventario, fetchVendedores, fetchInventario, setInventario } = useAlmacenData()
+  // MODIFICAR esta línea
+  const {
+    isAuthenticated,
+    vendedores,
+    inventario,
+    secciones,
+    productosDestacados,        // AGREGAR
+    fetchVendedores,
+    fetchInventario,
+    fetchSecciones,
+    fetchProductosDestacados,   // AGREGAR
+    setSecciones,
+    setInventario,
+    setProductosDestacados      // AGREGAR
+  } = useAlmacenData()
   const [showRegisterModal, setShowRegisterModal] = useState(false)
   const [newUser, setNewUser] = useState<NewUser>({
     nombre: '',
@@ -209,6 +299,167 @@ export default function AlmacenPage() {
   const [fechaInicio, setFechaInicio] = useState<Date | null>(null)
   const [fechaFin, setFechaFin] = useState<Date | null>(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
+  // Agregar estos estados después de los existentes (alrededor de la línea donde están los otros useState)
+  const [selectedSeccion, setSelectedSeccion] = useState<Seccion | null>(null)
+  const [showSeccionDialog, setShowSeccionDialog] = useState(false)
+  const [isEditingSeccion, setIsEditingSeccion] = useState(false)
+  const [showProductSelectionDialog, setShowProductSelectionDialog] = useState(false)
+  const [productosEnSeccion, setProductosEnSeccion] = useState<Producto[]>([])
+  const [seccionParaProductos, setSeccionParaProductos] = useState<Seccion | null>(null)
+  const [activeTiendaTab, setActiveTiendaTab] = useState<'secciones' | 'destacados'>('secciones')
+  const [showProductosDestacadosDialog, setShowProductosDestacadosDialog] = useState(false)
+
+
+  const handleManageProductosDestacados = () => {
+    setShowProductosDestacadosDialog(true)
+  }
+
+  const handleSaveProductosDestacados = async (selectedProductIds: string[]) => {
+    try {
+      await updateProductosDestacados(selectedProductIds)
+      await fetchProductosDestacados() // Esta función ahora viene del hook
+      toast({
+        title: "Éxito",
+        description: "Productos destacados actualizados correctamente",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Error al actualizar los productos destacados",
+        variant: "destructive",
+      })
+    }
+  }
+
+
+  // Agregar estas funciones después de las funciones existentes (antes del return)
+  const handleCreateSeccion = () => {
+    setSelectedSeccion(null)
+    setIsEditingSeccion(false)
+    setShowSeccionDialog(true)
+  }
+
+  const handleEditSeccion = (seccion: Seccion) => {
+    setSelectedSeccion(seccion)
+    setIsEditingSeccion(true)
+    setShowSeccionDialog(true)
+  }
+
+  const handleSaveSeccion = async (seccionData: { nombre: string; foto: string }) => {
+    try {
+      if (isEditingSeccion && selectedSeccion) {
+        await updateSeccion(selectedSeccion.id, seccionData)
+        toast({
+          title: "Éxito",
+          description: "Sección actualizada correctamente",
+        })
+      } else {
+        await createSeccion(seccionData)
+        toast({
+          title: "Éxito",
+          description: "Sección creada correctamente",
+        })
+      }
+      await fetchSecciones()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al guardar la sección",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteSeccion = async (seccionId: string) => {
+    if (confirm('¿Estás seguro de que quieres eliminar esta sección? Los productos no se eliminarán.')) {
+      try {
+        await deleteSeccion(seccionId)
+        await fetchSecciones()
+        toast({
+          title: "Éxito",
+          description: "Sección eliminada correctamente",
+        })
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Error al eliminar la sección",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  const handleSeccionClick = async (seccion: Seccion) => {
+    try {
+      const productos = await getProductosBySeccion(seccion.id)
+      // AGREGAR verificación de tipos
+      const productosConTipoCorregido = productos.map((producto: any) => ({
+        ...producto,
+        tiene_parametros: producto.tiene_parametros || false,
+        parametros: producto.parametros || []
+      }))
+      setProductosEnSeccion(productosConTipoCorregido as Producto[])
+      setSeccionParaProductos(seccion)
+      setActiveSection('seccion-productos')
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Error al cargar los productos de la sección",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleManageProductsInSeccion = async () => {
+    if (!seccionParaProductos) return
+
+    try {
+      const productosActuales = await getProductosBySeccion(seccionParaProductos.id)
+      // AGREGAR verificación de tipos
+      const productosConTipoCorregido = productosActuales.map((producto: any) => ({
+        ...producto,
+        tiene_parametros: producto.tiene_parametros || false,
+        parametros: producto.parametros || []
+      }))
+      setProductosEnSeccion(productosConTipoCorregido as Producto[])
+      setShowProductSelectionDialog(true)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Error al cargar los productos",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSaveProductSelection = async (selectedProductIds: string[]) => {
+    if (!seccionParaProductos) return
+
+    try {
+      await updateProductosEnSeccion(seccionParaProductos.id, selectedProductIds)
+      const productosActualizados = await getProductosBySeccion(seccionParaProductos.id)
+      // AGREGAR verificación de tipos
+      const productosConTipoCorregido = productosActualizados.map((producto: any) => ({
+        ...producto,
+        tiene_parametros: producto.tiene_parametros || false,
+        parametros: producto.parametros || []
+      }))
+      setProductosEnSeccion(productosConTipoCorregido as Producto[])
+      await fetchSecciones() // Para actualizar el contador de productos
+      toast({
+        title: "Éxito",
+        description: "Productos actualizados correctamente",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Error al actualizar los productos",
+        variant: "destructive",
+      })
+    }
+  }
+
+
 
   const handleNotificacionesClick = () => {
     setActiveSection('notificaciones');
@@ -1333,6 +1584,17 @@ export default function AlmacenPage() {
               >
                 Notificaciones
               </Button>
+              <Button
+                variant="ghost"
+                className={activeSection === 'tienda' ? 'bg-accent' : ''}
+                onClick={() => {
+                  setActiveSection('tienda')
+                  setIsMenuOpen(false)
+                }}
+              >
+                Tienda
+              </Button>
+
             </nav>
           </SheetContent>
         </Sheet>
@@ -1998,6 +2260,197 @@ export default function AlmacenPage() {
         <NotificacionesSystem mode="admin" />
       )}
 
+      {/* Reemplazar toda la sección de tienda existente con esto */}
+      {activeSection === 'tienda' && (
+        <div>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold flex items-center">
+              <Store className="mr-2 h-6 w-6" />
+              Gestión de Tienda
+            </h2>
+          </div>
+
+          {/* Pestañas */}
+          <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
+            <Button
+              variant={activeTiendaTab === 'secciones' ? "default" : "ghost"}
+              onClick={() => setActiveTiendaTab('secciones')}
+              className="flex items-center"
+            >
+              <LayoutGrid className="mr-2 h-4 w-4" />
+              Secciones
+            </Button>
+            <Button
+              variant={activeTiendaTab === 'destacados' ? "default" : "ghost"}
+              onClick={() => setActiveTiendaTab('destacados')}
+              className="flex items-center"
+            >
+              <Star className="mr-2 h-4 w-4" />
+              Destacados
+            </Button>
+          </div>
+
+          {/* Contenido de Secciones */}
+          {activeTiendaTab === 'secciones' && (
+            <div>
+              <div className="flex justify-end mb-4">
+                <Button
+                  onClick={handleCreateSeccion}
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nueva Sección
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {secciones.map((seccion) => (
+                  <SeccionCard
+                    key={seccion.id}
+                    seccion={seccion}
+                    onEdit={handleEditSeccion}
+                    onDelete={handleDeleteSeccion}
+                    onClick={handleSeccionClick}
+                  />
+                ))}
+              </div>
+
+              {secciones.length === 0 && (
+                <div className="text-center py-12">
+                  <Store className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No hay secciones creadas
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    Comienza creando tu primera sección para organizar tus productos
+                  </p>
+                  <Button onClick={handleCreateSeccion}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Crear Primera Sección
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Contenido de Productos Destacados */}
+          {activeTiendaTab === 'destacados' && (
+            <div>
+              <div className="flex justify-end mb-4">
+                <Button
+                  onClick={handleManageProductosDestacados}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white"
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  Gestionar Destacados
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {productosDestacados.map((producto) => (
+                  <ProductoDestacadoCard
+                    key={producto.id}
+                    producto={producto}
+                    // CAMBIAR esta línea para manejar el tipo correctamente
+                    onClick={(producto) => setSelectedProduct(producto)}
+                  />
+                ))}
+              </div>
+              {productosDestacados.length === 0 && (
+                <div className="text-center py-12">
+                  <Star className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No hay productos destacados
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    Selecciona productos para destacar en tu tienda y aumentar las ventas
+                  </p>
+                  <Button onClick={handleManageProductosDestacados} className="bg-yellow-500 hover:bg-yellow-600">
+                    <Star className="mr-2 h-4 w-4" />
+                    Seleccionar Productos Destacados
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+
+      {activeSection === 'seccion-productos' && seccionParaProductos && (
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                onClick={() => setActiveSection('tienda')}
+              >
+                ← Volver a Secciones
+              </Button>
+              <div>
+                <h2 className="text-2xl font-bold">{seccionParaProductos.nombre}</h2>
+                <p className="text-gray-600">{productosEnSeccion.length} productos</p>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleManageProductsInSeccion}
+              className="bg-green-500 hover:bg-green-600 text-white"
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Gestionar Productos
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {productosEnSeccion.map((producto) => (
+              <div
+                key={producto.id}
+                onClick={() => setSelectedProduct(producto)}
+                className="flex items-center p-3 rounded-lg border bg-white hover:bg-gray-50 cursor-pointer"
+              >
+                <div className="w-12 h-12 flex-shrink-0 relative mr-4">
+                  <Image
+                    src={imageErrors[producto.id] ? '/placeholder.svg' : (producto.foto || '/placeholder.svg')}
+                    alt={producto.nombre}
+                    fill
+                    className="rounded-md object-cover"
+                    onError={() => {
+                      setImageErrors(prev => ({
+                        ...prev,
+                        [producto.id]: true
+                      }));
+                    }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-medium text-gray-900 truncate">
+                    {producto.nombre}
+                  </h3>
+                  <div className="flex flex-wrap gap-x-4 text-sm text-gray-500">
+                    <p>Precio: ${Number(producto.precio).toFixed(2)}</p>
+                    <p>Cantidad: {calcularCantidadTotal(producto)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {productosEnSeccion.length === 0 && (
+            <div className="text-center py-12">
+              <div className="mx-auto h-12 w-12 text-gray-400 mb-4">📦</div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No hay productos en esta sección
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Usa el botón "Gestionar Productos" para agregar productos a esta sección
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+
 
       <Dialog open={showMassDeliveryDialog} onOpenChange={setShowMassDeliveryDialog}>
         <DialogContent className="max-w-[95vw] w-full md:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -2399,6 +2852,29 @@ export default function AlmacenPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <SeccionDialog
+        seccion={selectedSeccion}
+        isOpen={showSeccionDialog}
+        onClose={() => setShowSeccionDialog(false)}
+        onSave={handleSaveSeccion}
+        isEditing={isEditingSeccion}
+      />
+
+      <ProductSelectionDialog
+        isOpen={showProductSelectionDialog}
+        onClose={() => setShowProductSelectionDialog(false)}
+        productos={inventario}
+        productosEnSeccion={productosEnSeccion}
+        onSave={handleSaveProductSelection}
+      />
+
+      <ProductosDestacadosSelectionDialog
+        isOpen={showProductosDestacadosDialog}
+        onClose={() => setShowProductosDestacadosDialog(false)}
+        productos={inventario}
+        productosDestacados={productosDestacados}
+        onSave={handleSaveProductosDestacados}
+      />
 
 
       {selectedProduct && (

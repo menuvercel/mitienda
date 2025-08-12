@@ -111,16 +111,25 @@ export interface TransferProductParams {
 
 
 export interface Notificacion {
-id: string;
-notificacion_grupo_id?: number;  // ✅ NUEVO CAMPO
-texto: string;
-fecha: string;
-leida?: boolean;
-usuario_id?: string;
-usuarios?: Array<{
+  id: string;
+  notificacion_grupo_id?: number;  // ✅ NUEVO CAMPO
+  texto: string;
+  fecha: string;
+  leida?: boolean;
+  usuario_id?: string;
+  usuarios?: Array<{
+    id: string;
+    nombre: string;
+    leida: boolean;
+    fecha_lectura?: string;
+  }>;
+}
+
+export interface Seccion {
   id: string;
   nombre: string;
-  leida: boolean;
-  fecha_lectura?: string;
-}>;
+  foto?: string;
+  created_at?: string;
+  updated_at?: string;
+  productos_count?: number;
 }

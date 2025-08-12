@@ -1,5 +1,7 @@
+//services/api.ts
+
 import axios from 'axios';
-import { Venta, Notificacion, Vendedor, Transaccion, VentaParametro, TransferProductParams } from '@/types';
+import { Venta, Notificacion, Vendedor, Transaccion, VentaParametro, TransferProductParams, Seccion } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -689,5 +691,89 @@ export const eliminarNotificacionPorVendedores = async (
   } catch (error) {
     console.error('Error al eliminar notificación por vendedores:', error);
     throw error;
+  }
+};
+
+// ===== SECCIONES =====
+export const getSecciones = async (): Promise<Seccion[]> => {
+  try {
+    const response = await api.get('/secciones');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching secciones:', error);
+    throw new Error('Error al obtener las secciones');
+  }
+};
+
+export const createSeccion = async (seccionData: { nombre: string; foto: string }): Promise<Seccion> => {
+  try {
+    const response = await api.post('/secciones', seccionData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating seccion:', error);
+    if (axios.isAxiosError(error) && error.response?.status === 409) {
+      throw new Error('Ya existe una sección con ese nombre');
+    }
+    throw new Error('Error al crear la sección');
+  }
+};
+
+export const updateSeccion = async (id: string, seccionData: { nombre: string; foto: string }): Promise<Seccion> => {
+  try {
+    const response = await api.put(`/secciones/${id}`, seccionData);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating seccion:', error);
+    if (axios.isAxiosError(error) && error.response?.status === 409) {
+      throw new Error('Ya existe una sección con ese nombre');
+    }
+    throw new Error('Error al actualizar la sección');
+  }
+};
+
+export const deleteSeccion = async (id: string): Promise<void> => {
+  try {
+    await api.delete(`/secciones/${id}`);
+  } catch (error) {
+    console.error('Error deleting seccion:', error);
+    throw new Error('Error al eliminar la sección');
+  }
+};
+
+export const getProductosBySeccion = async (seccionId: string): Promise<Producto[]> => {
+  try {
+    const response = await api.get(`/secciones/${seccionId}/productos`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching productos by seccion:', error);
+    throw new Error('Error al obtener los productos de la sección');
+  }
+};
+
+export const updateProductosEnSeccion = async (seccionId: string, productIds: string[]): Promise<void> => {
+  try {
+    await api.put(`/secciones/${seccionId}/productos`, { productIds });
+  } catch (error) {
+    console.error('Error updating productos in seccion:', error);
+    throw new Error('Error al actualizar los productos de la sección');
+  }
+};
+
+export const getProductosDestacados = async (): Promise<Producto[]> => {
+  try {
+    const response = await api.get('/productos/destacados');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching productos destacados:', error);
+    throw new Error('Error al obtener los productos destacados');
+  }
+};
+
+export const updateProductosDestacados = async (productIds: string[]): Promise<void> => {
+  try {
+    await api.put('/productos/destacados', { productIds });
+  } catch (error) {
+    console.error('Error updating productos destacados:', error);
+    throw new Error('Error al actualizar los productos destacados');
   }
 };
