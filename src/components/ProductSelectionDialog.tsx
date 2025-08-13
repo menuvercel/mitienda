@@ -46,6 +46,27 @@ export default function ProductSelectionDialog({
         )
     }
 
+    const handleSelectAll = () => {
+        const allFilteredIds = filteredProductos.map(producto => producto.id)
+        const areAllSelected = allFilteredIds.every(id => selectedProductIds.includes(id))
+
+        if (areAllSelected) {
+            // Deseleccionar todos los productos filtrados
+            setSelectedProductIds(prev => prev.filter(id => !allFilteredIds.includes(id)))
+        } else {
+            // Seleccionar todos los productos filtrados
+            setSelectedProductIds(prev => {
+                const newIds = [...prev]
+                allFilteredIds.forEach(id => {
+                    if (!newIds.includes(id)) {
+                        newIds.push(id)
+                    }
+                })
+                return newIds
+            })
+        }
+    }
+
     const handleSave = () => {
         onSave(selectedProductIds)
         onClose()
@@ -64,6 +85,10 @@ export default function ProductSelectionDialog({
         return producto.cantidad;
     };
 
+    // Verificar si todos los productos filtrados están seleccionados
+    const areAllFilteredSelected = filteredProductos.length > 0 &&
+        filteredProductos.every(producto => selectedProductIds.includes(producto.id))
+
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent className="max-w-2xl max-h-[80vh]">
@@ -78,6 +103,20 @@ export default function ProductSelectionDialog({
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full"
                     />
+
+                    {/* Opción de Seleccionar Todos */}
+                    {filteredProductos.length > 0 && (
+                        <div className="flex items-center space-x-3 p-3 border rounded-lg bg-blue-50 border-blue-200">
+                            <Checkbox
+                                checked={areAllFilteredSelected}
+                                onCheckedChange={handleSelectAll}
+                            />
+                            <span className="font-medium text-blue-700">
+                                {areAllFilteredSelected ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                                {searchTerm && ` (${filteredProductos.length} productos filtrados)`}
+                            </span>
+                        </div>
+                    )}
 
                     <div className="max-h-96 overflow-y-auto space-y-2">
                         {filteredProductos.length === 0 ? (
