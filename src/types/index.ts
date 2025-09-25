@@ -8,8 +8,6 @@ export interface VentaSemana {
   ganancia: number
 }
 
-
-
 export interface Parametro {
   nombre: string;
   cantidad: number;
@@ -61,7 +59,6 @@ export interface Usuario {
   telefono?: string;
 }
 
-// Agregar nueva interface para los parámetros de transacción
 export interface TransaccionParametro {
   id: string;
   transaccion_id: string;
@@ -69,7 +66,6 @@ export interface TransaccionParametro {
   cantidad: number;
 }
 
-// Actualizar la interface Transaccion para incluir los parámetros
 export interface Transaccion {
   id: string;
   tipo: 'Baja' | 'Entrega';
@@ -80,9 +76,8 @@ export interface Transaccion {
   fecha: string;
   precio: number;
   parametro_nombre?: string;
-  parametros?: TransaccionParametro[]; // Agregar esta línea
+  parametros?: TransaccionParametro[];
 }
-
 
 export interface Entrega {
   id: string;
@@ -109,7 +104,6 @@ export interface TransferProductParams {
   parametros?: Array<{ nombre: string; cantidad: number }>;
 }
 
-
 export interface Notificacion {
   id: string;
   notificacion_grupo_id?: number;  // ✅ NUEVO CAMPO
@@ -132,4 +126,14 @@ export interface Seccion {
   created_at?: string;
   updated_at?: string;
   productos_count?: number;
+}
+
+// Agregar al final del archivo
+export interface Promocion {
+  id: string;
+  nombre: string;
+  valor_descuento: number;
+  fecha_inicio: string;
+  fecha_fin: string;
+  activa: boolean;
 }

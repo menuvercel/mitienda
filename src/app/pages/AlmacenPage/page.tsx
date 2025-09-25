@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X } from "lucide-react"
+import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X, Percent } from "lucide-react"
 import ProductoDestacadoCard from '@/components/ProductoDestacadoCard'
 import ProductosDestacadosSelectionDialog from '@/components/ProductosDestacadosSelectionDialog'
 import { getProductosDestacados, updateProductosDestacados } from '../../services/api'
@@ -23,6 +23,7 @@ import { Calendar, CalendarDays, Star } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
+import PromocionesManager from '@/components/PromocionesManager';
 
 
 import {
@@ -68,7 +69,7 @@ import {
 import SeccionCard from '@/components/SeccionCard'
 import SeccionDialog from '@/components/SeccionDialog'
 import ProductSelectionDialog from '@/components/ProductSelectionDialog'
-import { Store, Settings, LayoutGrid  } from "lucide-react"
+import { Store, Settings, LayoutGrid } from "lucide-react"
 
 
 interface VentaSemana {
@@ -306,7 +307,7 @@ export default function AlmacenPage() {
   const [showProductSelectionDialog, setShowProductSelectionDialog] = useState(false)
   const [productosEnSeccion, setProductosEnSeccion] = useState<Producto[]>([])
   const [seccionParaProductos, setSeccionParaProductos] = useState<Seccion | null>(null)
-  const [activeTiendaTab, setActiveTiendaTab] = useState<'secciones' | 'destacados'>('secciones')
+  const [activeTiendaTab, setActiveTiendaTab] = useState<'secciones' | 'destacados' | 'promociones' >('secciones')
   const [showProductosDestacadosDialog, setShowProductosDestacadosDialog] = useState(false)
 
 
@@ -2271,6 +2272,7 @@ export default function AlmacenPage() {
           </div>
 
           {/* Pestañas */}
+          {/* Pestañas - Añadimos la nueva pestaña de Promociones */}
           <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
             <Button
               variant={activeTiendaTab === 'secciones' ? "default" : "ghost"}
@@ -2287,6 +2289,14 @@ export default function AlmacenPage() {
             >
               <Star className="mr-2 h-4 w-4" />
               Destacados
+            </Button>
+            <Button
+              variant={activeTiendaTab === 'promociones' ? "default" : "ghost"}
+              onClick={() => setActiveTiendaTab('promociones')}
+              className="flex items-center"
+            >
+              <Percent className="mr-2 h-4 w-4" />
+              Promociones
             </Button>
           </div>
 
@@ -2372,6 +2382,11 @@ export default function AlmacenPage() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Contenido de Promociones - NUEVA SECCIÓN */}
+          {activeTiendaTab === 'promociones' && (
+            <PromocionesManager />
           )}
         </div>
       )}

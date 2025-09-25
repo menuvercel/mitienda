@@ -777,3 +777,65 @@ export const updateProductosDestacados = async (productIds: string[]): Promise<v
     throw new Error('Error al actualizar los productos destacados');
   }
 };
+
+
+//promociones
+
+export const getPromociones = async (): Promise<Promocion[]> => {
+  try {
+    const response = await api.get('/promociones');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener promociones:', error);
+    throw new Error('No se pudieron obtener las promociones');
+  }
+};
+
+export const getPromocionById = async (id: string): Promise<Promocion> => {
+  try {
+    const response = await api.get(`/promociones/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener promoción:', error);
+    throw new Error('No se pudo obtener la promoción');
+  }
+};
+
+export const createPromocion = async (promocion: Omit<Promocion, 'id'>): Promise<Promocion> => {
+  try {
+    const response = await api.post('/promociones', promocion);
+    return response.data;
+  } catch (error) {
+    console.error('Error al crear promoción:', error);
+    throw new Error('No se pudo crear la promoción');
+  }
+};
+
+export const updatePromocion = async (id: string, promocion: Partial<Promocion>): Promise<Promocion> => {
+  try {
+    const response = await api.put(`/promociones/${id}`, promocion);
+    return response.data;
+  } catch (error) {
+    console.error('Error al actualizar promoción:', error);
+    throw new Error('No se pudo actualizar la promoción');
+  }
+};
+
+export const deletePromocion = async (id: string): Promise<void> => {
+  try {
+    await api.delete(`/promociones/${id}`);
+  } catch (error) {
+    console.error('Error al eliminar promoción:', error);
+    throw new Error('No se pudo eliminar la promoción');
+  }
+};
+
+export const togglePromocionStatus = async (id: string, activa: boolean): Promise<Promocion> => {
+  try {
+    const response = await api.patch(`/promociones/${id}`, { activa });
+    return response.data;
+  } catch (error) {
+    console.error('Error al cambiar estado de promoción:', error);
+    throw new Error('No se pudo cambiar el estado de la promoción');
+  }
+};
