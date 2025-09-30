@@ -1,99 +1,142 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import Image from 'next/image'
 import { Producto } from '@/types'
+import { toast } from "@/hooks/use-toast";
+
 
 interface ProductSelectionDialogProps {
     isOpen: boolean
     onClose: () => void
-    productos: Producto[]
-    productosEnSeccion: Producto[]
-    onSave: (selectedProductIds: string[]) => void
+    allProductos: Producto[] // Cambiado de productos a allProductos
+    currentProductos: Producto[] // Cambiado de productosEnSeccion a currentProductos
+    onProductosSelected: (selectedProductIds: string[]) => void // Cambiado de onSave a onProductosSelected
+    subseccionId?: string | null // Nueva propiedad
+    seccionId?: string | null
 }
 
 export default function ProductSelectionDialog({
     isOpen,
     onClose,
-    productos,
-    productosEnSeccion,
-    onSave
+    allProductos = [], // Cambiado de productos a allProductos
+    currentProductos = [], // Cambiado de productosEnSeccion a currentProductos
+    onProductosSelected, // Cambiado de onSave a onProductosSelected
+    subseccionId,
+    seccionId
 }: ProductSelectionDialogProps) {
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
     const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
+    const [isInitialized, setIsInitialized] = useState(false)
 
+    // Inicializar los productos seleccionados solo cuando el diálogo se abre
     useEffect(() => {
-        if (isOpen) {
-            // Inicializar con los productos que ya están en la sección
-            setSelectedProductIds(productosEnSeccion.map(p => p.id))
+        if (isOpen && !isInitialized) {
+            const initialSelectedIds = currentProductos?.map(p => p.id) || [];
+            setSelectedProductIds(initialSelectedIds);
+            setSearchTerm('');
+            setIsInitialized(true);
+        } else if (!isOpen) {
+            setIsInitialized(false);
         }
-    }, [isOpen, productosEnSeccion])
+    }, [isOpen, currentProductos, isInitialized]);
 
-    const filteredProductos = productos.filter(producto =>
-        producto.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    // Memoizar el filtrado de productos para evitar cálculos innecesarios
+    const filteredProductos = React.useMemo(() => {
+        if (!Array.isArray(allProductos)) return [];
 
-    const handleProductToggle = (productId: string) => {
+        return allProductos.filter(producto => {
+            // Filtro por término de búsqueda
+            const matchesSearch = producto.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+
+            // Filtro por sección (validación adicional por seguridad)
+            const matchesSeccion = seccionId ? producto.seccion_id === seccionId : true;
+
+            return matchesSearch && matchesSeccion;
+        });
+    }, [allProductos, searchTerm, seccionId]);
+
+
+    const handleProductToggle = useCallback((productId: string) => {
+        // Encontrar el producto
+        const producto = allProductos.find(p => p.id === productId);
+
+        // Validar que pertenece a la sección correcta
+        if (seccionId && producto && producto.seccion_id !== seccionId) {
+            toast({
+                title: "Error",
+                description: `El producto "${producto.nombre}" no pertenece a esta sección`,
+                variant: "destructive",
+            });
+            return;
+        }
+
         setSelectedProductIds(prev =>
             prev.includes(productId)
                 ? prev.filter(id => id !== productId)
                 : [...prev, productId]
-        )
-    }
+        );
+    }, [allProductos, seccionId]);
 
-    const handleSelectAll = () => {
-        const allFilteredIds = filteredProductos.map(producto => producto.id)
-        const areAllSelected = allFilteredIds.every(id => selectedProductIds.includes(id))
+
+    const handleSelectAll = useCallback(() => {
+        const allFilteredIds = filteredProductos.map(producto => producto.id);
+        const areAllSelected = allFilteredIds.every(id => selectedProductIds.includes(id));
 
         if (areAllSelected) {
-            // Deseleccionar todos los productos filtrados
-            setSelectedProductIds(prev => prev.filter(id => !allFilteredIds.includes(id)))
+            setSelectedProductIds(prev => prev.filter(id => !allFilteredIds.includes(id)));
         } else {
-            // Seleccionar todos los productos filtrados
             setSelectedProductIds(prev => {
-                const newIds = [...prev]
+                const newIds = [...prev];
                 allFilteredIds.forEach(id => {
                     if (!newIds.includes(id)) {
-                        newIds.push(id)
+                        newIds.push(id);
                     }
-                })
-                return newIds
-            })
+                });
+                return newIds;
+            });
         }
-    }
+    }, [filteredProductos, selectedProductIds]);
 
-    const handleSave = () => {
-        onSave(selectedProductIds)
-        onClose()
-    }
+    const handleSave = useCallback(() => {
+        onProductosSelected(selectedProductIds); // Cambiado de onSave a onProductosSelected
+        onClose();
+    }, [onProductosSelected, selectedProductIds, onClose]);
 
-    const handleClose = () => {
-        setSearchTerm('')
-        setSelectedProductIds([])
-        onClose()
-    }
+    const handleClose = useCallback(() => {
+        onClose();
+    }, [onClose]);
 
-    const calcularCantidadTotal = (producto: Producto) => {
+    const calcularCantidadTotal = useCallback((producto: Producto) => {
         if (producto.tiene_parametros && producto.parametros) {
             return producto.parametros.reduce((sum, param) => sum + param.cantidad, 0);
         }
         return producto.cantidad;
-    };
+    }, []);
 
-    // Verificar si todos los productos filtrados están seleccionados
-    const areAllFilteredSelected = filteredProductos.length > 0 &&
-        filteredProductos.every(producto => selectedProductIds.includes(producto.id))
+    // Memoizar este cálculo para evitar recálculos innecesarios
+    const areAllFilteredSelected = React.useMemo(() => {
+        return filteredProductos.length > 0 &&
+            filteredProductos.every(producto => selectedProductIds.includes(producto.id));
+    }, [filteredProductos, selectedProductIds]);
+
+    // Renderizar null cuando no está abierto para evitar problemas de renderizado
+    if (!isOpen) {
+        return null;
+    }
 
     return (
-        <Dialog open={isOpen} onOpenChange={handleClose}>
+        <Dialog open={isOpen} onOpenChange={(open) => {
+            if (!open) handleClose();
+        }}>
             <DialogContent className="max-w-2xl max-h-[80vh]">
                 <DialogHeader>
-                    <DialogTitle>Seleccionar Productos para la Sección</DialogTitle>
+                    <DialogTitle>Seleccionar Productos para la {seccionId ? 'Sección' : 'Subsección'}</DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-4">

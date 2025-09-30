@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea"; // Nuevo import para el campo de descripción
 import Image from 'next/image';
 import { toast } from "@/hooks/use-toast";
 import { Producto, Vendedor, Parametro } from '@/types';
@@ -31,147 +32,147 @@ interface ProductDialogProps {
 
 type ModeType = 'view' | 'edit' | 'deliver';
 
-  const VendorsTab = ({
-    vendorsData,
-    isLoading,
-    onRefresh,
-    productName,
-  }: {
-    vendorsData: Array<{
-      vendedor: Vendedor;
-      cantidad: number;
-      parametros?: Array<{ nombre: string; cantidad: number }>;
-    }>;
-    isLoading: boolean;
-    onRefresh: () => void;
-    productName: string;
-  }) => {
-    const [expandedVendors, setExpandedVendors] = useState<Record<string, boolean>>({});
+const VendorsTab = ({
+  vendorsData,
+  isLoading,
+  onRefresh,
+  productName,
+}: {
+  vendorsData: Array<{
+    vendedor: Vendedor;
+    cantidad: number;
+    parametros?: Array<{ nombre: string; cantidad: number }>;
+  }>;
+  isLoading: boolean;
+  onRefresh: () => void;
+  productName: string;
+}) => {
+  const [expandedVendors, setExpandedVendors] = useState<Record<string, boolean>>({});
 
-    const toggleExpand = (vendorId: string) => {
-      setExpandedVendors(prev => ({
-        ...prev,
-        [vendorId]: !prev[vendorId]
-      }));
-    };
+  const toggleExpand = (vendorId: string) => {
+    setExpandedVendors(prev => ({
+      ...prev,
+      [vendorId]: !prev[vendorId]
+    }));
+  };
 
-    if (isLoading) {
-      return (
-        <div className="flex justify-center items-center py-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
-            <p className="text-sm text-gray-600">Cargando datos de vendedores...</p>
-          </div>
-        </div>
-      );
-    }
-
-    const totalEnVendedores = vendorsData.reduce((sum, item) => sum + item.cantidad, 0);
-    const vendedoresConStock = vendorsData.filter(item => item.cantidad > 0).length;
-
+  if (isLoading) {
     return (
-      <div className="space-y-4">
-        {/* Resumen */}
-        <div className="bg-gray-50 p-3 rounded-lg">
-          <h4 className="font-medium text-sm mb-2">Resumen de distribución</h4>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-gray-600">Total en vendedores:</span>
-              <span className="font-semibold ml-1">{totalEnVendedores}</span>
-            </div>
-          </div>
+      <div className="flex justify-center items-center py-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
+          <p className="text-sm text-gray-600">Cargando datos de vendedores...</p>
         </div>
-
-        {/* Botón de actualizar */}
-        <div className="flex justify-between items-center">
-          <h4 className="font-medium">Distribución por vendedor</h4>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRefresh}
-            disabled={isLoading}
-          >
-            Actualizar
-          </Button>
-        </div>
-
-        {/* Lista de vendedores */}
-        <div className="space-y-2 max-h-[400px] overflow-y-auto">
-          {vendorsData.map((item) => (
-            <div
-              key={item.vendedor.id}
-              className={`border rounded-lg p-3 ${item.cantidad > 0 ? 'bg-white' : 'bg-gray-50'
-                }`}
-            >
-              <div
-                className={`flex justify-between items-center ${item.parametros ? 'cursor-pointer' : ''
-                  }`}
-                onClick={() => {
-                  if (item.parametros) {
-                    toggleExpand(item.vendedor.id);
-                  }
-                }}
-              >
-                <div className="flex items-center space-x-2">
-                  <span className="font-medium">{item.vendedor.nombre}</span>
-                  {item.parametros && (
-                    <ChevronDown
-                      className={`h-4 w-4 transition-transform ${expandedVendors[item.vendedor.id] ? 'rotate-180' : ''
-                        }`}
-                    />
-                  )}
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`font-semibold ${item.cantidad > 0
-                      ? item.cantidad < 5
-                        ? 'text-yellow-600'
-                        : 'text-green-600'
-                      : 'text-gray-400'
-                      }`}
-                  >
-                    {item.cantidad}
-                  </span>
-                  {item.cantidad > 0 && (
-                    <div
-                      className={`w-2 h-2 rounded-full ${item.cantidad < 5 ? 'bg-yellow-500' : 'bg-green-500'
-                        }`}
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Desglose de parámetros */}
-              {item.parametros && expandedVendors[item.vendedor.id] && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-gray-600 uppercase">
-                      Desglose por parámetros:
-                    </p>
-                    {item.parametros.map((param, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center py-1 px-2 bg-gray-50 rounded text-sm"
-                      >
-                        <span>{param.nombre}</span>
-                        <span className="font-medium">{param.cantidad}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {vendorsData.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            <p>No hay vendedores disponibles</p>
-          </div>
-        )}
       </div>
     );
-  };
+  }
+
+  const totalEnVendedores = vendorsData.reduce((sum, item) => sum + item.cantidad, 0);
+  const vendedoresConStock = vendorsData.filter(item => item.cantidad > 0).length;
+
+  return (
+    <div className="space-y-4">
+      {/* Resumen */}
+      <div className="bg-gray-50 p-3 rounded-lg">
+        <h4 className="font-medium text-sm mb-2">Resumen de distribución</h4>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-gray-600">Total en vendedores:</span>
+            <span className="font-semibold ml-1">{totalEnVendedores}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Botón de actualizar */}
+      <div className="flex justify-between items-center">
+        <h4 className="font-medium">Distribución por vendedor</h4>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRefresh}
+          disabled={isLoading}
+        >
+          Actualizar
+        </Button>
+      </div>
+
+      {/* Lista de vendedores */}
+      <div className="space-y-2 max-h-[400px] overflow-y-auto">
+        {vendorsData.map((item) => (
+          <div
+            key={item.vendedor.id}
+            className={`border rounded-lg p-3 ${item.cantidad > 0 ? 'bg-white' : 'bg-gray-50'
+              }`}
+          >
+            <div
+              className={`flex justify-between items-center ${item.parametros ? 'cursor-pointer' : ''
+                }`}
+              onClick={() => {
+                if (item.parametros) {
+                  toggleExpand(item.vendedor.id);
+                }
+              }}
+            >
+              <div className="flex items-center space-x-2">
+                <span className="font-medium">{item.vendedor.nombre}</span>
+                {item.parametros && (
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${expandedVendors[item.vendedor.id] ? 'rotate-180' : ''
+                      }`}
+                  />
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                <span
+                  className={`font-semibold ${item.cantidad > 0
+                    ? item.cantidad < 5
+                      ? 'text-yellow-600'
+                      : 'text-green-600'
+                    : 'text-gray-400'
+                    }`}
+                >
+                  {item.cantidad}
+                </span>
+                {item.cantidad > 0 && (
+                  <div
+                    className={`w-2 h-2 rounded-full ${item.cantidad < 5 ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Desglose de parámetros */}
+            {item.parametros && expandedVendors[item.vendedor.id] && (
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-gray-600 uppercase">
+                    Desglose por parámetros:
+                  </p>
+                  {item.parametros.map((param, index) => (
+                    <div
+                      key={index}
+                      className="flex justify-between items-center py-1 px-2 bg-gray-50 rounded text-sm"
+                    >
+                      <span>{param.nombre}</span>
+                      <span className="font-medium">{param.cantidad}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {vendorsData.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          <p>No hay vendedores disponibles</p>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function ProductDialog({
   product,
@@ -191,6 +192,7 @@ export default function ProductDialog({
     parametros: product.parametros || [],
     foto: product.foto || '',
     precio_compra: product.precio_compra || 0, // Aseguramos que precio_compra tenga un valor
+    descripcion: product.descripcion || '', // Aseguramos que descripcion tenga un valor
   });
 
   const [selectedVendedor, setSelectedVendedor] = useState<string | null>(null);
@@ -305,6 +307,7 @@ export default function ProductDialog({
       parametros: product.parametros || [],
       foto: product.foto || '',
       precio_compra: product.precio_compra || 0, // Aseguramos que precio_compra tenga un valor
+      descripcion: product.descripcion || '', // Aseguramos que descripcion tenga un valor
     });
     setImageUrl(product.foto || '');
   }, [product]);
@@ -328,7 +331,7 @@ export default function ProductDialog({
   }, [parameterQuantities]);
 
   // Manejo de cambios en los inputs del formulario
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setEditedProduct((prev) => ({
       ...prev,
@@ -397,6 +400,7 @@ export default function ProductDialog({
         tieneParametros: editedProduct.tieneParametros || false,
         parametros: editedProduct.tieneParametros ? editedProduct.parametros : [],
         precio_compra: editedProduct.precio_compra || 0,
+        descripcion: editedProduct.descripcion || '', // Incluir descripción en el producto actualizado
       };
 
       console.log('Producto a guardar:', updatedProduct);
@@ -599,7 +603,7 @@ const EditMode = ({
 }: {
   editedProduct: Producto;
   imageUrl: string;
-  onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onTieneParametrosChange: (checked: boolean) => void;
   onParametroChange: (index: number, field: 'nombre' | 'cantidad', value: string) => void;
   onAddParametro: () => void;
@@ -617,6 +621,17 @@ const EditMode = ({
           value={editedProduct.nombre}
           onChange={onInputChange}
           placeholder="Nombre del producto"
+        />
+      </div>
+
+      <div>
+        <Label>Descripción</Label>
+        <Textarea
+          name="descripcion"
+          value={editedProduct.descripcion || ''}
+          onChange={onInputChange}
+          placeholder="Descripción del producto"
+          className="min-h-[100px]"
         />
       </div>
 
@@ -863,7 +878,6 @@ const DeliverMode = ({
   </>
 );
 
-// Subcomponente para el modo de visualización
 // Subcomponente para el modo de visualización con pestañas
 const ViewMode = ({
   product,
@@ -929,8 +943,16 @@ const ViewMode = ({
           <p className="text-lg font-medium">Precio de venta: ${product.precio}</p>
           <p className="text-md text-gray-700">Precio de compra: ${product.precio_compra || 0}</p>
 
+          {/* Mostrar la descripción si existe */}
+          {product.descripcion && (
+            <div className="mt-2">
+              <h4 className="font-medium text-sm text-gray-700">Descripción:</h4>
+              <p className="text-gray-600 mt-1 whitespace-pre-wrap">{product.descripcion}</p>
+            </div>
+          )}
+
           {(product.tiene_parametros || product.tieneParametros) && product.parametros && product.parametros.length > 0 ? (
-            <div className="space-y-2">
+            <div className="space-y-2 mt-4">
               <h4 className="font-medium text-sm text-gray-700">Parámetros:</h4>
               <div className="grid grid-cols-1 gap-2">
                 {product.parametros.map((param, index) => (
@@ -948,7 +970,7 @@ const ViewMode = ({
               </p>
             </div>
           ) : (
-            <p className="text-gray-700">Cantidad disponible: {product.cantidad}</p>
+            <p className="text-gray-700 mt-4">Cantidad disponible: {product.cantidad}</p>
           )}
         </div>
 
@@ -963,4 +985,3 @@ const ViewMode = ({
     )}
   </>
 );
-

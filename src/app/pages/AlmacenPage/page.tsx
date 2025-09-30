@@ -13,19 +13,20 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X, Percent } from "lucide-react"
+import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X, Percent, ArrowLeft, ChevronDown, ImageIcon, Calendar, CalendarDays, Star } from "lucide-react"
 import ProductoDestacadoCard from '@/components/ProductoDestacadoCard'
 import ProductosDestacadosSelectionDialog from '@/components/ProductosDestacadosSelectionDialog'
 import { getProductosDestacados, updateProductosDestacados } from '../../services/api'
-import { ChevronDown } from "lucide-react"
 import React from 'react'
-import { Calendar, CalendarDays, Star } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import PromocionesManager from '@/components/PromocionesManager';
-
-
+import { CarruselManager } from '@/components/CarruselManager'
+import { Textarea } from "@/components/ui/textarea";
+import SubseccionDialog from '@/components/SubseccionDialog';
+import SubseccionCard from '@/components/SubseccionCard';
+import ProductSelectionForSubseccionDialog from '@/components/ProductSelectionForSubseccionDialog';
 import {
   getVendedores,
   getCurrentUser,
@@ -52,12 +53,12 @@ import ProductDialog from '@/components/ProductDialog'
 import VendorDialog from '@/components/VendedorDialog'
 import SalesSection from '@/components/SalesSection'
 import { ImageUpload } from '@/components/ImageUpload'
-import { Producto, Vendedor, Venta, Transaccion, Merma, Parametro } from '@/types'
+import { Producto, ProductoNuevo, Vendedor, Venta, Transaccion, Merma, Parametro } from '@/types'
 import { toast } from "@/hooks/use-toast";
 import { useVendorProducts } from '@/hooks/use-vendor-products';
 import NotificacionesSystem from '@/components/NotificacionesSystem';
 // Agregar estos imports a los existentes
-import { Seccion } from '@/types'
+import { Seccion, Subseccion } from '@/types'
 import {
   getSecciones,
   createSeccion,
@@ -70,6 +71,7 @@ import SeccionCard from '@/components/SeccionCard'
 import SeccionDialog from '@/components/SeccionDialog'
 import ProductSelectionDialog from '@/components/ProductSelectionDialog'
 import { Store, Settings, LayoutGrid } from "lucide-react"
+import TiendaSection from '@/components/TiendaSection'
 
 
 interface VentaSemana {
@@ -93,19 +95,6 @@ interface NewUser {
   rol: string;
 }
 
-interface NewProduct {
-  nombre: string;
-  precio: number;
-  precioCompra: number;
-  cantidad: number;
-  foto: string;
-  tieneParametros: boolean;
-  parametros: Array<{
-    nombre: string;
-    cantidad: number;
-  }>;
-}
-
 const useAlmacenData = () => {
   const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -113,6 +102,7 @@ const useAlmacenData = () => {
   const [inventario, setInventario] = useState<Producto[]>([])
   const [secciones, setSecciones] = useState<(Seccion & { productos_count?: number })[]>([])
   const [productosDestacados, setProductosDestacados] = useState<Producto[]>([])
+
 
   const fetchVendedores = useCallback(async () => {
     try {
@@ -251,15 +241,16 @@ export default function AlmacenPage() {
   const [ventasSemanales, setVentasSemanales] = useState<VentaSemana[]>([])
   const [ventasDiarias, setVentasDiarias] = useState<VentaDia[]>([])
   const [showAddProductModal, setShowAddProductModal] = useState(false)
-  const [newProduct, setNewProduct] = useState<NewProduct>({
+  const [newProduct, setNewProduct] = useState<ProductoNuevo>({
     nombre: '',
     precio: 0,
     precioCompra: 0,
     cantidad: 0,
     foto: '',
     tieneParametros: false,
-    parametros: []
-  })
+    parametros: [], // Ahora TypeScript sabe que esto es Parametro[]
+    descripcion: ''
+  });
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -307,8 +298,209 @@ export default function AlmacenPage() {
   const [showProductSelectionDialog, setShowProductSelectionDialog] = useState(false)
   const [productosEnSeccion, setProductosEnSeccion] = useState<Producto[]>([])
   const [seccionParaProductos, setSeccionParaProductos] = useState<Seccion | null>(null)
-  const [activeTiendaTab, setActiveTiendaTab] = useState<'secciones' | 'destacados' | 'promociones' >('secciones')
+  type TiendaTabType = "secciones" | "destacados" | "promociones" | "carrusel";
+  const [activeTiendaTab, setActiveTiendaTab] = useState<TiendaTabType>("secciones");
   const [showProductosDestacadosDialog, setShowProductosDestacadosDialog] = useState(false)
+  const [showSubsecciones, setShowSubsecciones] = useState(false);
+  const [subsecciones, setSubsecciones] = useState<Subseccion[]>([]);
+  const [selectedSubseccion, setSelectedSubseccion] = useState<Subseccion | null>(null);
+  const [showSubseccionDialog, setShowSubseccionDialog] = useState(false);
+  const [isEditingSubseccion, setIsEditingSubseccion] = useState(false);
+  const [productosEnSubseccion, setProductosEnSubseccion] = useState<Producto[]>([]);
+  const [showProductSelectionForSubseccionDialog, setShowProductSelectionForSubseccionDialog] = useState(false);
+
+  // Función para cargar subsecciones de una sección
+  const fetchSubsecciones = async (seccionId: string) => {
+    try {
+      const response = await fetch(`/api/subsecciones?seccion_id=${seccionId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSubsecciones(data);
+      } else {
+        console.error('Error al cargar subsecciones');
+      }
+    } catch (error) {
+      console.error('Error al cargar subsecciones:', error);
+    }
+  };
+
+  // Función para cargar productos de una subsección
+  const fetchProductosSubseccion = async (subseccionId: string) => {
+    try {
+      const response = await fetch(`/api/subsecciones/${subseccionId}/productos`);
+      if (response.ok) {
+        const data = await response.json();
+        setProductosEnSubseccion(data);
+      } else {
+        console.error('Error al cargar productos de la subsección');
+      }
+    } catch (error) {
+      console.error('Error al cargar productos de la subsección:', error);
+    }
+  };
+
+  // Función para manejar la creación de una subsección
+  const handleCreateSubseccion = () => {
+    setSelectedSubseccion(null);
+    setIsEditingSubseccion(false);
+    setShowSubseccionDialog(true);
+  };
+
+  // Función para manejar la edición de una subsección
+  const handleEditSubseccion = (subseccion: Subseccion) => {
+    setSelectedSubseccion(subseccion);
+    setIsEditingSubseccion(true);
+    setShowSubseccionDialog(true);
+  };
+
+  // Función para manejar la eliminación de una subsección
+  const handleDeleteSubseccion = async (subseccionId: string) => {
+    if (confirm('¿Estás seguro de que deseas eliminar esta subsección? Los productos asociados se desasociarán de la subsección.')) {
+      try {
+        const response = await fetch(`/api/subsecciones/${subseccionId}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          setSubsecciones(subsecciones.filter(s => s.id !== subseccionId));
+          toast({
+            title: "Éxito",
+            description: "Subsección eliminada correctamente",
+          });
+        } else {
+          console.error('Error al eliminar la subsección');
+          toast({
+            title: "Error",
+            description: "Error al eliminar la subsección",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Error al eliminar la subsección:', error);
+        toast({
+          title: "Error",
+          description: "Error al eliminar la subsección",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  // Función para guardar una subsección (crear o editar)
+  const handleSaveSubseccion = async (subseccionData: { nombre: string; foto: string; seccion_id: string }) => {
+    try {
+      if (isEditingSubseccion && selectedSubseccion) {
+        // Editar subsección existente
+        const response = await fetch(`/api/subsecciones/${selectedSubseccion.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(subseccionData),
+        });
+
+        if (response.ok) {
+          const updatedSubseccion = await response.json();
+          setSubsecciones(subsecciones.map(s =>
+            s.id === selectedSubseccion.id ? updatedSubseccion : s
+          ));
+          toast({
+            title: "Éxito",
+            description: "Subsección actualizada correctamente",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Error al actualizar la subsección",
+            variant: "destructive",
+          });
+        }
+      } else {
+        // Crear nueva subsección
+        const response = await fetch('/api/subsecciones', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(subseccionData),
+        });
+
+        if (response.ok) {
+          const newSubseccion = await response.json();
+          setSubsecciones([...subsecciones, newSubseccion]);
+          toast({
+            title: "Éxito",
+            description: "Subsección creada correctamente",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Error al crear la subsección",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error al guardar la subsección:', error);
+      toast({
+        title: "Error",
+        description: "Error al guardar la subsección",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Función para manejar el clic en una subsección
+  const handleSubseccionClick = async (subseccion: Subseccion) => {
+    setSelectedSubseccion(subseccion);
+    await fetchProductosSubseccion(subseccion.id);
+    setActiveSection('subseccion-productos');
+  };
+
+  // Función para volver a la vista de subsecciones
+  const handleBackToSubsecciones = () => {
+    setActiveSection('tienda');
+    setShowSubsecciones(true);
+  };
+
+  // Función para gestionar productos en una subsección
+  const handleManageProductsInSubseccion = () => {
+    setShowProductSelectionForSubseccionDialog(true);
+  };
+
+
+  const handleSaveProductSelectionForSubseccion = async (productosIds: string[]) => {
+    if (!selectedSubseccion) return { success: false, error: "No hay subsección seleccionada" };
+
+    try {
+      const response = await fetch(`/api/subsecciones/${selectedSubseccion.id}/productos`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productos: productosIds }),
+      });
+
+      if (response.ok) {
+        await fetchProductosSubseccion(selectedSubseccion.id);
+        toast({
+          title: "Éxito",
+          description: "Productos asignados correctamente a la subsección",
+        });
+        return { success: true }; // ← CAMBIAR AQUÍ
+      } else {
+        toast({
+          title: "Error",
+          description: "Error al asignar productos a la subsección",
+          variant: "destructive",
+        });
+        return { success: false, error: "Error al asignar productos" }; // ← CAMBIAR AQUÍ
+      }
+    } catch (error) {
+      console.error('Error al asignar productos a la subsección:', error);
+      toast({
+        title: "Error",
+        description: "Error al asignar productos a la subsección",
+        variant: "destructive",
+      });
+      return { success: false, error: error instanceof Error ? error.message : "Error desconocido" }; // ← CAMBIAR AQUÍ
+    }
+  };
+
 
 
   const handleManageProductosDestacados = () => {
@@ -391,37 +583,28 @@ export default function AlmacenPage() {
   }
 
   const handleSeccionClick = async (seccion: Seccion) => {
-    try {
-      const productos = await getProductosBySeccion(seccion.id)
-      // AGREGAR verificación de tipos
-      const productosConTipoCorregido = productos.map((producto: any) => ({
-        ...producto,
-        tiene_parametros: producto.tiene_parametros || false,
-        parametros: producto.parametros || []
-      }))
-      setProductosEnSeccion(productosConTipoCorregido as Producto[])
-      setSeccionParaProductos(seccion)
-      setActiveSection('seccion-productos')
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Error al cargar los productos de la sección",
-        variant: "destructive",
-      })
-    }
-  }
+    setSelectedSeccion(seccion);
+    await fetchSubsecciones(seccion.id);
+    setShowSubsecciones(true);
+    setActiveSection('tienda');
+  };
 
   const handleManageProductsInSeccion = async () => {
     if (!seccionParaProductos) return
 
     try {
       const productosActuales = await getProductosBySeccion(seccionParaProductos.id)
-      // AGREGAR verificación de tipos
+      // Filtrar TODOS los productos para que solo se muestren los de la sección actual
+      const todosProdutosFiltrados = inventario.filter(producto =>
+        producto.seccion_id === seccionParaProductos.id
+      )
+
       const productosConTipoCorregido = productosActuales.map((producto: any) => ({
         ...producto,
         tiene_parametros: producto.tiene_parametros || false,
         parametros: producto.parametros || []
       }))
+
       setProductosEnSeccion(productosConTipoCorregido as Producto[])
       setShowProductSelectionDialog(true)
     } catch (error) {
@@ -432,6 +615,7 @@ export default function AlmacenPage() {
       })
     }
   }
+
 
   const handleSaveProductSelection = async (selectedProductIds: string[]) => {
     if (!seccionParaProductos) return
@@ -1243,28 +1427,27 @@ export default function AlmacenPage() {
     return () => clearTimeout(timeoutId);
   }, [newProduct.nombre]);
 
-  const handleProductInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target
+  const handleProductInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
 
-    if (type === 'file') {
-      const fileList = e.target.files
+    if ((e.target as HTMLInputElement).type === 'file') {
+      const fileList = (e.target as HTMLInputElement).files;
       if (fileList && fileList.length > 0) {
-        setNewProduct({ ...newProduct, [name]: fileList[0] })
+        setNewProduct({ ...newProduct, [name]: fileList[0] });
       }
     } else if (type === 'checkbox' && name === 'tieneParametros') {
       setNewProduct({
         ...newProduct,
-        tieneParametros: e.target.checked,
-        parametros: e.target.checked ? [{ nombre: '', cantidad: 0 }] : []
-      })
+        tieneParametros: (e.target as HTMLInputElement).checked,
+        parametros: (e.target as HTMLInputElement).checked ? [{ nombre: '', cantidad: 0 }] : []
+      });
     } else {
       setNewProduct({
         ...newProduct,
         [name]: type === 'number' ? parseFloat(value) : value
-      })
+      });
     }
-  }
-
+  };
 
   const handleAddProduct = async () => {
     try {
@@ -1281,6 +1464,7 @@ export default function AlmacenPage() {
       formData.append('nombre', newProduct.nombre);
       formData.append('precio', newProduct.precio.toString());
       formData.append('precioCompra', newProduct.precioCompra.toString());
+      formData.append('descripcion', newProduct.descripcion || ''); // Añadir esta línea
 
       if (newProduct.tieneParametros) {
         formData.append('tieneParametros', 'true');
@@ -1306,7 +1490,8 @@ export default function AlmacenPage() {
         cantidad: 0,
         foto: '',
         tieneParametros: false,
-        parametros: []
+        parametros: [],
+        descripcion: '' // Resetear también la descripción
       });
 
       toast({
@@ -1322,7 +1507,6 @@ export default function AlmacenPage() {
       });
     }
   };
-
 
 
 
@@ -1358,12 +1542,10 @@ export default function AlmacenPage() {
       formData.append('precio', editedProduct.precio.toString());
       formData.append('cantidad', editedProduct.cantidad.toString());
       formData.append('tiene_parametros', editedProduct.tiene_parametros.toString());
-
-      // Añadir explícitamente el precio_compra
       formData.append('precio_compra', (editedProduct.precio_compra || 0).toString());
 
-      // Log para depuración
-      console.log('Precio de compra a enviar:', editedProduct.precio_compra);
+      // ✅ AGREGAR ESTA LÍNEA:
+      formData.append('descripcion', editedProduct.descripcion || '');
 
       if (editedProduct.parametros) {
         formData.append('parametros', JSON.stringify(editedProduct.parametros));
@@ -1371,7 +1553,6 @@ export default function AlmacenPage() {
 
       if (imageUrl) {
         formData.append('fotoUrl', imageUrl);
-        console.log('FormData imagen:', imageUrl);
       }
 
       await editarProducto(editedProduct.id, formData);
@@ -2261,132 +2442,153 @@ export default function AlmacenPage() {
         <NotificacionesSystem mode="admin" />
       )}
 
-      {/* Reemplazar toda la sección de tienda existente con esto */}
-      {activeSection === 'tienda' && (
+      {activeSection === 'tienda' && !showSubsecciones && (
+        <TiendaSection
+          activeTiendaTab={activeTiendaTab}
+          setActiveTiendaTab={setActiveTiendaTab}
+          secciones={secciones}
+          handleCreateSeccion={handleCreateSeccion}
+          handleEditSeccion={handleEditSeccion}
+          handleDeleteSeccion={handleDeleteSeccion}
+          handleSeccionClick={handleSeccionClick}
+          productosDestacados={productosDestacados}
+          handleManageProductosDestacados={() => setShowProductosDestacadosDialog(true)}
+          setSelectedProduct={setSelectedProduct}
+          SeccionCard={SeccionCard}
+          ProductoDestacadoCard={ProductoDestacadoCard}
+        />
+      )}
+
+      {activeSection === 'tienda' && activeTiendaTab === 'secciones' && showSubsecciones && selectedSeccion && (
         <div>
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold flex items-center">
-              <Store className="mr-2 h-6 w-6" />
-              Gestión de Tienda
-            </h2>
-          </div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowSubsecciones(false);
+                  setSelectedSeccion(null);
+                }}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Volver a Secciones
+              </Button>
+              <div>
+                <h2 className="text-2xl font-bold">{selectedSeccion.nombre}</h2>
+                <p className="text-gray-600">{subsecciones.length} subsecciones</p>
+              </div>
+            </div>
 
-          {/* Pestañas */}
-          {/* Pestañas - Añadimos la nueva pestaña de Promociones */}
-          <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
             <Button
-              variant={activeTiendaTab === 'secciones' ? "default" : "ghost"}
-              onClick={() => setActiveTiendaTab('secciones')}
-              className="flex items-center"
+              onClick={handleCreateSubseccion}
+              className="bg-green-500 hover:bg-green-600 text-white"
             >
-              <LayoutGrid className="mr-2 h-4 w-4" />
-              Secciones
-            </Button>
-            <Button
-              variant={activeTiendaTab === 'destacados' ? "default" : "ghost"}
-              onClick={() => setActiveTiendaTab('destacados')}
-              className="flex items-center"
-            >
-              <Star className="mr-2 h-4 w-4" />
-              Destacados
-            </Button>
-            <Button
-              variant={activeTiendaTab === 'promociones' ? "default" : "ghost"}
-              onClick={() => setActiveTiendaTab('promociones')}
-              className="flex items-center"
-            >
-              <Percent className="mr-2 h-4 w-4" />
-              Promociones
+              <Plus className="mr-2 h-4 w-4" />
+              Nueva Subsección
             </Button>
           </div>
 
-          {/* Contenido de Secciones */}
-          {activeTiendaTab === 'secciones' && (
-            <div>
-              <div className="flex justify-end mb-4">
-                <Button
-                  onClick={handleCreateSeccion}
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nueva Sección
-                </Button>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {subsecciones.map((subseccion) => (
+              <SubseccionCard
+                key={subseccion.id}
+                subseccion={subseccion}
+                onEdit={handleEditSubseccion}
+                onDelete={handleDeleteSubseccion}
+                onClick={handleSubseccionClick}
+              />
+            ))}
+          </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {secciones.map((seccion) => (
-                  <SeccionCard
-                    key={seccion.id}
-                    seccion={seccion}
-                    onEdit={handleEditSeccion}
-                    onDelete={handleDeleteSeccion}
-                    onClick={handleSeccionClick}
-                  />
-                ))}
-              </div>
-
-              {secciones.length === 0 && (
-                <div className="text-center py-12">
-                  <Store className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No hay secciones creadas
-                  </h3>
-                  <p className="text-gray-500 mb-4">
-                    Comienza creando tu primera sección para organizar tus productos
-                  </p>
-                  <Button onClick={handleCreateSeccion}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Crear Primera Sección
-                  </Button>
-                </div>
-              )}
+          {subsecciones.length === 0 && (
+            <div className="text-center py-12">
+              <div className="mx-auto h-12 w-12 text-gray-400 mb-4">📁</div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No hay subsecciones en esta sección
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Crea subsecciones para organizar mejor tus productos dentro de esta sección
+              </p>
+              <Button onClick={handleCreateSubseccion} className="bg-green-500 hover:bg-green-600">
+                <Plus className="mr-2 h-4 w-4" />
+                Crear Primera Subsección
+              </Button>
             </div>
           )}
+        </div>
+      )}
 
-          {/* Contenido de Productos Destacados */}
-          {activeTiendaTab === 'destacados' && (
-            <div>
-              <div className="flex justify-end mb-4">
-                <Button
-                  onClick={handleManageProductosDestacados}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-white"
-                >
-                  <Settings className="mr-2 h-4 w-4" />
-                  Gestionar Destacados
-                </Button>
+      {/* Vista de productos de una subsección */}
+      {activeSection === 'subseccion-productos' && selectedSubseccion && (
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                onClick={handleBackToSubsecciones}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Volver a Subsecciones
+              </Button>
+              <div>
+                <h2 className="text-2xl font-bold">{selectedSubseccion.nombre}</h2>
+                <p className="text-gray-600">{productosEnSubseccion.length} productos</p>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {productosDestacados.map((producto) => (
-                  <ProductoDestacadoCard
-                    key={producto.id}
-                    producto={producto}
-                    // CAMBIAR esta línea para manejar el tipo correctamente
-                    onClick={(producto) => setSelectedProduct(producto)}
-                  />
-                ))}
-              </div>
-              {productosDestacados.length === 0 && (
-                <div className="text-center py-12">
-                  <Star className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No hay productos destacados
-                  </h3>
-                  <p className="text-gray-500 mb-4">
-                    Selecciona productos para destacar en tu tienda y aumentar las ventas
-                  </p>
-                  <Button onClick={handleManageProductosDestacados} className="bg-yellow-500 hover:bg-yellow-600">
-                    <Star className="mr-2 h-4 w-4" />
-                    Seleccionar Productos Destacados
-                  </Button>
-                </div>
-              )}
             </div>
-          )}
 
-          {/* Contenido de Promociones - NUEVA SECCIÓN */}
-          {activeTiendaTab === 'promociones' && (
-            <PromocionesManager />
+            <Button
+              onClick={handleManageProductsInSubseccion}
+              className="bg-green-500 hover:bg-green-600 text-white"
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Gestionar Productos
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {productosEnSubseccion.map((producto) => (
+              <div
+                key={producto.id}
+                onClick={() => setSelectedProduct(producto)}
+                className="flex items-center p-3 rounded-lg border bg-white hover:bg-gray-50 cursor-pointer"
+              >
+                <div className="w-12 h-12 flex-shrink-0 relative mr-4">
+                  <Image
+                    src={imageErrors[producto.id] ? '/placeholder.svg' : (producto.foto || '/placeholder.svg')}
+                    alt={producto.nombre}
+                    fill
+                    className="rounded-md object-cover"
+                    onError={() => {
+                      setImageErrors(prev => ({
+                        ...prev,
+                        [producto.id]: true
+                      }));
+                    }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-medium text-gray-900 truncate">
+                    {producto.nombre}
+                  </h3>
+                  <div className="flex flex-wrap gap-x-4 text-sm text-gray-500">
+                    <p>Precio: ${Number(producto.precio).toFixed(2)}</p>
+                    <p>Cantidad: {calcularCantidadTotal(producto)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {productosEnSubseccion.length === 0 && (
+            <div className="text-center py-12">
+              <div className="mx-auto h-12 w-12 text-gray-400 mb-4">📦</div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No hay productos en esta subsección
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Usa el botón Gestionar Productos para agregar productos a esta subsección
+              </p>
+            </div>
           )}
         </div>
       )}
@@ -2695,7 +2897,6 @@ export default function AlmacenPage() {
           <DialogHeader>
             <DialogTitle>Agregar Nuevo Producto</DialogTitle>
           </DialogHeader>
-
           <div className="space-y-4 mb-16">
             <div>
               <label htmlFor="nombre" className="block text-sm font-medium text-gray-700">Nombre</label>
@@ -2714,6 +2915,19 @@ export default function AlmacenPage() {
               )}
             </div>
 
+            {/* Nuevo campo de descripción */}
+            <div>
+              <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700">Descripción</label>
+              <Textarea
+                id="descripcion"
+                name="descripcion"
+                value={newProduct.descripcion || ''}
+                onChange={handleProductInputChange}
+                placeholder="Descripción del producto"
+                className="min-h-[100px] resize-none"
+              />
+            </div>
+
             <div>
               <label htmlFor="precio" className="block text-sm font-medium text-gray-700">Precio</label>
               <Input
@@ -2725,7 +2939,6 @@ export default function AlmacenPage() {
                 placeholder="Precio del producto"
               />
             </div>
-
             <div>
               <label htmlFor="precioCompra" className="block text-sm font-medium text-gray-700">Precio de Compra</label>
               <Input
@@ -2737,7 +2950,6 @@ export default function AlmacenPage() {
                 placeholder="Precio de compra del producto"
               />
             </div>
-
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="tieneParametros"
@@ -2752,7 +2964,6 @@ export default function AlmacenPage() {
               />
               <label htmlFor="tieneParametros">Tiene parámetros</label>
             </div>
-
             {newProduct.tieneParametros ? (
               <div className="space-y-4">
                 {/* Contenedor scrolleable para los parámetros */}
@@ -2819,7 +3030,6 @@ export default function AlmacenPage() {
                 />
               </div>
             )}
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Foto del producto
@@ -2831,7 +3041,6 @@ export default function AlmacenPage() {
               />
             </div>
           </div>
-
           {/* Botones fijos en la parte inferior */}
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
             <div className="max-w-[calc(100%-2rem)] mx-auto">
@@ -2842,7 +3051,6 @@ export default function AlmacenPage() {
           </div>
         </DialogContent>
       </Dialog>
-
 
 
       <AlertDialog open={mermaToDelete !== null} onOpenChange={(open) => !open && setMermaToDelete(null)}>
@@ -2878,10 +3086,14 @@ export default function AlmacenPage() {
       <ProductSelectionDialog
         isOpen={showProductSelectionDialog}
         onClose={() => setShowProductSelectionDialog(false)}
-        productos={inventario}
-        productosEnSeccion={productosEnSeccion}
-        onSave={handleSaveProductSelection}
+        allProductos={inventario.filter(producto =>
+          seccionParaProductos ? producto.seccion_id === seccionParaProductos.id : true
+        )} // Solo productos de la sección actual
+        currentProductos={productosEnSeccion}
+        onProductosSelected={handleSaveProductSelection}
+        seccionId={seccionParaProductos?.id} // Pasar el ID de la sección
       />
+
 
       <ProductosDestacadosSelectionDialog
         isOpen={showProductosDestacadosDialog}
@@ -2926,6 +3138,28 @@ export default function AlmacenPage() {
           onUpdateProductQuantity={handleUpdateProductQuantity}
         />
       )}
+
+      {/* Diálogos para subsecciones */}
+      <SubseccionDialog
+        subseccion={selectedSubseccion}
+        isOpen={showSubseccionDialog}
+        onClose={() => setShowSubseccionDialog(false)}
+        onSave={handleSaveSubseccion}
+        isEditing={isEditingSubseccion}
+        secciones={secciones}
+        seccionId={selectedSeccion?.id || ''} // ← AGREGAR ESTA LÍNEA
+      />
+
+
+
+      <ProductSelectionForSubseccionDialog
+        isOpen={showProductSelectionForSubseccionDialog}
+        onClose={() => setShowProductSelectionForSubseccionDialog(false)}
+        productos={inventario.filter(p => p.seccion_id === selectedSubseccion?.seccion_id)}
+        productosEnSubseccion={productosEnSubseccion}
+        subseccion={selectedSubseccion}
+        onSave={handleSaveProductSelectionForSubseccion}
+      />
     </div>
   )
 } 

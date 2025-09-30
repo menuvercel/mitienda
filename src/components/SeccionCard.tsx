@@ -9,7 +9,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Seccion } from '@/types'
 
 interface SeccionCardProps {
-    seccion: Seccion & { productos_count?: number }
+    seccion: Seccion & {
+        productos_count?: number;
+        subsecciones_count?: number;
+    }
     onEdit: (seccion: Seccion) => void
     onDelete: (seccionId: string) => void
     onClick: (seccion: Seccion) => void
@@ -20,6 +23,15 @@ export default function SeccionCard({ seccion, onEdit, onDelete, onClick }: Secc
 
     const handleMenuClick = (e: React.MouseEvent) => {
         e.stopPropagation()
+    }
+
+    // Determinar qué texto mostrar según si tiene subsecciones o productos
+    const getInfoText = () => {
+        if (seccion.subsecciones_count && seccion.subsecciones_count > 0) {
+            return `${seccion.subsecciones_count} subsecciones`;
+        } else {
+            return `${seccion.productos_count || 0} productos`;
+        }
     }
 
     return (
@@ -41,9 +53,6 @@ export default function SeccionCard({ seccion, onEdit, onDelete, onClick }: Secc
                 <div className="flex justify-between items-start">
                     <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-lg truncate">{seccion.nombre}</h3>
-                        <p className="text-sm text-gray-500">
-                            {seccion.productos_count || 0} productos
-                        </p>
                     </div>
 
                     <DropdownMenu>

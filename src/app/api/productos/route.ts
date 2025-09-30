@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
         const tieneParametros = formData.get('tieneParametros') === 'true';
         const parametrosRaw = formData.get('parametros') as string;
         const parametros = parametrosRaw ? JSON.parse(parametrosRaw) : [];
+        const descripcion = formData.get('descripcion') as string || '';
 
         let fotoUrl = '';
 
@@ -48,8 +49,8 @@ export async function POST(request: NextRequest) {
 
         try {
             const result = await query(
-                'INSERT INTO productos (nombre, precio, precio_compra, cantidad, foto, tiene_parametros) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-                [nombre, Number(precio), Number(precioCompra), Number(cantidad), fotoUrl, tieneParametros]
+                'INSERT INTO productos (nombre, precio, precio_compra, cantidad, foto, tiene_parametros, descripcion) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+                [nombre, Number(precio), Number(precioCompra), Number(cantidad), fotoUrl, tieneParametros, descripcion]
             );
 
             const productoId = result.rows[0].id;

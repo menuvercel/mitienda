@@ -13,6 +13,17 @@ export interface Parametro {
   cantidad: number;
 }
 
+export interface ProductoNuevo {
+  nombre: string;
+  precio: number;
+  precioCompra: number;
+  cantidad: number;
+  foto: string;
+  tieneParametros: boolean;
+  parametros: Parametro[]; // Ahora es un array de Parametro, no never[]
+  descripcion: string;
+}
+
 export interface Producto {
   id: string;
   nombre: string;
@@ -22,7 +33,10 @@ export interface Producto {
   foto: string;
   tiene_parametros: boolean;  // Propiedad del backend
   tieneParametros?: boolean;  // Propiedad del frontend
-  parametros?: Parametro[]
+  parametros?: Parametro[];
+  descripcion?: string;  // Nuevo campo de descripción
+  seccion_id?: string;
+  subseccion_id?: string;
 }
 
 export interface VentaParametro {
@@ -126,6 +140,7 @@ export interface Seccion {
   created_at?: string;
   updated_at?: string;
   productos_count?: number;
+  subsecciones_count?: number;
 }
 
 // Agregar al final del archivo
@@ -136,4 +151,15 @@ export interface Promocion {
   fecha_inicio: string;
   fecha_fin: string;
   activa: boolean;
+}
+
+// Exportar la interfaz Subseccion
+export interface Subseccion {
+  id: string;
+  nombre: string;
+  foto?: string;
+  seccion_id: string;
+  created_at?: string;
+  updated_at?: string;
+  productos_count?: number;
 }

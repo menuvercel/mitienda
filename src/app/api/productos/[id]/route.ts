@@ -58,6 +58,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         const parametrosRaw = formData.get('parametros') as string;
         const parametros: Parametro[] = parametrosRaw ? JSON.parse(parametrosRaw) : [];
         const precioCompra = formData.get('precio_compra') as string;
+        const descripcion = formData.get('descripcion') as string || '';
 
         const currentProduct = await query('SELECT * FROM productos WHERE id = $1', [id]);
 
@@ -72,7 +73,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
         try {
             const result = await query(
-                'UPDATE productos SET nombre = $1, precio = $2, cantidad = $3, foto = $4, tiene_parametros = $5, precio_compra = $6 WHERE id = $7 RETURNING *',
+                'UPDATE productos SET nombre = $1, precio = $2, cantidad = $3, foto = $4, tiene_parametros = $5, precio_compra = $6, descripcion = $7 WHERE id = $8 RETURNING *',
                 [
                     nombre,
                     Number(precio),
@@ -80,6 +81,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                     nuevaFotoUrl,
                     tieneParametros,
                     precioCompra ? Number(precioCompra) : currentProduct.rows[0].precio_compra || 0,
+                    descripcion,
                     id
                 ]
             );
@@ -89,12 +91,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                 'SELECT nombre FROM producto_parametros WHERE producto_id = $1',
                 [id]
             );
-            
+
             // Convertir explícitamente los resultados al tipo deseado
             const parametrosAntiguos: ParametroAntiguo[] = parametrosAntiguosResult.rows.map(row => ({
                 nombre: row.nombre as string
             }));
-            
+
             // Crear un mapa para relacionar índices de parámetros antiguos con nuevos
             const mapeoParametros: Record<string, string> = {};
             if (parametrosAntiguos.length > 0 && parametros.length > 0) {
@@ -124,7 +126,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                 'SELECT usuario_id FROM usuario_productos WHERE producto_id = $1',
                 [id]
             );
-            
+
             // Convertir explícitamente los resultados al tipo deseado
             const vendedoresConProducto: UsuarioProducto[] = vendedoresConProductoResult.rows.map(row => ({
                 usuario_id: row.usuario_id as string
@@ -137,19 +139,19 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                     'SELECT nombre, cantidad FROM usuario_producto_parametros WHERE producto_id = $1 AND usuario_id = $2',
                     [id, vendedor.usuario_id]
                 );
-                
+
                 // Convertir explícitamente los resultados al tipo deseado
                 const parametrosVendedor: ParametroVendedor[] = parametrosVendedorResult.rows.map(row => ({
                     nombre: row.nombre as string,
                     cantidad: row.cantidad as number
                 }));
-                
+
                 // Crear un mapa de los parámetros actuales del vendedor para acceso rápido
                 const mapaParametrosVendedor: Record<string, number> = {};
                 parametrosVendedor.forEach(param => {
                     mapaParametrosVendedor[param.nombre] = param.cantidad;
                 });
-                
+
                 // Actualizar nombres en transaccion_parametros si hay mapeo de parámetros
                 if (Object.keys(mapeoParametros).length > 0) {
                     for (const nombreAntiguo in mapeoParametros) {
@@ -166,7 +168,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                         );
                     }
                 }
-                
+
                 // 6.2 Eliminar parámetros antiguos del vendedor
                 await query(
                     'DELETE FROM usuario_producto_parametros WHERE producto_id = $1 AND usuario_id = $2',
@@ -177,7 +179,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                 if (tieneParametros && parametros.length > 0) {
                     for (const param of parametros) {
                         let cantidadFinal = 0; // Inicializar en 0 por defecto
-                        
+
                         // Solo buscar cantidad existente si el parámetro ya existía
                         const parametroExistente = parametrosVendedor.find(p => p.nombre === param.nombre);
                         if (parametroExistente) {
@@ -185,14 +187,14 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                         } else {
                             // Si es un parámetro mapeado de uno antiguo, usar esa cantidad
                             for (const nombreAntiguo in mapeoParametros) {
-                                if (mapeoParametros[nombreAntiguo] === param.nombre && 
+                                if (mapeoParametros[nombreAntiguo] === param.nombre &&
                                     mapaParametrosVendedor[nombreAntiguo] !== undefined) {
                                     cantidadFinal = mapaParametrosVendedor[nombreAntiguo];
                                     break;
                                 }
                             }
                         }
-                        
+
                         await query(
                             'INSERT INTO usuario_producto_parametros (producto_id, usuario_id, nombre, cantidad) VALUES ($1, $2, $3, $4)',
                             [id, vendedor.usuario_id, param.nombre, cantidadFinal]
@@ -344,6 +346,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
                 up.cantidad, 
                 p.foto,
                 p.tiene_parametros,
+                p.descripcion,
                 COALESCE(
                     json_agg(
                         json_build_object(
@@ -357,7 +360,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             JOIN productos p ON up.producto_id = p.id
             LEFT JOIN usuario_producto_parametros upp ON up.producto_id = upp.producto_id AND up.usuario_id = upp.usuario_id
             WHERE up.usuario_id = $1
-            GROUP BY up.producto_id, p.nombre, p.precio, up.cantidad, p.foto, p.tiene_parametros
+            GROUP BY up.producto_id, p.nombre, p.precio, up.cantidad, p.foto, p.tiene_parametros, p.descripcion
         `, [id]);
 
         return NextResponse.json(result.rows);
