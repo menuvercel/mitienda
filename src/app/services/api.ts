@@ -1,7 +1,7 @@
 //services/api.ts
 
 import axios from 'axios';
-import { Venta, Notificacion, Vendedor, Transaccion, VentaParametro, TransferProductParams, Seccion } from '@/types';
+import { Venta, Notificacion, Vendedor, Transaccion, VentaParametro, TransferProductParams, Seccion, Promocion } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
