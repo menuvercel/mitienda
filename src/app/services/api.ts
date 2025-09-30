@@ -771,6 +771,7 @@ export const getProductosDestacados = async (): Promise<Producto[]> => {
 
 export const updateProductosDestacados = async (productIds: string[]): Promise<void> => {
   try {
+    console.log('Enviando productos destacados:', productIds);
     await api.put('/productos/destacados', { productIds });
   } catch (error) {
     console.error('Error updating productos destacados:', error);

@@ -39,11 +39,17 @@ export default function ProductosDestacadosSelectionDialog({
     )
 
     const handleProductToggle = (productId: string) => {
-        setSelectedProductIds(prev =>
-            prev.includes(productId)
+        console.log('Toggling product:', productId)
+        console.log('Current selected:', selectedProductIds)
+
+        setSelectedProductIds(prev => {
+            const newSelection = prev.includes(productId)
                 ? prev.filter(id => id !== productId)
                 : [...prev, productId]
-        )
+
+            console.log('New selection:', newSelection)
+            return newSelection
+        })
     }
 
     const handleSave = () => {
@@ -104,46 +110,50 @@ export default function ProductosDestacadosSelectionDialog({
                                     return (
                                         <div
                                             key={producto.id}
-                                            className={`flex items-center space-x-3 p-3 border rounded-lg transition-all cursor-pointer ${isSelected
-                                                    ? 'border-yellow-500 bg-yellow-50'
-                                                    : 'hover:bg-gray-50 border-gray-200'
+                                            className={`flex items-center space-x-3 p-3 border rounded-lg transition-all ${isSelected
+                                                ? 'border-yellow-500 bg-yellow-50'
+                                                : 'hover:bg-gray-50 border-gray-200'
                                                 }`}
-                                            onClick={() => handleProductToggle(producto.id)}
                                         >
                                             <Checkbox
                                                 checked={isSelected}
                                                 onCheckedChange={() => handleProductToggle(producto.id)}
                                             />
 
-                                            <div className="w-16 h-16 relative rounded-md overflow-hidden flex-shrink-0">
-                                                <Image
-                                                    src={producto.foto || '/placeholder.svg'}
-                                                    alt={producto.nombre}
-                                                    fill
-                                                    className="object-cover"
-                                                />
-                                                {isSelected && (
-                                                    <div className="absolute inset-0 bg-yellow-500 bg-opacity-20 flex items-center justify-center">
-                                                        <Star className="h-6 w-6 text-yellow-600" />
-                                                    </div>
-                                                )}
-                                            </div>
+                                            <div
+                                                className="flex items-center space-x-3 flex-1 cursor-pointer"
+                                                onClick={() => handleProductToggle(producto.id)}
+                                            >
+                                                <div className="w-16 h-16 relative rounded-md overflow-hidden flex-shrink-0">
+                                                    <Image
+                                                        src={producto.foto || '/placeholder.svg'}
+                                                        alt={producto.nombre}
+                                                        fill
+                                                        className="object-cover"
+                                                    />
+                                                    {isSelected && (
+                                                        <div className="absolute inset-0 bg-yellow-500 bg-opacity-20 flex items-center justify-center">
+                                                            <Star className="h-6 w-6 text-yellow-600" />
+                                                        </div>
+                                                    )}
+                                                </div>
 
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-medium truncate">{producto.nombre}</h4>
-                                                <div className="flex items-center justify-between mt-1">
-                                                    <p className="text-sm font-semibold text-green-600">
-                                                        ${producto.precio}
-                                                    </p>
-                                                    <div className="flex items-center space-x-2">
-                                                        <p className={`text-xs ${cantidadTotal === 0 ? 'text-red-500' : 'text-gray-500'}`}>
-                                                            Stock: {cantidadTotal}
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-medium truncate">{producto.nombre}</h4>
+                                                    <div className="flex items-center justify-between mt-1">
+                                                        <p className="text-sm font-semibold text-green-600">
+                                                            ${producto.precio}
                                                         </p>
-                                                        {producto.tiene_parametros && (
-                                                            <Badge variant="outline" className="text-xs">
-                                                                Variantes
-                                                            </Badge>
-                                                        )}
+                                                        <div className="flex items-center space-x-2">
+                                                            <p className={`text-xs ${cantidadTotal === 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                                                                Stock: {cantidadTotal}
+                                                            </p>
+                                                            {producto.tiene_parametros && (
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    Variantes
+                                                                </Badge>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
