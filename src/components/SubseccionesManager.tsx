@@ -380,7 +380,9 @@ export default function SubseccionesManager({
                     onEdit={() => handleEditSubseccion(subseccion)}
                     onDelete={() => handleDeleteSubseccion(subseccion)}
                     onClick={() => toggleSubseccionExpand(subseccion.id)}
+                    allProductos={productos} // ← AGREGAR ESTA LÍNEA
                   />
+
                   <div className="mt-4">
                     <h4 className="font-medium mb-3 flex items-center">
                       <Package className="h-4 w-4 mr-2" />

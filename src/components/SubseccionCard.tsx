@@ -12,10 +12,24 @@ interface SubseccionCardProps {
   onEdit: (subseccion: Subseccion) => void;
   onDelete: (subseccionId: string) => void;
   onClick: (subseccion: Subseccion) => void;
+  // Agregar productos para poder contar correctamente
+  allProductos?: Array<{
+    id: string;
+    subseccion_id?: string | null;
+  }>;
 }
 
-export default function SubseccionCard({ subseccion, onEdit, onDelete, onClick }: SubseccionCardProps) {
+export default function SubseccionCard({
+  subseccion,
+  onEdit,
+  onDelete,
+  onClick,
+  allProductos = []
+}: SubseccionCardProps) {
   const [imageError, setImageError] = React.useState(false)
+
+  // Contar productos asignados a esta subsección específica
+  const productosCount = subseccion.productos_count || 0;
 
   // Formatear fecha si está disponible
   const formatDate = (dateString?: string) => {
@@ -75,7 +89,9 @@ export default function SubseccionCard({ subseccion, onEdit, onDelete, onClick }
             <div className="grid grid-cols-1 gap-2 text-sm text-gray-600 mb-3">
               <div className="flex items-center">
                 <span className="font-medium mr-2">Productos:</span>
-                <span>{subseccion.productos_count || 0}</span>
+                <span className={`${productosCount > 0 ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
+                  {productosCount}
+                </span>
               </div>
 
               {subseccion.created_at && (
