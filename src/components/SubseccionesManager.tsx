@@ -460,9 +460,10 @@ export default function SubseccionesManager({
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción eliminará la subsección "{subseccionSeleccionada?.nombre}".
+              Esta acción eliminará la subsección '{subseccionSeleccionada?.nombre}'.
               Los productos asociados se mantendrán en la base de datos pero ya no estarán asignados a esta subsección.
             </AlertDialogDescription>
+
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
