@@ -22,6 +22,7 @@ export interface ProductoNuevo {
   tieneParametros: boolean;
   parametros: Parametro[]; // Ahora es un array de Parametro, no never[]
   descripcion: string;
+  valorCompraUSD: number | null; // Añadir este campo
 }
 
 export interface Producto {
@@ -31,13 +32,15 @@ export interface Producto {
   precio_compra?: number;
   cantidad: number;
   foto: string;
-  tiene_parametros: boolean;  // Propiedad del backend
-  tieneParametros?: boolean;  // Propiedad del frontend
+  tiene_parametros: boolean;
+  tieneParametros?: boolean;
   parametros?: Parametro[];
-  descripcion?: string;  // Nuevo campo de descripción
+  descripcion?: string;
   seccion_id?: string;
   subseccion_id?: string;
+  valor_compra_usd?: number | null; // ✅ Permitir null
 }
+
 
 export interface VentaParametro {
   nombre: string;

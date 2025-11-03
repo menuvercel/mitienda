@@ -59,6 +59,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         const parametros: Parametro[] = parametrosRaw ? JSON.parse(parametrosRaw) : [];
         const precioCompra = formData.get('precio_compra') as string;
         const descripcion = formData.get('descripcion') as string || '';
+        const valorCompraUSD = formData.get('valor_compra_usd') as string || null;
 
         const currentProduct = await query('SELECT * FROM productos WHERE id = $1', [id]);
 
@@ -73,7 +74,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
         try {
             const result = await query(
-                'UPDATE productos SET nombre = $1, precio = $2, cantidad = $3, foto = $4, tiene_parametros = $5, precio_compra = $6, descripcion = $7 WHERE id = $8 RETURNING *',
+                'UPDATE productos SET nombre = $1, precio = $2, cantidad = $3, foto = $4, tiene_parametros = $5, precio_compra = $6, descripcion = $7, valor_compra_usd = $8 WHERE id = $9 RETURNING *',
                 [
                     nombre,
                     Number(precio),
@@ -82,6 +83,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                     tieneParametros,
                     precioCompra ? Number(precioCompra) : currentProduct.rows[0].precio_compra || 0,
                     descripcion,
+                    valorCompraUSD ? Number(valorCompraUSD) : currentProduct.rows[0].valor_compra_usd || null,
                     id
                 ]
             );
@@ -220,7 +222,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         }, { status: 500 });
     }
 }
-
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
     try {

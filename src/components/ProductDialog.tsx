@@ -193,6 +193,7 @@ export default function ProductDialog({
     foto: product.foto || '',
     precio_compra: product.precio_compra || 0, // Aseguramos que precio_compra tenga un valor
     descripcion: product.descripcion || '', // Aseguramos que descripcion tenga un valor
+    valor_compra_usd: product.valor_compra_usd || null, // Aseguramos que valor_compra_usd tenga un valor
   });
 
   const [selectedVendedor, setSelectedVendedor] = useState<string | null>(null);
@@ -308,6 +309,7 @@ export default function ProductDialog({
       foto: product.foto || '',
       precio_compra: product.precio_compra || 0, // Aseguramos que precio_compra tenga un valor
       descripcion: product.descripcion || '', // Aseguramos que descripcion tenga un valor
+      valor_compra_usd: product.valor_compra_usd || null, // Aseguramos que valor_compra_usd tenga un valor
     });
     setImageUrl(product.foto || '');
   }, [product]);
@@ -331,13 +333,45 @@ export default function ProductDialog({
   }, [parameterQuantities]);
 
   // Manejo de cambios en los inputs del formulario
+  // Mejorar handleInputChange
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setEditedProduct((prev) => ({
-      ...prev,
-      [name]: name === 'precio' || name === 'precio_compra' || name === 'cantidad' ? Number(value) : value,
-    }));
+
+    if (name === 'valor_compra_usd') {
+      setEditedProduct((prev) => ({
+        ...prev,
+        valor_compra_usd: value === '' ? null : Number(value),
+      }));
+    } else if (['precio', 'precio_compra', 'cantidad'].includes(name)) {
+      setEditedProduct((prev) => ({
+        ...prev,
+        [name]: value === '' ? 0 : Number(value),
+      }));
+    } else {
+      setEditedProduct((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   }, []);
+
+  // Mejorar el input en EditMode
+  <div>
+    <Label>Valor de compra del USD</Label>
+    <Input
+      name="valor_compra_usd"
+      type="number"
+      value={editedProduct.valor_compra_usd ?? ''}
+      onChange={handleInputChange}
+      placeholder="Valor de compra del USD (opcional)"
+      step="0.01"
+      min="0"
+    />
+    <p className="text-xs text-gray-500 mt-1">
+      Deja vacío si no aplica
+    </p>
+  </div>
+
 
   // Manejo de cambios en los parámetros del producto
   const handleParametroChange = useCallback((index: number, field: 'nombre' | 'cantidad', value: string) => {
@@ -401,6 +435,7 @@ export default function ProductDialog({
         parametros: editedProduct.tieneParametros ? editedProduct.parametros : [],
         precio_compra: editedProduct.precio_compra || 0,
         descripcion: editedProduct.descripcion || '', // Incluir descripción en el producto actualizado
+        valor_compra_usd: editedProduct.valor_compra_usd || null, // Incluir valor_compra_usd en el producto actualizado
       };
 
       console.log('Producto a guardar:', updatedProduct);
@@ -657,6 +692,17 @@ const EditMode = ({
         />
       </div>
 
+      <div>
+        <Label>Valor de compra del USD</Label>
+        <Input
+          name="valor_compra_usd"
+          type="number"
+          value={editedProduct.valor_compra_usd || ''}
+          onChange={onInputChange}
+          placeholder="Valor de compra del USD"
+        />
+      </div>
+
       <div className="flex items-center space-x-2">
         <Checkbox
           id="tieneParametros"
@@ -878,7 +924,8 @@ const DeliverMode = ({
   </>
 );
 
-// Subcomponente para el modo de visualización con pestañas
+// En el componente ViewMode, modifica la sección de precios:
+
 const ViewMode = ({
   product,
   onEdit,
@@ -905,83 +952,121 @@ const ViewMode = ({
   }>;
   isLoadingVendors: boolean;
   onRefreshVendors: () => void;
-}) => (
-  <>
-    {/* Pestañas */}
-    <div className="flex border-b border-gray-200 mb-4">
-      <button
-        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${!showVendorsTab
-          ? 'border-blue-500 text-blue-600'
-          : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        onClick={() => setShowVendorsTab(false)}
-      >
-        Información General
-      </button>
-      <button
-        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${showVendorsTab
-          ? 'border-blue-500 text-blue-600'
-          : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        onClick={() => setShowVendorsTab(true)}
-      >
-        En Vendedores
-      </button>
-    </div>
+}) => {
+  // Función para calcular el precio en USD
+  const calcularPrecioUSD = (precio: number): string => {
+    if (product.valor_compra_usd && product.valor_compra_usd > 0) {
+      return (precio / product.valor_compra_usd).toFixed(2);
+    }
+    return '';
+  };
 
-    {/* Contenido de las pestañas */}
-    {showVendorsTab ? (
-      <VendorsTab
-        vendorsData={vendorsData}
-        isLoading={isLoadingVendors}
-        onRefresh={onRefreshVendors}
-        productName={product.nombre}
-      />
-    ) : (
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <p className="text-lg font-medium">Precio de venta: ${product.precio}</p>
-          <p className="text-md text-gray-700">Precio de compra: ${product.precio_compra || 0}</p>
-
-          {/* Mostrar la descripción si existe */}
-          {product.descripcion && (
-            <div className="mt-2">
-              <h4 className="font-medium text-sm text-gray-700">Descripción:</h4>
-              <p className="text-gray-600 mt-1 whitespace-pre-wrap">{product.descripcion}</p>
-            </div>
-          )}
-
-          {(product.tiene_parametros || product.tieneParametros) && product.parametros && product.parametros.length > 0 ? (
-            <div className="space-y-2 mt-4">
-              <h4 className="font-medium text-sm text-gray-700">Parámetros:</h4>
-              <div className="grid grid-cols-1 gap-2">
-                {product.parametros.map((param, index) => (
-                  <div
-                    key={index}
-                    className="p-2 bg-gray-50 rounded-md flex justify-between items-center"
-                  >
-                    <span className="font-medium">{param.nombre}:</span>
-                    <span className="text-gray-600">{param.cantidad}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-sm text-gray-500">
-                Cantidad total: {getTotalCantidad()}
-              </p>
-            </div>
-          ) : (
-            <p className="text-gray-700 mt-4">Cantidad disponible: {product.cantidad}</p>
-          )}
-        </div>
-
-        <div className="flex justify-between gap-2">
-          <Button onClick={onEdit} className="w-full">Editar</Button>
-          <Button onClick={onDeliver} className="w-full">Entregar</Button>
-          <Button onClick={onDelete} variant="destructive" className="w-full">
-            Eliminar
-          </Button>
-        </div>
+  return (
+    <>
+      {/* Pestañas */}
+      <div className="flex border-b border-gray-200 mb-4">
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${!showVendorsTab
+            ? 'border-blue-500 text-blue-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          onClick={() => setShowVendorsTab(false)}
+        >
+          Información General
+        </button>
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${showVendorsTab
+            ? 'border-blue-500 text-blue-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          onClick={() => setShowVendorsTab(true)}
+        >
+          En Vendedores
+        </button>
       </div>
-    )}
-  </>
-);
+
+      {/* Contenido de las pestañas */}
+      {showVendorsTab ? (
+        <VendorsTab
+          vendorsData={vendorsData}
+          isLoading={isLoadingVendors}
+          onRefresh={onRefreshVendors}
+          productName={product.nombre}
+        />
+      ) : (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            {/* Precio de venta con USD */}
+            <div className="flex items-center gap-2">
+              <p className="text-lg font-medium">
+                Precio de venta: ${product.precio}
+              </p>
+              {calcularPrecioUSD(product.precio) && (
+                <span className="text-green-600 font-medium">
+                  (${calcularPrecioUSD(product.precio)} USD)
+                </span>
+              )}
+            </div>
+
+            {/* Precio de compra con USD */}
+            <div className="flex items-center gap-2">
+              <p className="text-md text-gray-700">
+                Precio de compra: ${product.precio_compra || 0}
+              </p>
+              {calcularPrecioUSD(product.precio_compra || 0) && (
+                <span className="text-green-600 font-medium">
+                  (${calcularPrecioUSD(product.precio_compra || 0)} USD)
+                </span>
+              )}
+            </div>
+
+            {/* Mostrar el valor de compra del USD si existe */}
+            {product.valor_compra_usd !== null && product.valor_compra_usd !== undefined && (
+              <p className="text-md text-gray-700">
+                Valor de compra del USD: ${product.valor_compra_usd}
+              </p>
+            )}
+
+            {/* Mostrar la descripción si existe */}
+            {product.descripcion && (
+              <div className="mt-2">
+                <h4 className="font-medium text-sm text-gray-700">Descripción:</h4>
+                <p className="text-gray-600 mt-1 whitespace-pre-wrap">{product.descripcion}</p>
+              </div>
+            )}
+
+            {(product.tiene_parametros || product.tieneParametros) && product.parametros && product.parametros.length > 0 ? (
+              <div className="space-y-2 mt-4">
+                <h4 className="font-medium text-sm text-gray-700">Parámetros:</h4>
+                <div className="grid grid-cols-1 gap-2">
+                  {product.parametros.map((param, index) => (
+                    <div
+                      key={index}
+                      className="p-2 bg-gray-50 rounded-md flex justify-between items-center"
+                    >
+                      <span className="font-medium">{param.nombre}:</span>
+                      <span className="text-gray-600">{param.cantidad}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-sm text-gray-500">
+                  Cantidad total: {getTotalCantidad()}
+                </p>
+              </div>
+            ) : (
+              <p className="text-gray-700 mt-4">Cantidad disponible: {product.cantidad}</p>
+            )}
+          </div>
+
+          <div className="flex justify-between gap-2">
+            <Button onClick={onEdit} className="w-full">Editar</Button>
+            <Button onClick={onDeliver} className="w-full">Entregar</Button>
+            <Button onClick={onDelete} variant="destructive" className="w-full">
+              Eliminar
+            </Button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};

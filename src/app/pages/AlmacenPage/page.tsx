@@ -209,8 +209,6 @@ const useAlmacenData = () => {
   }
 }
 
-
-
 export default function AlmacenPage() {
   // MODIFICAR esta línea
   const {
@@ -248,8 +246,9 @@ export default function AlmacenPage() {
     cantidad: 0,
     foto: '',
     tieneParametros: false,
-    parametros: [], // Ahora TypeScript sabe que esto es Parametro[]
-    descripcion: ''
+    parametros: [],
+    descripcion: '',
+    valorCompraUSD: null, // Agregar el nuevo campo con valor inicial null
   });
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null)
@@ -1428,61 +1427,118 @@ export default function AlmacenPage() {
   }, [newProduct.nombre]);
 
   const handleProductInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
 
-    if ((e.target as HTMLInputElement).type === 'file') {
-      const fileList = (e.target as HTMLInputElement).files;
-      if (fileList && fileList.length > 0) {
-        setNewProduct({ ...newProduct, [name]: fileList[0] });
-      }
-    } else if (type === 'checkbox' && name === 'tieneParametros') {
-      setNewProduct({
-        ...newProduct,
-        tieneParametros: (e.target as HTMLInputElement).checked,
-        parametros: (e.target as HTMLInputElement).checked ? [{ nombre: '', cantidad: 0 }] : []
-      });
-    } else {
-      setNewProduct({
-        ...newProduct,
-        [name]: type === 'number' ? parseFloat(value) : value
-      });
+    // Si el campo es valorCompraUSD, convertirlo a número o null si está vacío
+    if (name === 'valorCompraUSD') {
+      setNewProduct(prev => ({
+        ...prev,
+        [name]: value === '' ? null : Number(value)
+      }));
+      return;
+    }
+
+    // Para otros campos numéricos
+    if (name === 'precio' || name === 'precioCompra' || name === 'cantidad') {
+      setNewProduct(prev => ({
+        ...prev,
+        [name]: Number(value)
+      }));
+      return;
+    }
+
+    // Para campos de texto
+    setNewProduct(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
+    // Si es el campo nombre, verificar si ya existe
+    if (name === 'nombre') {
+      verificarNombreProducto(value);
     }
   };
 
   const handleAddProduct = async () => {
-    try {
-      if (nombreExiste) {
+    // Validaciones
+    if (!newProduct.nombre.trim()) {
+      toast({
+        title: "Error",
+        description: "El nombre del producto no puede estar vacío",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newProduct.precio <= 0) {
+      toast({
+        title: "Error",
+        description: "El precio debe ser mayor a 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newProduct.tieneParametros) {
+      if (newProduct.parametros.some(p => !p.nombre.trim() || p.cantidad <= 0)) {
         toast({
           title: "Error",
-          description: "El nombre del producto ya existe",
+          description: "Todos los parámetros deben tener nombre y cantidad mayor a 0",
           variant: "destructive",
         });
         return;
       }
+    } else {
+      if (newProduct.cantidad <= 0) {
+        toast({
+          title: "Error",
+          description: "La cantidad debe ser mayor a 0",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
 
+    try {
+      // ✅ Crear FormData en lugar de JSON
       const formData = new FormData();
       formData.append('nombre', newProduct.nombre);
       formData.append('precio', newProduct.precio.toString());
       formData.append('precioCompra', newProduct.precioCompra.toString());
-      formData.append('descripcion', newProduct.descripcion || ''); // Añadir esta línea
+      formData.append('cantidad', newProduct.tieneParametros ? '0' : newProduct.cantidad.toString());
+      formData.append('foto', newProduct.foto);
+      formData.append('tieneParametros', newProduct.tieneParametros.toString());
+      formData.append('descripcion', newProduct.descripcion || '');
 
-      if (newProduct.tieneParametros) {
-        formData.append('tieneParametros', 'true');
+      // Agregar valorCompraUSD solo si tiene valor
+      if (newProduct.valorCompraUSD !== null && newProduct.valorCompraUSD !== undefined) {
+        formData.append('valorCompraUSD', newProduct.valorCompraUSD.toString());
+      }
+
+      // Convertir parámetros a JSON string
+      if (newProduct.tieneParametros && newProduct.parametros.length > 0) {
         formData.append('parametros', JSON.stringify(newProduct.parametros));
-        const cantidadTotal = newProduct.parametros.reduce((sum, param) => sum + param.cantidad, 0);
-        formData.append('cantidad', cantidadTotal.toString());
       } else {
-        formData.append('tieneParametros', 'false');
-        formData.append('cantidad', newProduct.cantidad.toString());
+        formData.append('parametros', JSON.stringify([]));
       }
 
-      if (newProduct.foto && typeof newProduct.foto === 'string' && newProduct.foto.trim() !== '') {
-        formData.append('foto', newProduct.foto);
+      // ✅ Enviar FormData sin headers
+      const response = await fetch('/api/productos', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al crear el producto');
       }
 
-      await agregarProducto(formData);
-      await fetchInventario();
-      setShowAddProductModal(false);
+      const data = await response.json();
+
+      // Actualizar el inventario con el nuevo producto
+      setInventario([...inventario, data]);
+
+      // Resetear el formulario
       setNewProduct({
         nombre: '',
         precio: 0,
@@ -1491,23 +1547,26 @@ export default function AlmacenPage() {
         foto: '',
         tieneParametros: false,
         parametros: [],
-        descripcion: '' // Resetear también la descripción
+        descripcion: '',
+        valorCompraUSD: null,
       });
+
+      setShowAddProductModal(false);
 
       toast({
         title: "Éxito",
-        description: "Producto agregado correctamente",
+        description: "Producto creado correctamente",
+        variant: "default",
       });
     } catch (error) {
-      console.error('Error al agregar producto:', error);
+      console.error('Error al crear producto:', error);
       toast({
         title: "Error",
-        description: "Error al agregar el producto",
+        description: error instanceof Error ? error.message : "Error al crear el producto",
         variant: "destructive",
       });
     }
   };
-
 
 
   const handleProductDelivery = async (
@@ -1534,7 +1593,6 @@ export default function AlmacenPage() {
     }
   }
 
-  // En AlmacenPage.tsx
   const handleEditProduct = async (editedProduct: Producto, imageUrl: string | undefined) => {
     try {
       const formData = new FormData();
@@ -1543,9 +1601,12 @@ export default function AlmacenPage() {
       formData.append('cantidad', editedProduct.cantidad.toString());
       formData.append('tiene_parametros', editedProduct.tiene_parametros.toString());
       formData.append('precio_compra', (editedProduct.precio_compra || 0).toString());
-
-      // ✅ AGREGAR ESTA LÍNEA:
       formData.append('descripcion', editedProduct.descripcion || '');
+
+      // ✅ AGREGAR ESTAS LÍNEAS:
+      if (editedProduct.valor_compra_usd !== null && editedProduct.valor_compra_usd !== undefined) {
+        formData.append('valor_compra_usd', editedProduct.valor_compra_usd.toString());
+      }
 
       if (editedProduct.parametros) {
         formData.append('parametros', JSON.stringify(editedProduct.parametros));
@@ -1572,7 +1633,6 @@ export default function AlmacenPage() {
       });
     }
   };
-
 
 
 
@@ -2925,6 +2985,18 @@ export default function AlmacenPage() {
                 onChange={handleProductInputChange}
                 placeholder="Descripción del producto"
                 className="min-h-[100px] resize-none"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="valorCompraUSD" className="block text-sm font-medium text-gray-700">Valor de compra del USD</label>
+              <Input
+                id="valorCompraUSD"
+                name="valorCompraUSD"
+                type="number"
+                value={newProduct.valorCompraUSD || ''}
+                onChange={handleProductInputChange}
+                placeholder="Valor de compra del USD"
               />
             </div>
 
