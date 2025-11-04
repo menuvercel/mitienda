@@ -51,10 +51,10 @@ export async function PUT(request: NextRequest) {
                     );
                 }
 
-                // Registrar transacción principal
+                // Registrar transacción principal - Usar el ID del almacén (1) en lugar de null
                 const transaccionResult = await query(
                     'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha, parametro_nombre) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-                    [productoId, parametros[0].cantidad, 'Baja', vendedorId, null, new Date(), null]
+                    [productoId, parametros[0].cantidad, 'Baja', vendedorId, 1, new Date(), null]
                 );
 
                 const transaccionId = transaccionResult.rows[0].id;
@@ -98,10 +98,10 @@ export async function PUT(request: NextRequest) {
                     [cantidad, productoId]
                 );
 
-                // Registrar transacción
+                
                 await query(
                     'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha) VALUES ($1, $2, $3, $4, $5, $6)',
-                    [productoId, cantidad, 'Baja', vendedorId, null, new Date()]
+                    [productoId, cantidad, 'Baja', vendedorId, 1, new Date()]
                 );
             }
 

@@ -22,7 +22,8 @@ import {
   realizarVenta,
   getVentasMes,
   getTransaccionesProducto,
-  getVentasProducto
+  getVentasProducto,
+  getVendedores
 } from '../../../services/api'
 import { WeekPicker } from '@/components/Weekpicker'
 import { NotificacionesBell } from '@/components/NotificacionesBell'
@@ -44,14 +45,13 @@ interface ProductoParametro {
 
 interface ProductoCardProps {
   producto: Producto;
-  vendedorId: string; // Añadir esta prop
+  vendedorId: string;
 }
 
 interface ProductoVenta extends Producto {
   cantidadVendida: number;
   parametrosVenta?: ProductoParametro[];
 }
-
 
 export interface TransaccionParametro {
   id: string;
@@ -60,7 +60,6 @@ export interface TransaccionParametro {
   cantidad: number;
 }
 
-// Actualizar la interface Transaccion para incluir los parámetros
 export interface Transaccion {
   id: string;
   tipo: 'Baja' | 'Entrega';
@@ -71,7 +70,7 @@ export interface Transaccion {
   fecha: string;
   precio: number;
   parametro_nombre?: string;
-  parametros?: TransaccionParametro[]; // Agregar esta línea
+  parametros?: TransaccionParametro[];
 }
 
 interface VentaParametro {
@@ -125,6 +124,12 @@ interface ParametrosDialogProps {
   onSubmit: (parametros: ProductoParametro[]) => void;
 }
 
+interface Vendedor {
+  id: string;
+  nombre: string;
+  rol: string;
+}
+
 const calcularCantidadTotal = (producto: Producto): number => {
   if (producto.tiene_parametros && producto.parametros) {
     return producto.parametros.reduce((total, param) => total + param.cantidad, 0);
@@ -153,7 +158,8 @@ const useVendedorData = (vendedorId: string) => {
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null);
   const [parametrosDialogOpen, setParametrosDialogOpen] = useState(false);
   const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
-  const [isSubmittingVenta, setIsSubmittingVenta] = useState(false) // NUEVO ESTADO
+  const [isSubmittingVenta, setIsSubmittingVenta] = useState(false)
+  const [vendedores, setVendedores] = useState<Vendedor[]>([])
 
   const handleEnviarVenta = async () => {
     if (productosSeleccionados.length === 0) {
@@ -169,19 +175,15 @@ const useVendedorData = (vendedorId: string) => {
       return;
     }
 
-    // Prevenir envíos múltiples
     if (isSubmittingVenta) {
       return;
     }
 
-    setIsSubmittingVenta(true); // ACTIVAR ESTADO DE CARGA
+    setIsSubmittingVenta(true);
 
     try {
-      console.log('Iniciando proceso de venta');
-
       await Promise.all(productosSeleccionados.map(async producto => {
         try {
-          // Calcular la cantidad total sumando los parámetros
           const cantidadTotal = producto.parametrosVenta
             ? producto.parametrosVenta.reduce((sum, param) => sum + param.cantidad, 0)
             : producto.cantidadVendida;
@@ -194,7 +196,6 @@ const useVendedorData = (vendedorId: string) => {
             vendedorId
           );
 
-          console.log(`Venta realizada para producto ${producto.id}:`, response);
           return response;
         } catch (error) {
           console.error(`Error en venta de producto ${producto.id}:`, error);
@@ -211,10 +212,9 @@ const useVendedorData = (vendedorId: string) => {
       console.error('Error al realizar la venta:', error);
       setError(error instanceof Error ? error.message : 'Error al realizar la venta');
     } finally {
-      setIsSubmittingVenta(false); // DESACTIVAR ESTADO DE CARGA
+      setIsSubmittingVenta(false);
     }
   };
-
 
 
   const agruparVentasPorDia = useCallback((ventas: Venta[]) => {
@@ -307,9 +307,7 @@ const useVendedorData = (vendedorId: string) => {
   const fetchProductos = useCallback(async () => {
     try {
       const data = await getProductosVendedor(vendedorId)
-      console.log('Raw data from getProductosVendedor:', data);
 
-      // Modificamos el filtrado considerando los parámetros
       setProductosDisponibles(data.filter((producto: Producto) => {
         const cantidadTotal = calcularCantidadTotal(producto);
         return cantidadTotal > 0;
@@ -319,9 +317,6 @@ const useVendedorData = (vendedorId: string) => {
         const cantidadTotal = calcularCantidadTotal(producto);
         return cantidadTotal === 0;
       }));
-
-      console.log('Productos disponibles:', productosDisponibles);
-      console.log('Productos agotados:', productosAgotados);
     } catch (error) {
       console.error('Error al obtener productos:', error)
       setError('No se pudieron cargar los productos. Por favor, intenta de nuevo.')
@@ -330,7 +325,6 @@ const useVendedorData = (vendedorId: string) => {
 
   const fetchVentasRegistro = useCallback(async () => {
     try {
-      // Llamar solo a getVentasMes para obtener todas las ventas
       const ventasMesData: Venta[] = await getVentasMes(vendedorId);
       setVentasRegistro(ventasMesData);
       setVentasAgrupadas(agruparVentas(ventasMesData));
@@ -346,7 +340,6 @@ const useVendedorData = (vendedorId: string) => {
     }
   }, [vendedorId, agruparVentas, agruparVentasPorSemana, agruparVentasPorDia]);
 
-
   const fetchTransacciones = useCallback(async () => {
     try {
       const data = await getTransaccionesVendedor(vendedorId);
@@ -357,12 +350,30 @@ const useVendedorData = (vendedorId: string) => {
     }
   }, [vendedorId]);
 
+  const fetchVendedores = useCallback(async () => {
+    try {
+      const data = await getVendedores();
+      setVendedores(data);
+    } catch (error) {
+      console.error('Error al obtener vendedores:', error);
+      setVendedores([]);
+    }
+  }, []);
+
+
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        await Promise.all([fetchProductos(), fetchVentasRegistro(), fetchTransacciones()]);
+        await Promise.all([
+          fetchProductos(),
+          fetchVentasRegistro(),
+          fetchTransacciones(),
+          fetchVendedores(),
+          fetchVendedores()
+        ]);
       } catch (error) {
         console.error('Error loading data:', error);
         setError(error instanceof Error ? error.message : 'Error loading data');
@@ -372,7 +383,7 @@ const useVendedorData = (vendedorId: string) => {
     };
 
     loadData();
-  }, [vendedorId, fetchProductos, fetchVentasRegistro, fetchTransacciones]);
+  }, [vendedorId, fetchProductos, fetchVentasRegistro, fetchTransacciones, fetchVendedores]);
 
   return {
     isLoading,
@@ -407,7 +418,8 @@ const useVendedorData = (vendedorId: string) => {
     parametrosDialogOpen,
     setParametrosDialogOpen,
     productQuantities,
-    setProductQuantities
+    setProductQuantities,
+    vendedores
   }
 }
 
@@ -425,18 +437,23 @@ const formatDate = (dateString: string): string => {
   }
 }
 
-const formatPrice = (price: number | string | undefined): string => {
-  if (typeof price === 'undefined') {
+const formatPrice = (price: number | string | undefined | null): string => {
+  if (price === undefined || price === null) {
     return '0.00';
   }
+
   const numPrice = typeof price === 'string' ? parseFloat(price) : price;
-  return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2);
+
+  if (isNaN(numPrice) || numPrice === null) {
+    return '0.00';
+  }
+
+  return numPrice.toFixed(2);
 }
 
 const VentaDiaDesplegable = ({ venta, busqueda }: { venta: VentaDia, busqueda: string }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Filtrar las ventas basadas en la búsqueda
   const ventasFiltradas = busqueda
     ? venta.ventas.filter(v =>
       v.producto_nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -445,7 +462,6 @@ const VentaDiaDesplegable = ({ venta, busqueda }: { venta: VentaDia, busqueda: s
     )
     : venta.ventas;
 
-  // Calcular el total solo de las ventas filtradas
   const calcularTotalVentasFiltradas = () => {
     return ventasFiltradas.reduce((total, v) => {
       const ventaTotal = typeof v.total === 'string' ? parseFloat(v.total) : v.total;
@@ -515,11 +531,9 @@ const VentaDiaDesplegable = ({ venta, busqueda }: { venta: VentaDia, busqueda: s
   );
 };
 
-
 const VentaSemanaDesplegable = ({ venta, busqueda }: { venta: VentaSemana, busqueda: string }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Filtrar las ventas basadas en la búsqueda
   const ventasFiltradas = busqueda
     ? venta.ventas.filter(v =>
       v.producto_nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -528,7 +542,6 @@ const VentaSemanaDesplegable = ({ venta, busqueda }: { venta: VentaSemana, busqu
     )
     : venta.ventas;
 
-  // Agrupar las ventas filtradas por día
   const ventasPorDia = ventasFiltradas.reduce((acc: Record<string, Venta[]>, v) => {
     const fecha = parseISO(v.fecha);
     if (!isValid(fecha)) {
@@ -543,7 +556,6 @@ const VentaSemanaDesplegable = ({ venta, busqueda }: { venta: VentaSemana, busqu
     return acc;
   }, {});
 
-  // Calcular el total solo de las ventas filtradas
   const totalFiltrado = ventasFiltradas.reduce((total, v) => {
     const ventaTotal = typeof v.total === 'string' ? parseFloat(v.total) : v.total;
     return total + (ventaTotal || 0);
@@ -604,13 +616,43 @@ const VentaSemanaDesplegable = ({ venta, busqueda }: { venta: VentaSemana, busqu
 const TransaccionesList = ({
   transacciones,
   searchTerm,
-  vendedorId
+  vendedorId,
+  vendedores
 }: {
   transacciones: Transaccion[],
   searchTerm: string,
-  vendedorId: string
+  vendedorId: string,
+  vendedores: Vendedor[]
 }) => {
   const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
+
+  // Función mejorada para obtener el nombre del vendedor por ID
+  const getNombreVendedor = (id: string | undefined): string => {
+    if (!id) return 'N/A';
+
+    const idString = String(id).trim().toLowerCase();
+
+    // Casos especiales por nombre
+    if (idString === 'almacen' || idString === 'almacén') return 'Almacén';
+    if (idString === 'merma') return 'Merma';
+
+    // Caso especial: ID 1 es el almacén
+    if (idString === '1') return 'Almacén';
+
+    // Buscar en la lista de vendedores
+    const vendedor = vendedores.find(v => {
+      const vendedorIdString = String(v.id).trim();
+      const targetIdString = String(id).trim();
+      return vendedorIdString === targetIdString;
+    });
+
+    if (vendedor) {
+      return vendedor.nombre;
+    }
+
+    return `Usuario ${id}`;
+  };
+
 
   const filteredTransacciones = transacciones.filter(t =>
     t.producto.toLowerCase().includes(searchTerm.toLowerCase())
@@ -671,6 +713,10 @@ const TransaccionesList = ({
 
         const isExpanded = expandedTransactions.has(transactionKey);
 
+        // Obtener nombres de origen y destino
+        const nombreDesde = getNombreVendedor(transaccion.desde);
+        const nombreHacia = getNombreVendedor(transaccion.hacia);
+
         return (
           <div
             key={transactionKey}
@@ -692,6 +738,19 @@ const TransaccionesList = ({
                     ${formatPrice(transaccion.precio)}
                   </p>
                 </div>
+
+                {/* Información de origen y destino */}
+                <div className="flex flex-col text-xs text-gray-600 mb-1">
+                  <div className="flex items-center space-x-1">
+                    <span className="font-semibold">Desde:</span>
+                    <span className="text-blue-600">{nombreDesde}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="font-semibold">Hacia:</span>
+                    <span className="text-green-600">{nombreHacia}</span>
+                  </div>
+                </div>
+
                 <div className="flex justify-between items-center text-xs text-gray-600">
                   <span>{formatDate(transaccion.fecha)}</span>
                   <span>Cantidad Total: {cantidadTotal}</span>
@@ -708,7 +767,7 @@ const TransaccionesList = ({
                 {isExpanded && transaccion.parametros && (
                   <div className="mt-2 space-y-1 pl-4 border-l-2 border-gray-200">
                     {transaccion.parametros
-                      .filter(param => param.cantidad !== 0) // Añadimos este filtro
+                      .filter(param => param.cantidad !== 0)
                       .map((param, index) => (
                         <div key={index} className="flex justify-between text-xs text-gray-600">
                           <span className="font-medium">{param.nombre}:</span>
@@ -728,8 +787,6 @@ const TransaccionesList = ({
   );
 };
 
-
-
 const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId: string }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [transacciones, setTransacciones] = useState<Transaccion[]>([])
@@ -737,8 +794,8 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [vendedores, setVendedores] = useState<Vendedor[]>([])
 
-  // Función para agrupar ventas por día
   const agruparVentasPorDia = useCallback((ventas: Venta[]) => {
     const ventasDiarias: VentaDia[] = [];
     ventas.forEach((venta) => {
@@ -767,7 +824,6 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
     });
   }, []);
 
-  // Función para agrupar ventas por semana
   const agruparVentasPorSemana = useCallback((ventas: Venta[]) => {
     const weekMap = new Map<string, VentaSemana>();
 
@@ -853,7 +909,6 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
         className="w-full cursor-pointer hover:bg-gray-100 transition-colors"
       >
         <CardContent className="p-4 flex items-center">
-          {/* Contenedor de la imagen */}
           <div className="w-16 h-16 flex-shrink-0 relative mr-4">
             {producto.foto ? (
               <OptimizedImage
@@ -870,7 +925,6 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
             )}
           </div>
 
-          {/* Contenido */}
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold truncate">{producto.nombre}</h3>
             <p className="text-sm text-gray-600">
@@ -970,6 +1024,7 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
                         transacciones={transacciones}
                         searchTerm={searchTerm}
                         vendedorId={vendedorId}
+                        vendedores={vendedores}
                       />
                     </div>
                   </TabsContent>
@@ -1042,29 +1097,26 @@ const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId
   )
 }
 
-
 const ParametrosDialog = ({
   producto,
   open,
   onClose,
   onSubmit
 }: ParametrosDialogProps) => {
-  // Solo incluir parámetros con cantidad > 0
   const [parametros, setParametros] = useState<ProductoParametro[]>(() =>
     producto?.parametros
-      ?.filter(p => p.cantidad > 0) // Filtrar parámetros con cantidad > 0
+      ?.filter(p => p.cantidad > 0)
       ?.map(p => ({
         nombre: p.nombre,
         cantidad: 0
       })) || []
   );
 
-  // Actualizar los parámetros cuando cambia el producto
   useEffect(() => {
     if (producto?.parametros) {
       setParametros(
         producto.parametros
-          .filter(p => p.cantidad > 0) // Filtrar parámetros con cantidad > 0
+          .filter(p => p.cantidad > 0)
           .map(p => ({
             nombre: p.nombre,
             cantidad: 0
@@ -1075,7 +1127,6 @@ const ParametrosDialog = ({
 
   const hasSelectedParameters = parametros.some(p => p.cantidad > 0);
 
-  // Si no hay parámetros disponibles, mostrar un mensaje
   if (parametros.length === 0) {
     return (
       <Dialog open={open} onOpenChange={onClose}>
@@ -1100,7 +1151,6 @@ const ParametrosDialog = ({
         </DialogHeader>
         <div className="space-y-4">
           {parametros.map((param, index) => {
-            // Encontrar el parámetro original para obtener la cantidad máxima disponible
             const parametroOriginal = producto?.parametros?.find(p => p.nombre === param.nombre);
             const cantidadMaxima = parametroOriginal?.cantidad || 0;
 
@@ -1130,7 +1180,6 @@ const ParametrosDialog = ({
                     size="icon"
                     onClick={() => {
                       const newParams = [...parametros];
-                      // No permitir exceder la cantidad máxima disponible
                       newParams[index].cantidad = Math.min(
                         param.cantidad + 1,
                         cantidadMaxima
@@ -1164,8 +1213,6 @@ const ParametrosDialog = ({
   );
 };
 
-
-
 export default function VendedorPage() {
   const params = useParams()
   const vendedorId = params.id as string
@@ -1198,7 +1245,8 @@ export default function VendedorPage() {
     parametrosDialogOpen,
     setParametrosDialogOpen,
     productQuantities,
-    setProductQuantities
+    setProductQuantities,
+    vendedores
   } = useVendedorData(vendedorId)
 
   const [busqueda, setBusqueda] = useState('')
@@ -1233,21 +1281,17 @@ export default function VendedorPage() {
 
   const handleProductSelect = (producto: Producto) => {
     if (producto.tiene_parametros) {
-      // Si ya está seleccionado, lo quitamos
       if (selectedProductIds.includes(producto.id)) {
         setSelectedProductIds(prev => prev.filter(id => id !== producto.id));
         setProductosConParametrosEnEspera(prev =>
           prev.filter(p => p.id !== producto.id)
         );
       } else {
-        // Si no está seleccionado, abrimos el diálogo de parámetros
         setSelectedProduct(producto);
         setParametrosDialogOpen(true);
       }
     } else {
-      // Para productos sin parámetros
       if (selectedProductIds.includes(producto.id)) {
-        // Si ya está seleccionado, lo quitamos
         setSelectedProductIds(prev => prev.filter(id => id !== producto.id));
         setProductQuantities(prev => {
           const newQuantities = { ...prev };
@@ -1255,7 +1299,6 @@ export default function VendedorPage() {
           return newQuantities;
         });
       } else {
-        // Si no está seleccionado, lo añadimos y establecemos cantidad 1 por defecto
         setSelectedProductIds(prev => [...prev, producto.id]);
         setProductQuantities(prev => ({ ...prev, [producto.id]: 1 }));
       }
@@ -1263,7 +1306,6 @@ export default function VendedorPage() {
   };
 
   const handleQuantityChange = (productoId: string, cantidad: number) => {
-    // Asegurarse de que la cantidad esté entre 1 y el máximo disponible
     const producto = productosDisponibles.find(p => p.id === productoId);
     if (!producto) return;
 
@@ -1279,29 +1321,24 @@ export default function VendedorPage() {
   const handleParametrosSubmit = (parametros: ProductoParametro[]) => {
     if (!selectedProduct) return;
 
-    // Filtrar solo los parámetros con cantidad > 0
     const parametrosFiltrados = parametros.filter(param => param.cantidad > 0);
 
-    // Añadir el producto a productosConParametrosEnEspera
     setProductosConParametrosEnEspera(prev => [
       ...prev,
       {
         ...selectedProduct,
         cantidadVendida: 1,
-        parametrosVenta: parametrosFiltrados // Usar los parámetros filtrados
+        parametrosVenta: parametrosFiltrados
       }
     ]);
 
-    // Añadir el ID del producto a selectedProductIds
     setSelectedProductIds(prev => [...prev, selectedProduct.id]);
 
-    // Cerrar el diálogo de parámetros
     setParametrosDialogOpen(false);
     setSelectedProduct(null);
   };
 
   const handleConfirmSelection = () => {
-    // Productos sin parámetros
     const newSelectedProducts = productosDisponibles
       .filter(producto =>
         selectedProductIds.includes(producto.id) &&
@@ -1312,21 +1349,18 @@ export default function VendedorPage() {
         cantidadVendida: productQuantities[producto.id] || 1
       }));
 
-    // Combinar productos normales y productos con parámetros
     setProductosSeleccionados(prev => [
       ...prev,
       ...newSelectedProducts,
       ...productosConParametrosEnEspera
     ]);
 
-    // Reiniciar las selecciones
     setSelectedProductIds([]);
     setProductosConParametrosEnEspera([]);
     setProductQuantities({});
     setIsDialogOpen(false);
   };
 
-  // Añade un manejador para cuando se cierra el diálogo
   const handleDialogClose = () => {
     setSelectedProductIds([]);
     setProductosConParametrosEnEspera([]);
@@ -1339,7 +1373,7 @@ export default function VendedorPage() {
       if (p.id === id) {
         const nuevaCantidad = Math.max(0, Math.min(p.cantidadVendida + incremento, p.cantidad))
         if (nuevaCantidad === 0) {
-          return acc; // Remove the product if quantity reaches 0
+          return acc;
         }
         return [...acc, { ...p, cantidadVendida: nuevaCantidad }];
       }
@@ -1390,7 +1424,6 @@ export default function VendedorPage() {
         <NotificacionesBell vendedorId={vendedorId} />
       </div>
 
-
       <main className="flex-1 p-6 overflow-auto">
         <h1 className="text-2xl font-bold mb-4">Panel de Vendedor</h1>
 
@@ -1401,7 +1434,6 @@ export default function VendedorPage() {
                 <TabsTrigger value="disponibles">Disponibles</TabsTrigger>
                 <TabsTrigger value="agotados">Agotados</TabsTrigger>
               </TabsList>
-              {/* The export button has been removed as requested */}
             </div>
             <TabsContent value="disponibles">
               <div className="mb-4">
@@ -1528,7 +1560,6 @@ export default function VendedorPage() {
                                 </div>
                               </div>
 
-                              {/* Control de cantidad para productos seleccionados */}
                               {selectedProductIds.includes(producto.id) && !producto.tiene_parametros && (
                                 <div className="flex items-center space-x-2">
                                   <Button
@@ -1562,13 +1593,12 @@ export default function VendedorPage() {
                               )}
                             </div>
 
-                            {/* Mostrar los parámetros si ya están configurados */}
                             {producto.tiene_parametros && selectedProductIds.includes(producto.id) && (
                               <div className="mt-2 text-sm text-gray-600">
                                 {productosConParametrosEnEspera
                                   .find(p => p.id === producto.id)
                                   ?.parametrosVenta
-                                  ?.filter(param => param.cantidad > 0) // Filtrar solo parámetros con cantidad > 0
+                                  ?.filter(param => param.cantidad > 0)
                                   ?.map(param => (
                                     <div key={param.nombre} className="flex justify-between">
                                       <span>{param.nombre}:</span>
@@ -1597,7 +1627,7 @@ export default function VendedorPage() {
                           <div className="text-sm text-gray-500">
                             <p className="font-medium">Parámetros:</p>
                             {producto.parametrosVenta
-                              .filter(param => param.cantidad > 0) // Filtrar solo parámetros con cantidad > 0
+                              .filter(param => param.cantidad > 0)
                               .map(param => (
                                 <p key={param.nombre} className="ml-2">
                                   {param.nombre}: {param.cantidad}
@@ -1641,11 +1671,8 @@ export default function VendedorPage() {
                       </div>
                     </div>
                   ))}
-
-
                 </div>
                 <h2 className="text-xl font-semibold">3. Enviar el formulario de ventas</h2>
-                {/* BOTÓN ACTUALIZADO CON ESTADO DE CARGA */}
                 <Button
                   onClick={handleEnviarVenta}
                   disabled={isSubmittingVenta || productosSeleccionados.length === 0 || !fecha}
@@ -1661,7 +1688,6 @@ export default function VendedorPage() {
                   )}
                 </Button>
 
-                {/* Mensaje adicional cuando está procesando */}
                 {isSubmittingVenta && (
                   <p className="text-sm text-gray-600 mt-2">
                     Por favor espera, estamos procesando tu venta...
@@ -1766,6 +1792,7 @@ export default function VendedorPage() {
                 transacciones={transacciones}
                 searchTerm={busqueda}
                 vendedorId={vendedorId}
+                vendedores={vendedores}
               />
             </div>
           </div>
@@ -1784,3 +1811,4 @@ export default function VendedorPage() {
     </div>
   )
 }
+

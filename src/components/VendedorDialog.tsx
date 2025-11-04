@@ -100,24 +100,24 @@ interface VentaDia {
 }
 
 
-export default function VendorDialog({ 
-  vendor, 
-  almacen, 
-  onClose, 
-  onEdit, 
-  productos, 
-  transacciones, 
-  ventas, 
-  ventasSemanales, 
-  ventasDiarias, 
-  onProductReduce, 
-  onDeleteSale, 
-  onProductMerma, 
-  vendedores, 
-  onProductTransfer, 
+export default function VendorDialog({
+  vendor,
+  almacen,
+  onClose,
+  onEdit,
+  productos,
+  transacciones,
+  ventas,
+  ventasSemanales,
+  ventasDiarias,
+  onProductReduce,
+  onDeleteSale,
+  onProductMerma,
+  vendedores,
+  onProductTransfer,
   onDeleteVendorData,
   onDeleteVendor,
-  onUpdateProductQuantity 
+  onUpdateProductQuantity
 }: VendorDialogProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'productos' | 'ventas' | 'transacciones' | 'inconsistencias'>('view')
   const [editedVendor, setEditedVendor] = useState(vendor)
@@ -240,11 +240,11 @@ export default function VendorDialog({
         switch (filterType) {
           case 'lessThan5':
             return (item.cantidadVendedor < 5 && item.cantidadVendedor > 0) ||
-                   (item.parametrosVendedor &&
-                    item.parametrosVendedor.some(p => p.cantidad < 5 && p.cantidad > 0));
+              (item.parametrosVendedor &&
+                item.parametrosVendedor.some(p => p.cantidad < 5 && p.cantidad > 0));
           case 'outOfStock':
             return item.cantidadVendedor === 0 ||
-                   (item.parametrosVendedor && item.parametrosVendedor.some(p => p.cantidad === 0));
+              (item.parametrosVendedor && item.parametrosVendedor.some(p => p.cantidad === 0));
           case 'notInVendor':
             return item.cantidadVendedor === 0 && item.cantidadAlmacen > 0;
           default:
@@ -863,12 +863,12 @@ export default function VendorDialog({
     const calcularCantidadTotal = (producto: Producto) => {
       if (producto.parametros && producto.parametros.length > 0) {
         // Filtrar parámetros válidos (no numéricos y cantidad > 0)
-        const parametrosValidos = producto.parametros.filter(param => 
-          param.cantidad > 0 && 
+        const parametrosValidos = producto.parametros.filter(param =>
+          param.cantidad > 0 &&
           isNaN(Number(param.nombre)) && // Excluir nombres que son solo números
           param.nombre.trim() !== '' // Excluir nombres vacíos
         );
-        
+
         return parametrosValidos.reduce((total, param) => total + param.cantidad, 0);
       }
       return producto.cantidad;
@@ -878,8 +878,8 @@ export default function VendorDialog({
       <div className="space-y-2">
         {filteredAndSortedProducts.map(producto => {
           // Filtrar parámetros válidos
-          const parametrosValidos = producto.parametros?.filter(param => 
-            param.cantidad > 0 && 
+          const parametrosValidos = producto.parametros?.filter(param =>
+            param.cantidad > 0 &&
             isNaN(Number(param.nombre)) && // Excluir nombres que son solo números
             param.nombre.trim() !== '' // Excluir nombres vacíos
           ) || [];
@@ -979,7 +979,7 @@ export default function VendorDialog({
   const renderVentasList = () => {
     const filtrarVentas = (ventas: VentaDia[]) => {
       if (!searchTerm) return ventas;
-      
+
       return ventas.map(ventaDia => ({
         ...ventaDia,
         ventas: ventaDia.ventas.filter(venta =>
@@ -1081,6 +1081,25 @@ export default function VendorDialog({
       return false;
     });
 
+    // Función mejorada para obtener el nombre del vendedor/usuario por ID
+    const getNombreVendedor = (id: string | undefined): string => {
+      if (!id) return 'N/A';
+
+      const idString = id.toString().toLowerCase();
+
+      // Casos especiales por nombre
+      if (idString === 'almacen') return 'Almacén';
+      if (idString === 'merma') return 'Merma';
+
+      // Caso especial: ID 1 es el almacén
+      if (id.toString() === '1') return 'Almacén';
+
+      // Buscar en la lista de vendedores
+      const vendedor = vendedores.find(v => v.id.toString() === id.toString());
+
+      return vendedor ? vendedor.nombre : 'Desconocido';
+    };
+
     const calcularCantidadTotal = (transaccion: Transaccion): number => {
       if (transaccion.parametros && Array.isArray(transaccion.parametros) && transaccion.parametros.length > 0) {
         return transaccion.parametros.reduce((total, param) => total + (param.cantidad || 0), 0);
@@ -1111,6 +1130,10 @@ export default function VendorDialog({
             );
             const isExpanded = expandedTransactions[transaccion.id];
 
+            // Obtener nombres de origen y destino
+            const nombreDesde = getNombreVendedor(transaccion.desde);
+            const nombreHacia = getNombreVendedor(transaccion.hacia);
+
             return (
               <div
                 key={transaccion.id}
@@ -1136,7 +1159,20 @@ export default function VendorDialog({
                           ${precioFormateado}
                         </p>
                       </div>
-                      <div className="flex justify-between items-center text-xs text-gray-600">
+
+                      {/* Información de origen y destino */}
+                      <div className="flex flex-col text-xs text-gray-600 mt-1">
+                        <div className="flex items-center space-x-1">
+                          <span className="font-semibold">Desde:</span>
+                          <span className="text-blue-600">{nombreDesde}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <span className="font-semibold">Hacia:</span>
+                          <span className="text-green-600">{nombreHacia}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-xs text-gray-600 mt-1">
                         <span>{format(parseISO(transaccion.fecha), 'dd/MM/yyyy')}</span>
                         <span>Cantidad: {cantidadTotal}</span>
                       </div>
@@ -1150,7 +1186,7 @@ export default function VendorDialog({
                   <div className="bg-gray-50 px-4 py-2 border-t">
                     <div className="space-y-2">
                       {transaccion.parametros
-                        .filter((param: TransaccionParametro) => param.cantidad > 0) // Añadimos este filtro
+                        .filter((param: TransaccionParametro) => param.cantidad > 0)
                         .map((param: TransaccionParametro, index: number) => (
                           <div
                             key={`${transaccion.id}-param-${index}`}
@@ -1163,7 +1199,6 @@ export default function VendorDialog({
                     </div>
                   </div>
                 )}
-
               </div>
             );
           })
@@ -1171,10 +1206,6 @@ export default function VendorDialog({
       </div>
     );
   };
-
-
-
-
 
 
   const agruparVentasPorSemana = useCallback((ventas: Venta[]) => {
@@ -1231,11 +1262,11 @@ export default function VendorDialog({
       let bajas = 0;
       let ventasTotal = 0;
       const vendorId = vendor.id.toString();
-      
+
       // Obtener el producto
       const producto = productos.find(p => p.id === productoId);
       if (!producto) return { entregas: 0, bajas: 0, ventasTotal: 0, cantidad: 0 };
-      
+
       // Filtrar transacciones
       const transaccionesVendedor = transacciones.filter(transaccion => {
         const transaccionDesde = transaccion.desde?.toString();
@@ -1296,7 +1327,7 @@ export default function VendorDialog({
 
     return productos
       .map(producto => {
-        let inconsistenciaData: InconsistenciaData; 
+        let inconsistenciaData: InconsistenciaData;
 
         if (producto.parametros && producto.parametros.length > 0) {
           // Calcular inconsistencias para productos con parámetros
@@ -1353,8 +1384,8 @@ export default function VendorDialog({
 
         return inconsistenciaData;
       })
-      .filter(item => 
-        item.diferencia !== 0 || 
+      .filter(item =>
+        item.diferencia !== 0 ||
         (item.parametros && item.parametros.some(p => p.diferencia !== 0))
       );
   }, [productos, transacciones, ventas, vendor.id]);
@@ -1397,7 +1428,7 @@ export default function VendorDialog({
                   {inconsistenciasFiltradas.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-center py-4 text-gray-500 text-sm">
-                        {searchTerm 
+                        {searchTerm
                           ? 'No se encontraron productos que coincidan con la búsqueda.'
                           : 'No se encontraron inconsistencias en el inventario.'}
                       </td>
@@ -1421,19 +1452,17 @@ export default function VendorDialog({
                               {item.nombre}
                               {item.tieneParametros && (
                                 <ChevronDown
-                                  className={`ml-2 h-4 w-4 transition-transform ${
-                                    expandedInconsistencias[item.id] ? 'rotate-180' : ''
-                                  }`}
+                                  className={`ml-2 h-4 w-4 transition-transform ${expandedInconsistencias[item.id] ? 'rotate-180' : ''
+                                    }`}
                                 />
                               )}
                             </div>
                           </td>
                           <td className="p-2 text-right text-sm whitespace-nowrap">{item.cantidadActual}</td>
                           <td className="p-2 text-right text-sm whitespace-nowrap">{item.cantidadCalculada}</td>
-                          <td className={`p-2 text-right text-sm whitespace-nowrap ${
-                            item.diferencia > 0 ? 'text-green-600' : 
+                          <td className={`p-2 text-right text-sm whitespace-nowrap ${item.diferencia > 0 ? 'text-green-600' :
                             item.diferencia < 0 ? 'text-red-600' : ''
-                          }`}>
+                            }`}>
                             {item.diferencia}
                           </td>
                           <td className="p-2 text-right text-sm whitespace-nowrap text-green-600">{item.entregas}</td>
@@ -1487,10 +1516,9 @@ export default function VendorDialog({
                                           <td className="p-1">{param.nombre}</td>
                                           <td className="p-1 text-right whitespace-nowrap">{param.cantidadActual}</td>
                                           <td className="p-1 text-right whitespace-nowrap">{param.cantidadCalculada}</td>
-                                          <td className={`p-1 text-right whitespace-nowrap ${
-                                            param.diferencia > 0 ? 'text-green-600' : 
+                                          <td className={`p-1 text-right whitespace-nowrap ${param.diferencia > 0 ? 'text-green-600' :
                                             param.diferencia < 0 ? 'text-red-600' : ''
-                                          }`}>
+                                            }`}>
                                             {param.diferencia}
                                           </td>
                                           <td className="p-1 text-right whitespace-nowrap text-green-600">{param.entregas}</td>
@@ -1573,7 +1601,7 @@ export default function VendorDialog({
                 >
                   Eliminar datos del vendedor
                 </Button>
-                
+
                 {onDeleteVendor && (
                   <Button
                     variant="destructive"

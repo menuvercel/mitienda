@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
       const transactionResult = await query(
         'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha, precio) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-        [productoId, cantidad, tipo, null, vendedorId, new Date(), productPrice]
+        [productoId, cantidad, tipo, 1, vendedorId, new Date(), productPrice]
       );
 
       const transaccionId = transactionResult.rows[0].id;

@@ -72,17 +72,16 @@ export async function POST(request: NextRequest) {
       }
 
       // 4. Registrar las transacciones
+      // Corregido: Ahora la transacción de Baja incluye el toVendorId en el campo 'hacia'
       const bajaResult = await query(
         'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha, precio) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-        [productId, cantidad, 'Baja', fromVendorId, null, new Date(), precio]
+        [productId, cantidad, 'Baja', fromVendorId, toVendorId, new Date(), precio]
       );
 
       const entregaResult = await query(
         'INSERT INTO transacciones (producto, cantidad, tipo, desde, hacia, fecha, precio) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
         [productId, cantidad, 'Entrega', fromVendorId, toVendorId, new Date(), precio]
       );
-
-
 
       // 5. Actualizar stock del vendedor origen
       await query(
@@ -99,7 +98,6 @@ export async function POST(request: NextRequest) {
         [toVendorId, productId, cantidad, precio]
       );
 
-      // 7. Manejar los parámetros si existen
       // 7. Manejar los parámetros si existen
       if (tiene_parametros && parametros) {
         for (const param of parametros) {
@@ -287,5 +285,3 @@ export async function GET(request: NextRequest) {
     }
   }
 }
-
-
