@@ -185,16 +185,38 @@ export default function ProductDialog({
 }: ProductDialogProps) {
   const [mode, setMode] = useState<ModeType>('view');
   const [imageUrl, setImageUrl] = useState<string>(product.foto || '');
+  // En el componente ProductDialog, actualizar el useState de editedProduct
   const [editedProduct, setEditedProduct] = useState<Producto>({
     ...product,
     tieneParametros: product.tiene_parametros,
     tiene_parametros: product.tiene_parametros,
     parametros: product.parametros || [],
     foto: product.foto || '',
-    precio_compra: product.precio_compra || 0, // Aseguramos que precio_compra tenga un valor
-    descripcion: product.descripcion || '', // Aseguramos que descripcion tenga un valor
-    valor_compra_usd: product.valor_compra_usd || null, // Aseguramos que valor_compra_usd tenga un valor
+    precio_compra: product.precio_compra || 0,
+    descripcion: product.descripcion || '',
+    valor_compra_usd: product.valor_compra_usd ?? null,
+    precio_compra_usd: product.precio_compra_usd ?? null, // ✅ Usar ?? en lugar de ||
+    precio_venta_usd: product.precio_venta_usd ?? null, // ✅ Usar ?? en lugar de ||
   });
+
+
+  // También actualizar el useEffect que sincroniza el estado con el producto recibido
+  useEffect(() => {
+    setEditedProduct({
+      ...product,
+      tieneParametros: product.tiene_parametros,
+      tiene_parametros: product.tiene_parametros,
+      parametros: product.parametros || [],
+      foto: product.foto || '',
+      precio_compra: product.precio_compra || 0,
+      descripcion: product.descripcion || '',
+      valor_compra_usd: product.valor_compra_usd ?? null,
+      precio_compra_usd: product.precio_compra_usd ?? null, // ✅ Cambiar || por ??
+      precio_venta_usd: product.precio_venta_usd ?? null, // ✅ Cambiar || por ??
+    });
+    setImageUrl(product.foto || '');
+  }, [product]);
+
 
   const [selectedVendedor, setSelectedVendedor] = useState<string | null>(null);
   const [deliveryStep, setDeliveryStep] = useState<1 | 2>(1);
@@ -332,28 +354,34 @@ export default function ProductDialog({
     setTotalDeliveryQuantity(Object.values(newQuantities).reduce((sum, qty) => sum + qty, 0));
   }, [parameterQuantities]);
 
-  // Manejo de cambios en los inputs del formulario
-  // Mejorar handleInputChange
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
 
-    if (name === 'valor_compra_usd') {
-      setEditedProduct((prev) => ({
+    setEditedProduct((prev) => {
+      // Para campos USD opcionales
+      if (name === 'valor_compra_usd' || name === 'precio_compra_usd' || name === 'precio_venta_usd') {
+        return {
+          ...prev,
+          [name]: value === '' ? null : parseFloat(value) || null
+        };
+      }
+
+      // Para campos numéricos obligatorios
+      if (name === 'precio' || name === 'precio_compra' || name === 'cantidad') {
+        return {
+          ...prev,
+          [name]: value === '' ? 0 : parseFloat(value) || 0
+        };
+      }
+
+      // Para campos de texto
+      return {
         ...prev,
-        valor_compra_usd: value === '' ? null : Number(value),
-      }));
-    } else if (['precio', 'precio_compra', 'cantidad'].includes(name)) {
-      setEditedProduct((prev) => ({
-        ...prev,
-        [name]: value === '' ? 0 : Number(value),
-      }));
-    } else {
-      setEditedProduct((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-    }
+        [name]: value
+      };
+    });
   }, []);
+
 
   // Mejorar el input en EditMode
   <div>
@@ -415,6 +443,7 @@ export default function ProductDialog({
   }, []);
 
   // Guardar cambios en el producto
+  // Actualizar handleEdit para incluir los nuevos campos
   const handleEdit = async () => {
     try {
       // Solo verificamos la imagen si se está intentando subir una nueva
@@ -434,8 +463,10 @@ export default function ProductDialog({
         tieneParametros: editedProduct.tieneParametros || false,
         parametros: editedProduct.tieneParametros ? editedProduct.parametros : [],
         precio_compra: editedProduct.precio_compra || 0,
-        descripcion: editedProduct.descripcion || '', // Incluir descripción en el producto actualizado
-        valor_compra_usd: editedProduct.valor_compra_usd || null, // Incluir valor_compra_usd en el producto actualizado
+        descripcion: editedProduct.descripcion || '',
+        valor_compra_usd: editedProduct.valor_compra_usd || null,
+        precio_compra_usd: editedProduct.precio_compra_usd || null, // Incluir el nuevo campo
+        precio_venta_usd: editedProduct.precio_venta_usd || null, // Incluir el nuevo campo
       };
 
       console.log('Producto a guardar:', updatedProduct);
@@ -623,7 +654,7 @@ export default function ProductDialog({
   );
 }
 
-// Subcomponente para el modo de edición
+// Actualizo el componente EditMode para agregar los nuevos campos
 const EditMode = ({
   editedProduct,
   imageUrl,
@@ -700,6 +731,28 @@ const EditMode = ({
           value={editedProduct.valor_compra_usd || ''}
           onChange={onInputChange}
           placeholder="Valor de compra del USD"
+        />
+      </div>
+
+      <div>
+        <Label>Precio de compra en USD</Label>
+        <Input
+          name="precio_compra_usd"
+          type="number"
+          value={editedProduct.precio_compra_usd || ''}
+          onChange={onInputChange}
+          placeholder="Precio de compra en USD"
+        />
+      </div>
+
+      <div>
+        <Label>Precio de venta en USD</Label>
+        <Input
+          name="precio_venta_usd"
+          type="number"
+          value={editedProduct.precio_venta_usd || ''}
+          onChange={onInputChange}
+          placeholder="Precio de venta en USD"
         />
       </div>
 
@@ -1002,6 +1055,19 @@ const ViewMode = ({
             {product.valor_compra_usd !== null && product.valor_compra_usd !== undefined && (
               <p className="text-md text-gray-700">
                 Valor de compra del USD: ${product.valor_compra_usd}
+              </p>
+            )}
+
+            {/* Nuevos campos para precios en USD */}
+            {product.precio_compra_usd !== null && product.precio_compra_usd !== undefined && (
+              <p className="text-md text-gray-700">
+                Precio de compra en USD: ${product.precio_compra_usd}
+              </p>
+            )}
+
+            {product.precio_venta_usd !== null && product.precio_venta_usd !== undefined && (
+              <p className="text-md text-gray-700">
+                Precio de venta en USD: ${product.precio_venta_usd}
               </p>
             )}
 

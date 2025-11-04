@@ -102,6 +102,7 @@ const useAlmacenData = () => {
   const [inventario, setInventario] = useState<Producto[]>([])
   const [secciones, setSecciones] = useState<(Seccion & { productos_count?: number })[]>([])
   const [productosDestacados, setProductosDestacados] = useState<Producto[]>([])
+  const [isLoading, setIsLoading] = useState(false);
 
 
   const fetchVendedores = useCallback(async () => {
@@ -205,7 +206,8 @@ const useAlmacenData = () => {
     fetchProductosDestacados, // AGREGAR
     setSecciones,
     setInventario,
-    setProductosDestacados // AGREGAR
+    setProductosDestacados,
+    setIsLoading // AGREGAR
   }
 }
 
@@ -223,7 +225,8 @@ export default function AlmacenPage() {
     fetchProductosDestacados,   // AGREGAR
     setSecciones,
     setInventario,
-    setProductosDestacados      // AGREGAR
+    setProductosDestacados,
+    setIsLoading      // AGREGAR
   } = useAlmacenData()
   const [showRegisterModal, setShowRegisterModal] = useState(false)
   const [newUser, setNewUser] = useState<NewUser>({
@@ -239,17 +242,20 @@ export default function AlmacenPage() {
   const [ventasSemanales, setVentasSemanales] = useState<VentaSemana[]>([])
   const [ventasDiarias, setVentasDiarias] = useState<VentaDia[]>([])
   const [showAddProductModal, setShowAddProductModal] = useState(false)
-  const [newProduct, setNewProduct] = useState<ProductoNuevo>({
+  const [newProduct, setNewProduct] = useState({
     nombre: '',
     precio: 0,
     precioCompra: 0,
     cantidad: 0,
     foto: '',
     tieneParametros: false,
-    parametros: [],
+    parametros: [] as Array<{ nombre: string; cantidad: number }>, // ← Tipar explícitamente
     descripcion: '',
-    valorCompraUSD: null, // Agregar el nuevo campo con valor inicial null
+    valorCompraUSD: '', // ← Mantener como string
+    precioCompraUSD: '',
+    precioVentaUSD: ''
   });
+
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -1429,11 +1435,11 @@ export default function AlmacenPage() {
   const handleProductInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
 
-    // Si el campo es valorCompraUSD, convertirlo a número o null si está vacío
-    if (name === 'valorCompraUSD') {
+    // Para campos numéricos que pueden estar vacíos
+    if (name === 'valorCompraUSD' || name === 'precioCompraUSD' || name === 'precioVentaUSD') {
       setNewProduct(prev => ({
         ...prev,
-        [name]: value === '' ? null : Number(value)
+        [name]: value // ← Mantener como string
       }));
       return;
     }
@@ -1442,7 +1448,7 @@ export default function AlmacenPage() {
     if (name === 'precio' || name === 'precioCompra' || name === 'cantidad') {
       setNewProduct(prev => ({
         ...prev,
-        [name]: Number(value)
+        [name]: value === '' ? 0 : Number(value)
       }));
       return;
     }
@@ -1452,85 +1458,35 @@ export default function AlmacenPage() {
       ...prev,
       [name]: value
     }));
-
-    // Si es el campo nombre, verificar si ya existe
-    if (name === 'nombre') {
-      verificarNombreProducto(value);
-    }
   };
 
+
   const handleAddProduct = async () => {
-    // Validaciones
-    if (!newProduct.nombre.trim()) {
-      toast({
-        title: "Error",
-        description: "El nombre del producto no puede estar vacío",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (newProduct.precio <= 0) {
-      toast({
-        title: "Error",
-        description: "El precio debe ser mayor a 0",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (newProduct.tieneParametros) {
-      if (newProduct.parametros.some(p => !p.nombre.trim() || p.cantidad <= 0)) {
-        toast({
-          title: "Error",
-          description: "Todos los parámetros deben tener nombre y cantidad mayor a 0",
-          variant: "destructive",
-        });
-        return;
-      }
-    } else {
-      if (newProduct.cantidad <= 0) {
-        toast({
-          title: "Error",
-          description: "La cantidad debe ser mayor a 0",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
     try {
-      // ✅ Crear FormData en lugar de JSON
+      setIsLoading(true);
+
       const formData = new FormData();
       formData.append('nombre', newProduct.nombre);
       formData.append('precio', newProduct.precio.toString());
       formData.append('precioCompra', newProduct.precioCompra.toString());
-      formData.append('cantidad', newProduct.tieneParametros ? '0' : newProduct.cantidad.toString());
+      formData.append('cantidad', newProduct.cantidad.toString());
       formData.append('foto', newProduct.foto);
       formData.append('tieneParametros', newProduct.tieneParametros.toString());
+      formData.append('parametros', JSON.stringify(newProduct.parametros));
       formData.append('descripcion', newProduct.descripcion || '');
+      formData.append('valorCompraUSD', newProduct.valorCompraUSD || '');
 
-      // Agregar valorCompraUSD solo si tiene valor
-      if (newProduct.valorCompraUSD !== null && newProduct.valorCompraUSD !== undefined) {
-        formData.append('valorCompraUSD', newProduct.valorCompraUSD.toString());
-      }
+      // Nuevos campos
+      formData.append('precioCompraUSD', newProduct.precioCompraUSD || '');
+      formData.append('precioVentaUSD', newProduct.precioVentaUSD || '');
 
-      // Convertir parámetros a JSON string
-      if (newProduct.tieneParametros && newProduct.parametros.length > 0) {
-        formData.append('parametros', JSON.stringify(newProduct.parametros));
-      } else {
-        formData.append('parametros', JSON.stringify([]));
-      }
-
-      // ✅ Enviar FormData sin headers
       const response = await fetch('/api/productos', {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al crear el producto');
+        throw new Error('Error al crear el producto');
       }
 
       const data = await response.json();
@@ -1548,11 +1504,12 @@ export default function AlmacenPage() {
         tieneParametros: false,
         parametros: [],
         descripcion: '',
-        valorCompraUSD: null,
+        valorCompraUSD: '',
+        precioCompraUSD: '', // Resetear nuevo campo
+        precioVentaUSD: ''   // Resetear nuevo campo
       });
 
       setShowAddProductModal(false);
-
       toast({
         title: "Éxito",
         description: "Producto creado correctamente",
@@ -1562,12 +1519,13 @@ export default function AlmacenPage() {
       console.error('Error al crear producto:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error al crear el producto",
+        description: "Error al crear el producto",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
-
 
   const handleProductDelivery = async (
     productId: string,
@@ -1603,9 +1561,19 @@ export default function AlmacenPage() {
       formData.append('precio_compra', (editedProduct.precio_compra || 0).toString());
       formData.append('descripcion', editedProduct.descripcion || '');
 
-      // ✅ AGREGAR ESTAS LÍNEAS:
+      // ✅ AGREGAR ESTOS CAMPOS USD:
       if (editedProduct.valor_compra_usd !== null && editedProduct.valor_compra_usd !== undefined) {
         formData.append('valor_compra_usd', editedProduct.valor_compra_usd.toString());
+      }
+
+      // ✅ AGREGAR PRECIO_COMPRA_USD
+      if (editedProduct.precio_compra_usd !== null && editedProduct.precio_compra_usd !== undefined) {
+        formData.append('precio_compra_usd', editedProduct.precio_compra_usd.toString());
+      }
+
+      // ✅ AGREGAR PRECIO_VENTA_USD
+      if (editedProduct.precio_venta_usd !== null && editedProduct.precio_venta_usd !== undefined) {
+        formData.append('precio_venta_usd', editedProduct.precio_venta_usd.toString());
       }
 
       if (editedProduct.parametros) {
@@ -2975,7 +2943,7 @@ export default function AlmacenPage() {
               )}
             </div>
 
-            {/* Nuevo campo de descripción */}
+            {/* Campo de descripción */}
             <div>
               <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700">Descripción</label>
               <Textarea
@@ -2988,6 +2956,7 @@ export default function AlmacenPage() {
               />
             </div>
 
+            {/* Valor de compra del USD */}
             <div>
               <label htmlFor="valorCompraUSD" className="block text-sm font-medium text-gray-700">Valor de compra del USD</label>
               <Input
@@ -3000,28 +2969,59 @@ export default function AlmacenPage() {
               />
             </div>
 
+            {/* Precio de venta */}
             <div>
-              <label htmlFor="precio" className="block text-sm font-medium text-gray-700">Precio</label>
+              <label htmlFor="precio" className="block text-sm font-medium text-gray-700">Precio de venta</label>
               <Input
                 id="precio"
                 name="precio"
                 type="number"
                 value={newProduct.precio}
                 onChange={handleProductInputChange}
-                placeholder="Precio del producto"
+                placeholder="Precio de venta"
               />
             </div>
+
+            {/* Precio de compra */}
             <div>
-              <label htmlFor="precioCompra" className="block text-sm font-medium text-gray-700">Precio de Compra</label>
+              <label htmlFor="precioCompra" className="block text-sm font-medium text-gray-700">Precio de compra</label>
               <Input
                 id="precioCompra"
                 name="precioCompra"
                 type="number"
                 value={newProduct.precioCompra}
                 onChange={handleProductInputChange}
-                placeholder="Precio de compra del producto"
+                placeholder="Precio de compra"
               />
             </div>
+
+            {/* NUEVOS CAMPOS */}
+            {/* Precio de compra en USD */}
+            <div>
+              <label htmlFor="precioCompraUSD" className="block text-sm font-medium text-gray-700">Precio de compra en USD</label>
+              <Input
+                id="precioCompraUSD"
+                name="precioCompraUSD"
+                type="number"
+                value={newProduct.precioCompraUSD || ''}
+                onChange={handleProductInputChange}
+                placeholder="Precio de compra en USD"
+              />
+            </div>
+
+            {/* Precio de venta en USD */}
+            <div>
+              <label htmlFor="precioVentaUSD" className="block text-sm font-medium text-gray-700">Precio de venta en USD</label>
+              <Input
+                id="precioVentaUSD"
+                name="precioVentaUSD"
+                type="number"
+                value={newProduct.precioVentaUSD || ''}
+                onChange={handleProductInputChange}
+                placeholder="Precio de venta en USD"
+              />
+            </div>
+
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="tieneParametros"

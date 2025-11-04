@@ -7,6 +7,8 @@ export interface IProducto {
   cantidad: number;
   foto?: string;
   valor_compra_usd?: number; // Nuevo campo para el valor de compra del USD
+  precio_compra_usd?: number; // Nuevo campo para el precio de compra en USD
+  precio_venta_usd?: number; // Nuevo campo para el precio de venta en USD
 }
 
 const productoSchema = new mongoose.Schema({
@@ -14,7 +16,9 @@ const productoSchema = new mongoose.Schema({
   precio: { type: Number, required: true },
   cantidad: { type: Number, required: true },
   foto: { type: String },
-  valor_compra_usd: { type: Number } // Nuevo campo para el valor de compra del USD
+  valor_compra_usd: { type: Number }, // Nuevo campo para el valor de compra del USD
+  precio_compra_usd: { type: Number }, // Nuevo campo para el precio de compra en USD
+  precio_venta_usd: { type: Number } // Nuevo campo para el precio de venta en USD
 }, { timestamps: true });
 
 const Producto = mongoose.models.Producto || mongoose.model('Producto', productoSchema);
