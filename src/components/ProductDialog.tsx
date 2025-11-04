@@ -953,14 +953,6 @@ const ViewMode = ({
   isLoadingVendors: boolean;
   onRefreshVendors: () => void;
 }) => {
-  // Función para calcular el precio en USD
-  const calcularPrecioUSD = (precio: number): string => {
-    if (product.valor_compra_usd && product.valor_compra_usd > 0) {
-      return (precio / product.valor_compra_usd).toFixed(2);
-    }
-    return '';
-  };
-
   return (
     <>
       {/* Pestañas */}
@@ -996,29 +988,15 @@ const ViewMode = ({
       ) : (
         <div className="space-y-4">
           <div className="space-y-2">
-            {/* Precio de venta con USD */}
-            <div className="flex items-center gap-2">
-              <p className="text-lg font-medium">
-                Precio de venta: ${product.precio}
-              </p>
-              {calcularPrecioUSD(product.precio) && (
-                <span className="text-green-600 font-medium">
-                  (${calcularPrecioUSD(product.precio)} USD)
-                </span>
-              )}
-            </div>
+            {/* Precio de venta SIN USD */}
+            <p className="text-lg font-medium">
+              Precio de venta: ${product.precio}
+            </p>
 
-            {/* Precio de compra con USD */}
-            <div className="flex items-center gap-2">
-              <p className="text-md text-gray-700">
-                Precio de compra: ${product.precio_compra || 0}
-              </p>
-              {calcularPrecioUSD(product.precio_compra || 0) && (
-                <span className="text-green-600 font-medium">
-                  (${calcularPrecioUSD(product.precio_compra || 0)} USD)
-                </span>
-              )}
-            </div>
+            {/* Precio de compra SIN USD */}
+            <p className="text-md text-gray-700">
+              Precio de compra: ${product.precio_compra || 0}
+            </p>
 
             {/* Mostrar el valor de compra del USD si existe */}
             {product.valor_compra_usd !== null && product.valor_compra_usd !== undefined && (
