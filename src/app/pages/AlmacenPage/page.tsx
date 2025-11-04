@@ -72,6 +72,7 @@ import SeccionDialog from '@/components/SeccionDialog'
 import ProductSelectionDialog from '@/components/ProductSelectionDialog'
 import { Store, Settings, LayoutGrid } from "lucide-react"
 import TiendaSection from '@/components/TiendaSection'
+import ReajusteUSDSection from '@/components/ReajusteUSDSection';
 
 
 interface VentaSemana {
@@ -1804,7 +1805,17 @@ export default function AlmacenPage() {
               >
                 Tienda
               </Button>
-
+              {/* Nuevo botón para Reajuste USD */}
+              <Button
+                variant="ghost"
+                className={activeSection === 'reajusteUSD' ? 'bg-accent' : ''}
+                onClick={() => {
+                  setActiveSection('reajusteUSD')
+                  setIsMenuOpen(false)
+                }}
+              >
+                Reajuste USD
+              </Button>
             </nav>
           </SheetContent>
         </Sheet>
@@ -2134,7 +2145,9 @@ export default function AlmacenPage() {
         </div>
       )}
 
-
+      {activeSection === 'reajusteUSD' && (
+        <ReajusteUSDSection />
+      )}
 
 
       {activeSection === 'ventas' && (
