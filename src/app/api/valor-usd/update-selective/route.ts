@@ -3,13 +3,20 @@ import { query } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
-    const { valor } = await request.json();
+    const { valor, productosIds } = await request.json();
 
     if (typeof valor !== 'number' || valor <= 0) {
       return NextResponse.json({ error: 'El valor del USD debe ser un número positivo' }, { status: 400 });
     }
 
-    // Actualizar todos los productos con el nuevo valor de USD y recalcular precios
+    if (!Array.isArray(productosIds) || productosIds.length === 0) {
+      return NextResponse.json({ error: 'Debe proporcionar al menos un producto para actualizar' }, { status: 400 });
+    }
+
+    // Convertir IDs a números para la consulta SQL
+    const numericIds = productosIds.map((id: string | number) => Number(id));
+    
+    // Actualizar solo los productos seleccionados con recalculo de precios
     const result = await query(`
       UPDATE productos
       SET
@@ -22,17 +29,18 @@ export async function POST(request: NextRequest) {
           WHEN precio_venta_usd IS NOT NULL THEN precio_venta_usd * $1
           ELSE precio
         END
-      WHERE 1=1
+      WHERE id = ANY($2)
       RETURNING id, nombre
-    `, [valor]);
+    `, [valor, numericIds]);
 
     return NextResponse.json({
       success: true,
-      message: 'Valor del USD actualizado correctamente',
-      updatedCount: result.rowCount
+      message: 'Valor del USD actualizado correctamente para los productos seleccionados',
+      updatedCount: result.rowCount,
+      productosActualizados: result.rows
     });
   } catch (error) {
-    console.error('Error al actualizar el valor del USD:', error);
+    console.error('Error al actualizar el valor del USD para productos específicos:', error);
     return NextResponse.json({ error: 'Error al actualizar el valor del USD' }, { status: 500 });
   }
 }

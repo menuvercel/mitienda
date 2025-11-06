@@ -497,6 +497,21 @@ export const createMerma = async (
 
   return response.json();
 };
+export const updateUSDValorSelective = async (productosIds: string[], valor: number) => {
+  const response = await fetch('/api/valor-usd/update-selective', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ productosIds, valor }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Error al actualizar el valor del USD');
+  }
+
+  return response.json();
+};
 
 export const getMermas = async (usuario_id?: string) => {
   const response = await fetch(`/api/merma${usuario_id ? `?usuario_id=${usuario_id}` : ''}`);
