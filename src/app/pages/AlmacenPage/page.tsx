@@ -2938,7 +2938,7 @@ export default function AlmacenPage() {
           <DialogHeader>
             <DialogTitle>Agregar Nuevo Producto</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 mb-16">
+          <div className="space-y-4 pb-4">
             <div>
               <label htmlFor="nombre" className="block text-sm font-medium text-gray-700">Nombre</label>
               <Input
@@ -3125,17 +3125,21 @@ export default function AlmacenPage() {
                 disabled={false}
               />
             </div>
-          </div>
-          {/* Botones fijos en la parte inferior */}
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
-            <div className="max-w-[calc(100%-2rem)] mx-auto">
-              <Button onClick={handleAddProduct} className="w-full" disabled={nombreExiste || verificandoNombre}>
+
+            {/* Botón sticky al final del scroll */}
+            <div className="sticky bottom-0 pt-4 pb-2 bg-white border-t mt-4">
+              <Button
+                onClick={handleAddProduct}
+                className="w-full"
+                disabled={nombreExiste || verificandoNombre}
+              >
                 {verificandoNombre ? 'Verificando...' : 'Agregar'}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
 
 
       <AlertDialog open={mermaToDelete !== null} onOpenChange={(open) => !open && setMermaToDelete(null)}>
