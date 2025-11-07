@@ -341,6 +341,7 @@ export function CarruselManager() {
         <h4 className="font-medium mb-4">Agregar nueva imagen</h4>
         <div className="space-y-4">
           <ImageUpload
+            id="carrusel-nueva-imagen"
             value={newImageUrl}
             onChange={(url) => setNewImageUrl(url)}
             disabled={false}

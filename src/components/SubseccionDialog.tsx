@@ -98,6 +98,7 @@ export default function SubseccionDialog({
                         <div className="grid gap-2">
                             <Label>Imagen de la subsección (opcional)</Label>
                             <ImageUpload
+                                id="subseccion-foto"
                                 value={foto}
                                 onChange={handleImageUpload}
                             />

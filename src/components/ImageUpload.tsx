@@ -9,16 +9,21 @@ interface ImageUploadProps {
     onChange: (value: string) => void;
     value: string;
     disabled?: boolean;
+    id?: string; // Añadir ID único
 }
 
 export const ImageUpload = ({
     onChange,
     value,
-    disabled
+    disabled,
+    id
 }: ImageUploadProps) => {
     const [loading, setLoading] = useState(false);
     const [currentValue, setCurrentValue] = useState(value);
     const [isUploading, setIsUploading] = useState(false);
+
+    // Generar ID único si no se proporciona
+    const inputId = id || `image-${Math.random().toString(36).substr(2, 9)}`;
 
     // Efecto para sincronizar el valor interno con el prop value
     useEffect(() => {
@@ -108,10 +113,10 @@ export const ImageUpload = ({
                     onChange={onChooseFile}
                     disabled={disabled || loading}
                     className="hidden"
-                    id="image"
+                    id={inputId}
                 />
                 <label
-                    htmlFor="image"
+                    htmlFor={inputId}
                     className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
                 >
                     {currentValue ? (

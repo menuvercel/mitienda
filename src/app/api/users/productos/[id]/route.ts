@@ -30,11 +30,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         if (producto.tiene_parametros) {
           // Obtener los parámetros asignados al vendedor
           const parametrosResult = await query(
-            `SELECT 
-              nombre,
-              cantidad
-             FROM usuario_producto_parametros
-             WHERE usuario_id = $1 AND producto_id = $2`,
+            `SELECT
+              upp.nombre,
+              upp.cantidad,
+              pp.foto
+             FROM usuario_producto_parametros upp
+             LEFT JOIN producto_parametros pp ON upp.producto_id = pp.producto_id AND upp.nombre = pp.nombre
+             WHERE upp.usuario_id = $1 AND upp.producto_id = $2`,
             [vendedorId, producto.id]
           );
 

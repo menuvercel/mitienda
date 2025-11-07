@@ -10,7 +10,8 @@ export async function GET() {
                     json_agg(
                         json_build_object(
                             'nombre', pp.nombre,
-                            'cantidad', pp.cantidad
+                            'cantidad', pp.cantidad,
+                            'foto', pp.foto
                         )
                     ) FILTER (WHERE pp.id IS NOT NULL),
                     '[]'::json

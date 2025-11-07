@@ -11,6 +11,7 @@ export interface VentaSemana {
 export interface Parametro {
   nombre: string;
   cantidad: number;
+  foto?: string;
 }
 
 export interface ProductoNuevo {

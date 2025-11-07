@@ -402,7 +402,7 @@ export default function ProductDialog({
 
 
   // Manejo de cambios en los parámetros del producto
-  const handleParametroChange = useCallback((index: number, field: 'nombre' | 'cantidad', value: string) => {
+  const handleParametroChange = useCallback((index: number, field: 'nombre' | 'cantidad' | 'foto', value: string) => {
     setEditedProduct((prev) => {
       const newParametros = [...(prev.parametros || [])];
       newParametros[index] = {
@@ -420,7 +420,7 @@ export default function ProductDialog({
   const addParametro = useCallback(() => {
     setEditedProduct((prev) => ({
       ...prev,
-      parametros: [...(prev.parametros || []), { nombre: '', cantidad: 0 }],
+      parametros: [...(prev.parametros || []), { nombre: '', cantidad: 0, foto: '' }],
     }));
   }, []);
 
@@ -438,7 +438,7 @@ export default function ProductDialog({
       ...prev,
       tieneParametros: checked,
       tiene_parametros: checked,
-      parametros: checked ? (prev.parametros?.length ? prev.parametros : [{ nombre: '', cantidad: 0 }]) : [],
+      parametros: checked ? (prev.parametros?.length ? prev.parametros : [{ nombre: '', cantidad: 0, foto: '' }]) : [],
     }));
   }, []);
 
@@ -671,7 +671,7 @@ const EditMode = ({
   imageUrl: string;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onTieneParametrosChange: (checked: boolean) => void;
-  onParametroChange: (index: number, field: 'nombre' | 'cantidad', value: string) => void;
+  onParametroChange: (index: number, field: 'nombre' | 'cantidad' | 'foto', value: string) => void;
   onAddParametro: () => void;
   onRemoveParametro: (index: number) => void;
   onImageChange: (url: string) => void;
@@ -769,27 +769,38 @@ const EditMode = ({
         <div className="space-y-4">
           <Label>Parámetros</Label>
           {(editedProduct.parametros || []).map((param, index) => (
-            <div key={index} className="flex gap-2 items-center">
-              <Input
-                value={param.nombre}
-                onChange={(e) => onParametroChange(index, 'nombre', e.target.value)}
-                placeholder="Nombre del parámetro"
-                className="flex-1"
-              />
-              <Input
-                type="number"
-                value={param.cantidad}
-                onChange={(e) => onParametroChange(index, 'cantidad', e.target.value)}
-                placeholder="Cantidad"
-                className="w-24"
-              />
-              <Button
-                variant="destructive"
-                size="icon"
-                onClick={() => onRemoveParametro(index)}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
+            <div key={index} className="space-y-3 p-3 border rounded-lg">
+              <div className="flex gap-2 items-center">
+                <Input
+                  value={param.nombre}
+                  onChange={(e) => onParametroChange(index, 'nombre', e.target.value)}
+                  placeholder="Nombre del parámetro"
+                  className="flex-1"
+                />
+                <Input
+                  type="number"
+                  value={param.cantidad}
+                  onChange={(e) => onParametroChange(index, 'cantidad', e.target.value)}
+                  placeholder="Cantidad"
+                  className="w-24"
+                />
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  onClick={() => onRemoveParametro(index)}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+              </div>
+              <div>
+                <Label className="text-sm">Foto del parámetro (opcional)</Label>
+                <ImageUpload
+                  id={`param-foto-${index}`}
+                  value={param.foto || ''}
+                  onChange={(url) => onParametroChange(index, 'foto', url)}
+                  disabled={false}
+                />
+              </div>
             </div>
           ))}
           <Button
@@ -817,6 +828,7 @@ const EditMode = ({
       <div>
         <Label>Imagen del producto</Label>
         <ImageUpload
+          id="producto-foto-dialog"
           value={imageUrl}
           onChange={onImageChange}
           disabled={false}
@@ -1082,14 +1094,27 @@ const ViewMode = ({
             {(product.tiene_parametros || product.tieneParametros) && product.parametros && product.parametros.length > 0 ? (
               <div className="space-y-2 mt-4">
                 <h4 className="font-medium text-sm text-gray-700">Parámetros:</h4>
-                <div className="grid grid-cols-1 gap-2">
+                <div className="grid grid-cols-1 gap-3">
                   {product.parametros.map((param, index) => (
                     <div
                       key={index}
-                      className="p-2 bg-gray-50 rounded-md flex justify-between items-center"
+                      className="p-3 bg-gray-50 rounded-md"
                     >
-                      <span className="font-medium">{param.nombre}:</span>
-                      <span className="text-gray-600">{param.cantidad}</span>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-medium">{param.nombre}:</span>
+                        <span className="text-gray-600">{param.cantidad}</span>
+                      </div>
+                      {param.foto && (
+                        <div className="mt-2">
+                          <Image
+                            src={param.foto}
+                            alt={`Foto de ${param.nombre}`}
+                            width={100}
+                            height={100}
+                            className="object-cover rounded-lg"
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -73,6 +73,7 @@ export default function SeccionDialog({ seccion, isOpen, onClose, onSave, isEdit
                             Imagen de la sección
                         </label>
                         <ImageUpload
+                            id="seccion-foto"
                             value={foto}
                             onChange={setFoto}
                             disabled={false}

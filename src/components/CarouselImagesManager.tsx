@@ -171,10 +171,11 @@ export default function CarouselImagesManager() {
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold mb-4">Agregar nueva imagen al carrusel</h3>
         <div className="space-y-4">
-          <ImageUpload 
-            value={newImageUrl} 
-            onChange={setNewImageUrl} 
-            disabled={isLoading} 
+          <ImageUpload
+            id="carrusel-nueva-imagen-manager"
+            value={newImageUrl}
+            onChange={setNewImageUrl}
+            disabled={isLoading}
           />
           <Button 
             onClick={handleAddImage} 

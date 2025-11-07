@@ -8,6 +8,7 @@ import { put } from '@vercel/blob';
 interface Parametro {
     nombre: string;
     cantidad: number;
+    foto?: string;
 }
 
 interface ParametroAntiguo {
@@ -25,13 +26,14 @@ interface ParametroVendedor {
 
 const obtenerProductoConParametros = async (productoId: string) => {
     const result = await query(`
-        SELECT 
+        SELECT
             p.*,
             COALESCE(
                 json_agg(
                     json_build_object(
                         'nombre', pp.nombre,
-                        'cantidad', pp.cantidad
+                        'cantidad', pp.cantidad,
+                        'foto', pp.foto
                     )
                 ) FILTER (WHERE pp.id IS NOT NULL),
                 '[]'::json
@@ -121,8 +123,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
             if (tieneParametros && parametros.length > 0) {
                 for (const param of parametros) {
                     await query(
-                        'INSERT INTO producto_parametros (producto_id, nombre, cantidad) VALUES ($1, $2, $3)',
-                        [id, param.nombre, param.cantidad]
+                        'INSERT INTO producto_parametros (producto_id, nombre, cantidad, foto) VALUES ($1, $2, $3, $4)',
+                        [id, param.nombre, param.cantidad, param.foto || '']
                     );
                 }
             }
@@ -345,11 +347,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         const { id } = params;
 
         const result = await query(`
-            SELECT 
-                up.producto_id as id, 
-                p.nombre, 
-                p.precio, 
-                up.cantidad, 
+            SELECT
+                up.producto_id as id,
+                p.nombre,
+                p.precio,
+                up.cantidad,
                 p.foto,
                 p.tiene_parametros,
                 p.descripcion,
@@ -357,13 +359,15 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
                     json_agg(
                         json_build_object(
                             'nombre', upp.nombre,
-                            'cantidad', upp.cantidad
+                            'cantidad', upp.cantidad,
+                            'foto', pp.foto
                         )
                     ) FILTER (WHERE upp.id IS NOT NULL),
                     '[]'::json
                 ) as parametros
             FROM usuario_productos up
             JOIN productos p ON up.producto_id = p.id
+            LEFT JOIN producto_parametros pp ON p.id = pp.producto_id
             LEFT JOIN usuario_producto_parametros upp ON up.producto_id = upp.producto_id AND up.usuario_id = upp.usuario_id
             WHERE up.usuario_id = $1
             GROUP BY up.producto_id, p.nombre, p.precio, up.cantidad, p.foto, p.tiene_parametros, p.descripcion

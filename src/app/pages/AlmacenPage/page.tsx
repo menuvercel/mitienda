@@ -250,7 +250,7 @@ export default function AlmacenPage() {
     cantidad: 0,
     foto: '',
     tieneParametros: false,
-    parametros: [] as Array<{ nombre: string; cantidad: number }>, // ← Tipar explícitamente
+    parametros: [] as Array<{ nombre: string; cantidad: number; foto?: string }>, // ← Tipar explícitamente
     descripcion: '',
     valorCompraUSD: '', // ← Mantener como string
     precioCompraUSD: '',
@@ -3054,37 +3054,56 @@ export default function AlmacenPage() {
                 {/* Contenedor scrolleable para los parámetros */}
                 <div className="max-h-[300px] overflow-y-auto pr-2 space-y-4 border rounded-lg p-4">
                   {newProduct.parametros.map((param, index) => (
-                    <div key={index} className="flex space-x-2">
-                      <Input
-                        placeholder="Nombre del parámetro"
-                        value={param.nombre}
-                        onChange={(e) => {
-                          const newParametros = [...newProduct.parametros];
-                          newParametros[index].nombre = e.target.value;
-                          setNewProduct(prev => ({ ...prev, parametros: newParametros }));
-                        }}
-                      />
-                      <Input
-                        type="number"
-                        placeholder="Cantidad"
-                        value={param.cantidad}
-                        onChange={(e) => {
-                          const newParametros = [...newProduct.parametros];
-                          newParametros[index].cantidad = parseInt(e.target.value);
-                          setNewProduct(prev => ({ ...prev, parametros: newParametros }));
-                        }}
-                      />
-                      {/* Botón para eliminar parámetro */}
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => {
-                          const newParametros = newProduct.parametros.filter((_, i) => i !== index);
-                          setNewProduct(prev => ({ ...prev, parametros: newParametros }));
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                    <div key={index} className="space-y-3 p-3 border rounded-lg">
+                      <div className="flex space-x-2">
+                        <Input
+                          placeholder="Nombre del parámetro"
+                          value={param.nombre}
+                          onChange={(e) => {
+                            const newParametros = [...newProduct.parametros];
+                            newParametros[index].nombre = e.target.value;
+                            setNewProduct(prev => ({ ...prev, parametros: newParametros }));
+                          }}
+                          className="flex-1"
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Cantidad"
+                          value={param.cantidad}
+                          onChange={(e) => {
+                            const newParametros = [...newProduct.parametros];
+                            newParametros[index].cantidad = parseInt(e.target.value);
+                            setNewProduct(prev => ({ ...prev, parametros: newParametros }));
+                          }}
+                          className="w-24"
+                        />
+                        {/* Botón para eliminar parámetro */}
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => {
+                            const newParametros = newProduct.parametros.filter((_, i) => i !== index);
+                            setNewProduct(prev => ({ ...prev, parametros: newParametros }));
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Foto del parámetro (opcional)
+                        </label>
+                        <ImageUpload
+                          id={`param-foto-${index}`}
+                          value={param.foto || ''}
+                          onChange={(url) => {
+                            const newParametros = [...newProduct.parametros];
+                            newParametros[index].foto = url;
+                            setNewProduct(prev => ({ ...prev, parametros: newParametros }));
+                          }}
+                          disabled={false}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -3094,7 +3113,7 @@ export default function AlmacenPage() {
                   onClick={() => {
                     setNewProduct(prev => ({
                       ...prev,
-                      parametros: [...prev.parametros, { nombre: '', cantidad: 0 }]
+                      parametros: [...prev.parametros, { nombre: '', cantidad: 0, foto: '' }]
                     }));
                   }}
                   className="w-full"
@@ -3120,6 +3139,7 @@ export default function AlmacenPage() {
                 Foto del producto
               </label>
               <ImageUpload
+                id="producto-foto-principal"
                 value={newProduct.foto}
                 onChange={(url) => setNewProduct(prev => ({ ...prev, foto: url }))}
                 disabled={false}

@@ -6,13 +6,14 @@ import { query } from '@/lib/db';
 
 const obtenerProductoConParametros = async (productoId: string) => {
     const result = await query(`
-        SELECT 
+        SELECT
             p.*,
             COALESCE(
                 json_agg(
                     json_build_object(
                         'nombre', pp.nombre,
-                        'cantidad', pp.cantidad
+                        'cantidad', pp.cantidad,
+                        'foto', pp.foto
                     )
                 ) FILTER (WHERE pp.id IS NOT NULL),
                 '[]'::json
@@ -72,8 +73,8 @@ export async function POST(request: NextRequest) {
             if (tieneParametros && parametros.length > 0) {
                 for (const param of parametros) {
                     await query(
-                        'INSERT INTO producto_parametros (producto_id, nombre, cantidad) VALUES ($1, $2, $3)',
-                        [productoId, param.nombre, param.cantidad]
+                        'INSERT INTO producto_parametros (producto_id, nombre, cantidad, foto) VALUES ($1, $2, $3, $4)',
+                        [productoId, param.nombre, param.cantidad, param.foto || '']
                     );
                 }
             }
@@ -97,13 +98,14 @@ export async function GET(request: NextRequest) {
     try {
 
         const result = await query(`
-            SELECT 
+            SELECT
                 p.*,
                 COALESCE(
                     json_agg(
                         json_build_object(
                             'nombre', pp.nombre,
-                            'cantidad', pp.cantidad
+                            'cantidad', pp.cantidad,
+                            'foto', pp.foto
                         )
                     ) FILTER (WHERE pp.id IS NOT NULL),
                     '[]'::json
