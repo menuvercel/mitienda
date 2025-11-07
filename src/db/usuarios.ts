@@ -21,7 +21,7 @@ export async function findUsuarioByNombre(nombre: string): Promise<IUsuario | nu
 }
 
 export async function getVendedores(): Promise<Partial<IUsuario>[]> {
-  const result = await query('SELECT id, nombre, telefono, rol FROM usuarios WHERE rol = $1', ['Vendedor']);
+  const result = await query('SELECT id, nombre, telefono, rol, salario FROM usuarios WHERE rol = $1 ORDER BY nombre', ['Vendedor']);
   return result.rows;
 }
 

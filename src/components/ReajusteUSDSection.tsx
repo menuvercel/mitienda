@@ -173,11 +173,11 @@ export function ReajusteUSDSection({}: ReajusteUSDSectionProps) {
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="general" className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4" />
-                Actualización General
+                General
               </TabsTrigger>
               <TabsTrigger value="selective" className="flex items-center gap-2">
                 <CheckSquare className="h-4 w-4" />
-                Actualización Selectiva
+                Selectiva
               </TabsTrigger>
             </TabsList>
 
@@ -255,7 +255,7 @@ export function ReajusteUSDSection({}: ReajusteUSDSectionProps) {
               <div className="space-y-6">
                 {/* Información actual */}
                 <div className="bg-green-50 p-4 rounded-lg">
-                  <h3 className="font-medium text-green-800 mb-2">Actualización Selectiva</h3>
+                  <h3 className="font-medium text-green-800 mb-2">Selectiva</h3>
                   <p className="text-sm text-green-700">
                     Selecciona productos específicos para actualizar su valor de USD. Esta opción te permite elegir exactamente qué productos modificar.
                   </p>

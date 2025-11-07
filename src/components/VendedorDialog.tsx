@@ -1081,20 +1081,16 @@ export default function VendorDialog({
       return false;
     });
 
-    // Función mejorada para obtener el nombre del vendedor/usuario por ID
     const getNombreVendedor = (id: string | undefined): string => {
       if (!id) return 'N/A';
 
       const idString = id.toString().toLowerCase();
 
-      // Casos especiales por nombre
       if (idString === 'almacen') return 'Almacén';
       if (idString === 'merma') return 'Merma';
 
-      // Caso especial: ID 1 es el almacén
       if (id.toString() === '1') return 'Almacén';
 
-      // Buscar en la lista de vendedores
       const vendedor = vendedores.find(v => v.id.toString() === id.toString());
 
       return vendedor ? vendedor.nombre : 'Desconocido';
@@ -1130,7 +1126,6 @@ export default function VendorDialog({
             );
             const isExpanded = expandedTransactions[transaccion.id];
 
-            // Obtener nombres de origen y destino
             const nombreDesde = getNombreVendedor(transaccion.desde);
             const nombreHacia = getNombreVendedor(transaccion.hacia);
 
@@ -1143,32 +1138,34 @@ export default function VendorDialog({
                   className={`p-4 ${hasParameters ? 'cursor-pointer hover:bg-gray-50' : ''}`}
                   onClick={() => hasParameters && toggleExpand(transaccion.id)}
                 >
-                  <div className="flex items-center">
-                    <ArrowLeftRight className="w-6 h-6 text-blue-500 mr-2 flex-shrink-0" />
-                    <div className="flex-grow overflow-hidden">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center space-x-2">
-                          <p className="font-bold text-sm truncate">{transaccion.producto}</p>
+                  <div className="flex items-start gap-2"> {/* Cambiado items-center a items-start */}
+                    <ArrowLeftRight className="w-6 h-6 text-blue-500 flex-shrink-0 mt-0.5" /> {/* Añadido mt-0.5 para alineación */}
+                    <div className="flex-grow min-w-0"> {/* Añadido min-w-0 para permitir shrinking */}
+                      <div className="flex justify-between items-start gap-2 mb-1"> {/* Cambiado items-center a items-start */}
+                        <div className="flex items-center gap-2 min-w-0 flex-1"> {/* Añadido min-w-0 y flex-1 */}
+                          <p className="font-bold text-sm break-words word-break-break-word overflow-wrap-anywhere"> {/* Añadidas clases para wrap */}
+                            {transaccion.producto}
+                          </p>
                           {hasParameters && (
                             <ChevronDown
-                              className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                              className={`h-4 w-4 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                             />
                           )}
                         </div>
-                        <p className="text-sm font-semibold text-green-600">
+                        <p className="text-sm font-semibold text-green-600 whitespace-nowrap flex-shrink-0">
                           ${precioFormateado}
                         </p>
                       </div>
 
                       {/* Información de origen y destino */}
-                      <div className="flex flex-col text-xs text-gray-600 mt-1">
-                        <div className="flex items-center space-x-1">
-                          <span className="font-semibold">Desde:</span>
-                          <span className="text-blue-600">{nombreDesde}</span>
+                      <div className="flex flex-col text-xs text-gray-600 space-y-1">
+                        <div className="flex flex-wrap items-start gap-1">
+                          <span className="font-semibold flex-shrink-0">Desde:</span>
+                          <span className="text-blue-600 break-words min-w-0">{nombreDesde}</span>
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <span className="font-semibold">Hacia:</span>
-                          <span className="text-green-600">{nombreHacia}</span>
+                        <div className="flex flex-wrap items-start gap-1">
+                          <span className="font-semibold flex-shrink-0">Hacia:</span>
+                          <span className="text-green-600 break-words min-w-0">{nombreHacia}</span>
                         </div>
                       </div>
 

@@ -173,3 +173,45 @@ export interface Subseccion {
   updated_at?: string;
   productos_count?: number;
 }
+
+// Types for seller accounting
+export interface GastoVendedor {
+  id?: string;
+  vendedor_id: string;
+  nombre: string;
+  valor: number;
+  mes: number;
+  anio: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CalculoContabilidadVendedor {
+  vendedorId: string;
+  vendedorNombre: string;
+  ventaTotal: number;
+  gananciaBruta: number;
+  gastos: number;
+  salario: number;
+  resultado: number;
+  detalles: {
+    ventas: Array<{
+      producto: string;
+      cantidad: number;
+      precioVenta: number;
+      precioCompra: number;
+      gananciaProducto: number;
+    }>;
+    gastosDesglosados: Array<{
+      nombre: string;
+      valorMensual: number;
+      diasSeleccionados: number;
+      valorProrrateado: number;
+    }>;
+  };
+  error?: string;
+}
+
+export interface VendedorConSalario extends Vendedor {
+  salario: number;
+}

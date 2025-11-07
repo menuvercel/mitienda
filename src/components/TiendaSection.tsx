@@ -405,86 +405,98 @@ export default function TiendaSection({
 
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold flex items-center">
-          <Store className="mr-2 h-6 w-6" />
+    <div className="w-full">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold flex items-center">
+          <Store className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
           Gestión de Tienda
         </h2>
       </div>
 
-      {/* Pestañas - Incluimos la nueva pestaña de Carrusel */}
-      <div className="flex flex-wrap gap-1 mb-6 bg-gray-100 p-1 rounded-lg">
-        <Button
-          variant={activeTiendaTab === 'secciones' ? "default" : "ghost"}
-          onClick={() => setActiveTiendaTab('secciones')}
-          className="flex items-center mb-1 sm:mb-0"
-        >
-          <LayoutGrid className="mr-2 h-4 w-4" />
-          Secciones
-        </Button>
-        <Button
-          variant={activeTiendaTab === 'destacados' ? "default" : "ghost"}
-          onClick={() => setActiveTiendaTab('destacados')}
-          className="flex items-center mb-1 sm:mb-0"
-        >
-          <Star className="mr-2 h-4 w-4" />
-          Destacados
-        </Button>
-        <Button
-          variant={activeTiendaTab === 'promociones' ? "default" : "ghost"}
-          onClick={() => setActiveTiendaTab('promociones')}
-          className="flex items-center mb-1 sm:mb-0"
-        >
-          <Percent className="mr-2 h-4 w-4" />
-          Promociones
-        </Button>
-        <Button
-          variant={activeTiendaTab === 'carrusel' ? "default" : "ghost"}
-          onClick={() => setActiveTiendaTab('carrusel')}
-          className="flex items-center"
-        >
-          <ImageIcon className="mr-2 h-4 w-4" />
-          Carrusel
-        </Button>
+      {/* Pestañas - Responsivas con mejor diseño móvil */}
+      <div className="w-full overflow-x-auto">
+        <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-lg min-w-max">
+          <Button
+            variant={activeTiendaTab === 'secciones' ? "default" : "ghost"}
+            onClick={() => setActiveTiendaTab('secciones')}
+            className="flex items-center whitespace-nowrap text-xs sm:text-sm md:text-base"
+            size="sm"
+          >
+            <LayoutGrid className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Secciones</span>
+            <span className="sm:hidden">Sec</span>
+          </Button>
+          <Button
+            variant={activeTiendaTab === 'destacados' ? "default" : "ghost"}
+            onClick={() => setActiveTiendaTab('destacados')}
+            className="flex items-center whitespace-nowrap text-xs sm:text-sm md:text-base"
+            size="sm"
+          >
+            <Star className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Destacados</span>
+            <span className="sm:hidden">Dest</span>
+          </Button>
+          <Button
+            variant={activeTiendaTab === 'promociones' ? "default" : "ghost"}
+            onClick={() => setActiveTiendaTab('promociones')}
+            className="flex items-center whitespace-nowrap text-xs sm:text-sm md:text-base"
+            size="sm"
+          >
+            <Percent className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Promociones</span>
+            <span className="sm:hidden">Promo</span>
+          </Button>
+          <Button
+            variant={activeTiendaTab === 'carrusel' ? "default" : "ghost"}
+            onClick={() => setActiveTiendaTab('carrusel')}
+            className="flex items-center whitespace-nowrap text-xs sm:text-sm md:text-base"
+            size="sm"
+          >
+            <ImageIcon className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Carrusel</span>
+            <span className="sm:hidden">Carr</span>
+          </Button>
+        </div>
       </div>
 
       {/* Contenido de Secciones */}
       {activeTiendaTab === 'secciones' && !showSubsecciones && !showProductosSubseccion && !showProductosSeccion && (
-        <div>
-          <div className="flex justify-end mb-4">
+        <div className="w-full">
+          <div className="flex flex-col sm:flex-row sm:justify-end gap-2 mb-4 w-full">
             <Button
               onClick={handleCreateSeccion}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
+              className="bg-blue-500 hover:bg-blue-600 text-white w-full sm:w-auto"
+              size="sm"
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Nueva Sección
+              <Plus className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="text-sm sm:text-base">Nueva Sección</span>
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 w-full">
             {secciones.map((seccion) => (
-              <SeccionCard
-                key={seccion.id}
-                seccion={seccion}
-                onEdit={handleEditSeccion}
-                onDelete={handleDeleteSeccion}
-                onClick={handleSeccionClickInternal} // Usar la función interna para manejar el clic
-              />
+              <div key={seccion.id} className="w-full">
+                <SeccionCard
+                  seccion={seccion}
+                  onEdit={handleEditSeccion}
+                  onDelete={handleDeleteSeccion}
+                  onClick={handleSeccionClickInternal}
+                />
+              </div>
             ))}
           </div>
 
           {secciones.length === 0 && (
-            <div className="text-center py-12">
-              <Store className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <div className="text-center py-8 sm:py-12 px-4">
+              <Store className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mb-4" />
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
                 No hay secciones creadas
               </h3>
-              <p className="text-gray-500 mb-4">
+              <p className="text-sm sm:text-base text-gray-500 mb-4 max-w-md mx-auto">
                 Comienza creando tu primera sección para organizar tus productos
               </p>
-              <Button onClick={handleCreateSeccion}>
-                <Plus className="mr-2 h-4 w-4" />
+              <Button onClick={handleCreateSeccion} size="sm" className="text-sm sm:text-base">
+                <Plus className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                 Crear Primera Sección
               </Button>
             </div>
@@ -494,70 +506,88 @@ export default function TiendaSection({
 
       {/* Vista de subsecciones de una sección */}
       {activeTiendaTab === 'secciones' && showSubsecciones && selectedSeccion && !showProductosSubseccion && !showProductosSeccion && (
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
+        <div className="w-full">
+          {/* Header responsivo con título de sección que se adapta */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 w-full">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               <Button
                 variant="outline"
                 onClick={handleBackToSecciones}
+                size="sm"
+                className="flex-shrink-0"
               >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Volver a Secciones
+                <ArrowLeft className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Volver a Secciones</span>
+                <span className="sm:hidden">Volver</span>
               </Button>
-              <div>
-                <h2 className="text-2xl font-bold">{selectedSeccion.nombre}</h2>
-                <p className="text-gray-600">{subsecciones.length} subsecciones</p>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg sm:text-2xl font-bold truncate" title={selectedSeccion.nombre}>
+                  {selectedSeccion.nombre}
+                </h2>
+                <p className="text-sm sm:text-base text-gray-600">{subsecciones.length} subsecciones</p>
               </div>
             </div>
 
-            <div className="flex space-x-2">
-              {/* Si hay subsecciones, mostramos "Ver/Añadir Productos", si no, directamente "Añadir Productos" */}
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto flex-shrink-0">
               <Button
                 onClick={subsecciones.length > 0 ? handleShowProductosSeccion : handleAddProductosToEmptySeccion}
-                className="bg-purple-500 hover:bg-purple-600 text-white"
+                className="bg-purple-500 hover:bg-purple-600 text-white w-full sm:w-auto"
+                size="sm"
               >
-                <Package className="mr-2 h-4 w-4" />
-                {subsecciones.length > 0 ? "Ver/Añadir Productos" : "Añadir Productos"}
+                <Package className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-sm sm:text-base">
+                  {subsecciones.length > 0 ? "Ver/Añadir" : "Añadir Productos"}
+                </span>
               </Button>
               <Button
                 onClick={handleCreateSubseccion}
-                className="bg-green-500 hover:bg-green-600 text-white"
+                className="bg-green-500 hover:bg-green-600 text-white w-full sm:w-auto"
+                size="sm"
               >
-                <Plus className="mr-2 h-4 w-4" />
-                Nueva Subsección
+                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-sm sm:text-base">Nueva Subsección</span>
               </Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 w-full">
             {subsecciones.map((subseccion) => (
-              <SubseccionCard
-                key={subseccion.id}
-                subseccion={subseccion}
-                onEdit={handleEditSubseccion}
-                onDelete={handleDeleteSubseccion}
-                onClick={handleSubseccionClick}
-              />
+              <div key={subseccion.id} className="w-full">
+                <SubseccionCard
+                  subseccion={subseccion}
+                  onEdit={handleEditSubseccion}
+                  onDelete={handleDeleteSubseccion}
+                  onClick={handleSubseccionClick}
+                />
+              </div>
             ))}
           </div>
 
           {subsecciones.length === 0 && (
-            <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 text-gray-400 mb-4">📁</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <div className="text-center py-8 sm:py-12 px-4">
+              <div className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mb-4 text-2xl sm:text-3xl">📁</div>
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
                 No hay productos o subsecciones en esta sección
               </h3>
-              <p className="text-gray-500 mb-4">
+              <p className="text-sm sm:text-base text-gray-500 mb-4 max-w-md mx-auto">
                 Puedes crear subsecciones para organizar mejor tus productos o añadir productos directamente a esta sección
               </p>
-              <div className="flex justify-center space-x-4">
-                <Button onClick={handleAddProductosToEmptySeccion} className="bg-purple-500 hover:bg-purple-600">
-                  <Package className="mr-2 h-4 w-4" />
-                  Añadir Productos
+              <div className="flex flex-col sm:flex-row gap-2 justify-center max-w-sm mx-auto sm:max-w-none">
+                <Button
+                  onClick={handleAddProductosToEmptySeccion}
+                  className="bg-purple-500 hover:bg-purple-600 w-full sm:w-auto"
+                  size="sm"
+                >
+                  <Package className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="text-sm sm:text-base">Añadir Productos</span>
                 </Button>
-                <Button onClick={handleCreateSubseccion} className="bg-green-500 hover:bg-green-600">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Crear Subsección
+                <Button
+                  onClick={handleCreateSubseccion}
+                  className="bg-green-500 hover:bg-green-600 w-full sm:w-auto"
+                  size="sm"
+                >
+                  <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="text-sm sm:text-base">Crear Subsección</span>
                 </Button>
               </div>
             </div>
@@ -567,61 +597,73 @@ export default function TiendaSection({
 
       {/* Vista de productos en una sección */}
       {activeTiendaTab === 'secciones' && showProductosSeccion && selectedSeccion && !showProductosSubseccion && (
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
+        <div className="w-full">
+          {/* Header responsivo con título de sección que se adapta */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 w-full">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               <Button
                 variant="outline"
-                onClick={handleBackToSecciones} // ✅ USA LA FUNCIÓN QUE YA EXISTE
+                onClick={handleBackToSecciones}
+                size="sm"
+                className="flex-shrink-0"
               >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Volver a Secciones {/* ✅ CAMBIA EL TEXTO TAMBIÉN */}
+                <ArrowLeft className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Volver a Secciones</span>
+                <span className="sm:hidden">Volver</span>
               </Button>
-              <div>
-                <h2 className="text-2xl font-bold">Productos en {selectedSeccion.nombre}</h2>
-                <p className="text-gray-600">{productosEnSeccion.length} productos</p>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg sm:text-2xl font-bold truncate" title={`Productos en ${selectedSeccion.nombre}`}>
+                  Productos en {selectedSeccion.nombre}
+                </h2>
+                <p className="text-sm sm:text-base text-gray-600">{productosEnSeccion.length} productos</p>
               </div>
             </div>
 
             <Button
               onClick={handleAddProductosToSeccion}
-              className="bg-purple-500 hover:bg-purple-600 text-white"
+              className="bg-purple-500 hover:bg-purple-600 text-white w-full sm:w-auto flex-shrink-0"
+              size="sm"
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Añadir Productos
+              <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="text-sm sm:text-base">Añadir Productos</span>
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 w-full">
             {productosEnSeccion.map((producto) => (
-              <Card key={producto.id} className="overflow-hidden">
+              <Card key={producto.id} className="overflow-hidden w-full">
                 <CardContent className="p-0">
                   <div className="flex flex-col">
-                    <div className="w-full h-48 relative">
+                    <div className="w-full h-40 sm:h-48 relative">
                       {producto.foto ? (
                         <Image
                           src={producto.foto}
                           alt={producto.nombre}
                           fill
                           className="object-cover"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">
+                        <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">
                           Sin imagen
                         </div>
                       )}
                     </div>
 
-                    <div className="p-4">
-                      <h3 className="font-medium text-lg mb-1">{producto.nombre}</h3>
-                      <p className="text-green-600 font-bold">${Number(producto.precio || 0).toFixed(2)}</p>
+                    <div className="p-3 sm:p-4">
+                      <h3 className="font-medium text-sm sm:text-lg mb-1 line-clamp-2" title={producto.nombre}>
+                        {producto.nombre}
+                      </h3>
+                      <p className="text-green-600 font-bold text-sm sm:text-base">
+                        ${Number(producto.precio || 0).toFixed(2)}
+                      </p>
 
-                      <div className="flex justify-end mt-3">
+                      <div className="flex justify-end mt-2 sm:mt-3">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => setSelectedProduct(producto)}
-                          className="text-blue-500 hover:text-blue-700"
+                          className="text-blue-500 hover:text-blue-700 text-xs sm:text-sm"
                         >
                           Ver detalles
                         </Button>
@@ -634,17 +676,21 @@ export default function TiendaSection({
           </div>
 
           {productosEnSeccion.length === 0 && (
-            <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 text-gray-400 mb-4">📦</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <div className="text-center py-8 sm:py-12 px-4">
+              <div className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mb-4 text-2xl sm:text-3xl">📦</div>
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
                 No hay productos en esta sección
               </h3>
-              <p className="text-gray-500 mb-4">
+              <p className="text-sm sm:text-base text-gray-500 mb-4 max-w-md mx-auto">
                 Añade productos directamente a esta sección
               </p>
-              <Button onClick={handleAddProductosToSeccion} className="bg-purple-500 hover:bg-purple-600">
-                <Plus className="mr-2 h-4 w-4" />
-                Añadir Productos
+              <Button
+                onClick={handleAddProductosToSeccion}
+                className="bg-purple-500 hover:bg-purple-600"
+                size="sm"
+              >
+                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-sm sm:text-base">Añadir Productos</span>
               </Button>
             </div>
           )}
@@ -653,61 +699,73 @@ export default function TiendaSection({
 
       {/* Vista de productos en una subsección */}
       {activeTiendaTab === 'secciones' && showProductosSubseccion && selectedSubseccion && (
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
+        <div className="w-full">
+          {/* Header responsivo con título de subsección que se adapta */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 w-full">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               <Button
                 variant="outline"
                 onClick={handleBackToSubsecciones}
+                size="sm"
+                className="flex-shrink-0"
               >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Volver a Subsecciones
+                <ArrowLeft className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Volver a Subsecciones</span>
+                <span className="sm:hidden">Volver</span>
               </Button>
-              <div>
-                <h2 className="text-2xl font-bold">{selectedSubseccion.nombre}</h2>
-                <p className="text-gray-600">{productosEnSubseccion.length} productos</p>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg sm:text-2xl font-bold truncate" title={selectedSubseccion.nombre}>
+                  {selectedSubseccion.nombre}
+                </h2>
+                <p className="text-sm sm:text-base text-gray-600">{productosEnSubseccion.length} productos</p>
               </div>
             </div>
 
             <Button
               onClick={handleAddProductosToSubseccion}
-              className="bg-purple-500 hover:bg-purple-600 text-white"
+              className="bg-purple-500 hover:bg-purple-600 text-white w-full sm:w-auto flex-shrink-0"
+              size="sm"
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Añadir Productos
+              <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="text-sm sm:text-base">Añadir Productos</span>
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 w-full">
             {productosEnSubseccion.map((producto) => (
-              <Card key={producto.id} className="overflow-hidden">
+              <Card key={producto.id} className="overflow-hidden w-full">
                 <CardContent className="p-0">
                   <div className="flex flex-col">
-                    <div className="w-full h-48 relative">
+                    <div className="w-full h-40 sm:h-48 relative">
                       {producto.foto ? (
                         <Image
                           src={producto.foto}
                           alt={producto.nombre}
                           fill
                           className="object-cover"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">
+                        <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">
                           Sin imagen
                         </div>
                       )}
                     </div>
 
-                    <div className="p-4">
-                      <h3 className="font-medium text-lg mb-1">{producto.nombre}</h3>
-                      <p className="text-green-600 font-bold">${Number(producto.precio || 0).toFixed(2)}</p>
+                    <div className="p-3 sm:p-4">
+                      <h3 className="font-medium text-sm sm:text-lg mb-1 line-clamp-2" title={producto.nombre}>
+                        {producto.nombre}
+                      </h3>
+                      <p className="text-green-600 font-bold text-sm sm:text-base">
+                        ${Number(producto.precio || 0).toFixed(2)}
+                      </p>
 
-                      <div className="flex justify-end mt-3">
+                      <div className="flex justify-end mt-2 sm:mt-3">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => setSelectedProduct(producto)}
-                          className="text-blue-500 hover:text-blue-700"
+                          className="text-blue-500 hover:text-blue-700 text-xs sm:text-sm"
                         >
                           Ver detalles
                         </Button>
@@ -720,17 +778,21 @@ export default function TiendaSection({
           </div>
 
           {productosEnSubseccion.length === 0 && (
-            <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 text-gray-400 mb-4">📦</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <div className="text-center py-8 sm:py-12 px-4">
+              <div className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mb-4 text-2xl sm:text-3xl">📦</div>
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
                 No hay productos en esta subsección
               </h3>
-              <p className="text-gray-500 mb-4">
+              <p className="text-sm sm:text-base text-gray-500 mb-4 max-w-md mx-auto">
                 Añade productos a esta subsección para organizarlos mejor
               </p>
-              <Button onClick={handleAddProductosToSubseccion} className="bg-purple-500 hover:bg-purple-600">
-                <Plus className="mr-2 h-4 w-4" />
-                Añadir Productos
+              <Button
+                onClick={handleAddProductosToSubseccion}
+                className="bg-purple-500 hover:bg-purple-600"
+                size="sm"
+              >
+                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-sm sm:text-base">Añadir Productos</span>
               </Button>
             </div>
           )}
@@ -739,38 +801,44 @@ export default function TiendaSection({
 
       {/* Contenido de Productos Destacados */}
       {activeTiendaTab === 'destacados' && (
-        <div>
-          <div className="flex justify-end mb-4">
+        <div className="w-full">
+          <div className="flex flex-col sm:flex-row sm:justify-end gap-2 mb-4 w-full">
             <Button
               onClick={handleManageProductosDestacados}
-              className="bg-yellow-500 hover:bg-yellow-600 text-white"
+              className="bg-yellow-500 hover:bg-yellow-600 text-white w-full sm:w-auto"
+              size="sm"
             >
-              <span className="mr-2">⚙️</span>
-              Gestionar Destacados
+              <span className="mr-1 sm:mr-2 text-sm sm:text-base">⚙️</span>
+              <span className="text-sm sm:text-base">Gestionar Destacados</span>
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 w-full">
             {productosDestacados.map((producto) => (
-              <ProductoDestacadoCard
-                key={producto.id}
-                producto={producto}
-                onClick={(producto) => setSelectedProduct(producto)}
-              />
+              <div key={producto.id} className="w-full">
+                <ProductoDestacadoCard
+                  producto={producto}
+                  onClick={(producto) => setSelectedProduct(producto)}
+                />
+              </div>
             ))}
           </div>
           {productosDestacados.length === 0 && (
-            <div className="text-center py-12">
-              <Star className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <div className="text-center py-8 sm:py-12 px-4">
+              <Star className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mb-4" />
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
                 No hay productos destacados
               </h3>
-              <p className="text-gray-500 mb-4">
+              <p className="text-sm sm:text-base text-gray-500 mb-4 max-w-md mx-auto">
                 Selecciona productos para destacar en tu tienda y aumentar las ventas
               </p>
-              <Button onClick={handleManageProductosDestacados} className="bg-yellow-500 hover:bg-yellow-600">
-                <Star className="mr-2 h-4 w-4" />
-                Seleccionar Productos Destacados
+              <Button
+                onClick={handleManageProductosDestacados}
+                className="bg-yellow-500 hover:bg-yellow-600"
+                size="sm"
+              >
+                <Star className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-sm sm:text-base">Seleccionar Productos Destacados</span>
               </Button>
             </div>
           )}

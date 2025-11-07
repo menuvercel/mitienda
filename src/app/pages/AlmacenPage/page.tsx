@@ -73,6 +73,7 @@ import ProductSelectionDialog from '@/components/ProductSelectionDialog'
 import { Store, Settings, LayoutGrid } from "lucide-react"
 import TiendaSection from '@/components/TiendaSection'
 import ReajusteUSDSection from '@/components/ReajusteUSDSection';
+import ContabilidadVendedoresPage from '@/components/ContabilidadVendedoresPage';
 
 
 interface VentaSemana {
@@ -718,7 +719,7 @@ export default function AlmacenPage() {
       console.error('Error al obtener todas las ventas:', error)
       toast({
         title: "Error",
-        description: "Error al cargar la contabilidad global",
+        description: "Error al cargar la contabilidad por producto",
         variant: "destructive",
       })
     } finally {
@@ -889,7 +890,7 @@ export default function AlmacenPage() {
 
     const ws = XLSX.utils.json_to_sheet(dataToExport)
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, "Contabilidad Global")
+    XLSX.utils.book_append_sheet(wb, ws, "Contabilidad por producto")
 
     let fileName = 'contabilidad_global_';
     if (fechaInicio && fechaFin) {
@@ -1786,7 +1787,17 @@ export default function AlmacenPage() {
                   setIsMenuOpen(false)
                 }}
               >
-                Contabilidad Global
+                Contabilidad por producto
+              </Button>
+              <Button
+                variant="ghost"
+                className={activeSection === 'contabilidad-vendedores' ? 'bg-accent' : ''}
+                onClick={() => {
+                  setActiveSection('contabilidad-vendedores')
+                  setIsMenuOpen(false)
+                }}
+              >
+                Contabilidad de Vendedores
               </Button>
               <Button
                 variant="ghost"
@@ -2157,7 +2168,7 @@ export default function AlmacenPage() {
       {activeSection === 'contabilidad' && (
         <div>
           <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
-            <h2 className="text-xl font-bold">Contabilidad Global</h2>
+            <h2 className="text-xl font-bold">Contabilidad por producto</h2>
             <Button
               onClick={exportContabilidadToExcel}
               className="bg-green-500 hover:bg-green-600 text-white"
@@ -2477,6 +2488,13 @@ export default function AlmacenPage() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {activeSection === 'contabilidad-vendedores' && (
+        <ContabilidadVendedoresPage
+          vendedores={vendedores}
+          onRefresh={fetchVendedores}
+        />
       )}
 
       {activeSection === 'notificaciones' && (
