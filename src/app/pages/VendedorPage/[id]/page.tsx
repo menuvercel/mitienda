@@ -787,14 +787,13 @@ const TransaccionesList = ({
   );
 };
 
-const ProductoCard = ({ producto, vendedorId }: { producto: Producto, vendedorId: string }) => {
+const ProductoCard = ({ producto, vendedorId, vendedores }: { producto: Producto, vendedorId: string, vendedores: Vendedor[] }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [transacciones, setTransacciones] = useState<Transaccion[]>([])
   const [ventas, setVentas] = useState<Venta[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [vendedores, setVendedores] = useState<Vendedor[]>([])
 
   const agruparVentasPorDia = useCallback((ventas: Venta[]) => {
     const ventasDiarias: VentaDia[] = [];
@@ -1469,7 +1468,12 @@ export default function VendedorPage() {
               </div>
               <div className="space-y-2">
                 {productosFiltrados.map((producto) => (
-                  <ProductoCard key={producto.id} producto={producto} vendedorId={vendedorId} />
+                  <ProductoCard
+                    key={producto.id}
+                    producto={producto}
+                    vendedorId={vendedorId}
+                    vendedores={vendedores}  // <- Añade esta prop
+                  />
                 ))}
               </div>
             </TabsContent>
@@ -1487,7 +1491,12 @@ export default function VendedorPage() {
               </div>
               <div className="space-y-2">
                 {productosAgotadosFiltrados.map((producto) => (
-                  <ProductoCard key={producto.id} producto={producto} vendedorId={vendedorId} />
+                  <ProductoCard
+                    key={producto.id}
+                    producto={producto}
+                    vendedorId={vendedorId}
+                    vendedores={vendedores}  // <- Añade esta prop
+                  />
                 ))}
               </div>
             </TabsContent>
@@ -1792,11 +1801,12 @@ export default function VendedorPage() {
                 transacciones={transacciones}
                 searchTerm={busqueda}
                 vendedorId={vendedorId}
-                vendedores={vendedores}
+                vendedores={vendedores}  // <- Asegúrate de que esto esté aquí
               />
             </div>
           </div>
         )}
+  
 
       </main>
       <ParametrosDialog
