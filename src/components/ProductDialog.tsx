@@ -580,20 +580,23 @@ export default function ProductDialog({
   // Renderizado del componente
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{product.nombre}</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="flex justify-center">
-            <Image
-              src={imageUrl || '/placeholder.svg'}
-              alt={product.nombre}
-              width={200}
-              height={200}
-              className="object-cover rounded"
-            />
-          </div>
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] p-0">
+        <div className="flex flex-col h-full">
+          <DialogHeader className="px-6 py-4 border-b">
+            <DialogTitle>{product.nombre}</DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <Image
+                  src={imageUrl || '/placeholder.svg'}
+                  alt={product.nombre}
+                  width={200}
+                  height={200}
+                  className="object-cover rounded"
+                />
+              </div>
 
           {mode === 'edit' ? (
             <EditMode
@@ -648,6 +651,8 @@ export default function ProductDialog({
             />
           )}
 
+            </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
