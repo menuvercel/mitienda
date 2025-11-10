@@ -1,13 +1,16 @@
+//@/src/components/VendedorDialog.tsx
+
 import React, { useState, useCallback, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
 import { Vendedor, Producto, Venta, Transaccion, TransaccionParametro } from '@/types'
-import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, ArrowUpDown, FileDown, X, Edit2 } from 'lucide-react'
+import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, ArrowUpDown, FileDown, X, Edit2, Percent } from 'lucide-react'
 import { format, parseISO, startOfWeek, endOfWeek, isValid, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import * as XLSX from 'xlsx'
@@ -157,6 +160,8 @@ export default function VendorDialog({
   const [productToEdit, setProductToEdit] = useState<InconsistenciaData | null>(null);
   const [newQuantities, setNewQuantities] = useState<Record<string, number>>({});
   const [isUpdatingQuantity, setIsUpdatingQuantity] = useState(false);
+  const [showSalaryDialog, setShowSalaryDialog] = useState(false);
+  const [salaryPercentage, setSalaryPercentage] = useState<number>(0);
 
 
 
@@ -335,6 +340,73 @@ export default function VendorDialog({
       setIsDeletingVendor(false);
     }
   };
+
+  const loadSalary = async () => {
+    try {
+      const response = await fetch(`/api/usuarios/salario?vendedorId=${vendor.id}`)
+      if (response.ok) {
+        const data = await response.json()
+        const salary = parseFloat(data.salario) || 0
+        setSalaryPercentage(salary)
+      } else {
+        setSalaryPercentage(0)
+      }
+    } catch (error) {
+      console.error('Error loading salary:', error)
+      setSalaryPercentage(0)
+    }
+  }
+
+  const handleUpdateSalary = async () => {
+    if (salaryPercentage < 0 || salaryPercentage > 100) {
+      toast({
+        title: "Error",
+        description: "El porcentaje debe estar entre 0 y 100",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const response = await fetch('/api/usuarios/salario', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vendedorId: vendor.id,
+          salario: salaryPercentage
+        })
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Éxito",
+          description: "Salario actualizado correctamente",
+        })
+        setShowSalaryDialog(false)
+      } else {
+        throw new Error('Failed to update salary')
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el salario",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleOpenSalaryDialog = () => {
+    setShowSalaryDialog(true)
+    loadSalary()
+  }
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('es-CU', {
+      style: 'currency',
+      currency: 'CUP',
+      minimumFractionDigits: 2
+    }).format(value)
+  }
 
   const toggleExpand = (transactionId: string) => {
     setExpandedTransactions(prev => ({
@@ -1712,6 +1784,9 @@ export default function VendorDialog({
               <Button onClick={() => setMode('ventas')}>Ventas</Button>
               <Button onClick={() => setMode('transacciones')}>Transacciones</Button>
               <Button onClick={() => setMode('inconsistencias')}>Inconsistencias</Button>
+              <Button onClick={handleOpenSalaryDialog}>
+              Salario
+              </Button>
               <Button
                 onClick={() => setShowComparativeTable(true)}
                 className="w-full md:w-auto"
@@ -2469,6 +2544,65 @@ export default function VendorDialog({
               ) : (
                 'Actualizar cantidad'
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Salary Dialog */}
+      <Dialog open={showSalaryDialog} onOpenChange={setShowSalaryDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Percent className="h-5 w-5" />
+              Configuración de Salario - {vendor.nombre}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="salary-percentage">
+                  Porcentaje de Salario sobre Ventas (%)
+                </Label>
+                <div className="text-sm text-gray-600 bg-blue-50 px-2 py-1 rounded">
+                  Actual: {salaryPercentage}%
+                </div>
+              </div>
+              <Input
+                id="salary-percentage"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                value={salaryPercentage}
+                onChange={(e) => setSalaryPercentage(parseFloat(e.target.value) || 0)}
+                placeholder="Ej: 10.5"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Este porcentaje se aplicará al total de ventas del período seleccionado
+              </p>
+            </div>
+
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-medium mb-2">Ejemplo de cálculo:</h4>
+              <div className="text-sm text-gray-600">
+                <p>Si las ventas del período son: {formatCurrency(10000)}</p>
+                <p>Con salario del {salaryPercentage}%:</p>
+                <p className="font-medium">
+                  Salario = {formatCurrency(10000)} × {salaryPercentage}% = {formatCurrency((10000 * salaryPercentage) / 100)}
+                </p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowSalaryDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleUpdateSalary}>
+              Actualizar Salario
             </Button>
           </DialogFooter>
         </DialogContent>
