@@ -163,7 +163,7 @@ export interface Promocion {
   activa: boolean;
 }
 
-// Exportar la interfaz Subseccion
+
 export interface Subseccion {
   id: string;
   nombre: string;

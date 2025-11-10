@@ -1053,8 +1053,14 @@ export default function AlmacenPage() {
   }, [activeProductTab, fetchMermas]);
 
   const handleExportToExcel = () => {
-    const header = ["Nombre", "Precio", "Cantidad"];
-    const data = inventario.map(producto => [producto.nombre, producto.precio, producto.cantidad]);
+    const header = ["Nombre", "Precio", "Precio Compra USD", "Precio Venta USD", "Cantidad"];
+    const data = inventario.map(producto => [
+      producto.nombre,
+      producto.precio,
+      producto.precio_compra_usd || 0,
+      producto.precio_venta_usd || 0,
+      producto.cantidad
+    ]);
 
     const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
     const wb = XLSX.utils.book_new();

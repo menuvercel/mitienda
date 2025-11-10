@@ -527,6 +527,8 @@ export default function VendorDialog({
       dataToExport = productos.map(producto => ({
         Nombre: producto.nombre,
         Precio: producto.precio,
+        'Precio Compra USD': producto.precio_compra_usd || 0,
+        'Precio Venta USD': producto.precio_venta_usd || 0,
         Cantidad: producto.cantidad
       }));
       fileName = `productos_${vendor.nombre}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;

@@ -11,12 +11,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     
     // Obtener productos con su información básica
     const productosResult = await query(
-      `SELECT 
-        p.id, 
-        p.nombre, 
-        p.precio, 
-        p.foto, 
+      `SELECT
+        p.id,
+        p.nombre,
+        p.precio,
+        p.precio_compra,
+        p.foto,
         p.tiene_parametros,
+        p.valor_compra_usd,
+        p.precio_compra_usd,
+        p.precio_venta_usd,
         up.cantidad
        FROM productos p
        JOIN usuario_productos up ON p.id = up.producto_id
