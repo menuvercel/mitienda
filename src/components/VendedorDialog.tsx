@@ -349,11 +349,11 @@ export default function VendorDialog({
         const salary = parseFloat(data.salario) || 0
         setSalaryPercentage(salary)
       } else {
-        setSalaryPercentage(0)
+        setSalaryPercentage(8) // Default to 8% if no salary is set
       }
     } catch (error) {
       console.error('Error loading salary:', error)
-      setSalaryPercentage(0)
+      setSalaryPercentage(8) // Default to 8% on error
     }
   }
 
@@ -477,6 +477,11 @@ export default function VendorDialog({
   useEffect(() => {
     calcularVentasEspecificas()
   }, [ventas, calcularVentasEspecificas])
+
+  // Load vendor salary when component mounts
+  useEffect(() => {
+    loadSalary()
+  }, [])
 
   const sortVentasEspecificas = () => {
     setSortByVentas(prev => prev === 'asc' ? 'desc' : 'asc')
@@ -1066,18 +1071,19 @@ export default function VendorDialog({
     const filtrarVentasSemanales = (ventas: VentaSemana[]) => {
       if (!searchTerm) return ventas;
 
-      return ventas.map(ventaSemana => ({
-        ...ventaSemana,
-        ventas: ventaSemana.ventas.filter(venta =>
+      return ventas.map(ventaSemana => {
+        const filteredVentas = ventaSemana.ventas.filter(venta =>
           venta.producto_nombre.toLowerCase().includes(searchTerm.toLowerCase())
-        ),
-        total: ventaSemana.ventas
-          .filter(venta => venta.producto_nombre.toLowerCase().includes(searchTerm.toLowerCase()))
-          .reduce((sum, venta) => sum + parseFloat(venta.total.toString()), 0),
-        ganancia: ventaSemana.ventas
-          .filter(venta => venta.producto_nombre.toLowerCase().includes(searchTerm.toLowerCase()))
-          .reduce((sum, venta) => sum + parseFloat(venta.total.toString()), 0) * 0.08
-      })).filter(ventaSemana => ventaSemana.ventas.length > 0);
+        );
+        const filteredTotal = filteredVentas.reduce((sum, venta) => sum + parseFloat(venta.total.toString()), 0);
+        
+        return {
+          ...ventaSemana,
+          ventas: filteredVentas,
+          total: filteredTotal,
+          ganancia: parseFloat((filteredTotal * (salaryPercentage / 100)).toFixed(2))
+        };
+      }).filter(ventaSemana => ventaSemana.ventas.length > 0);
     };
 
     return (
@@ -1309,7 +1315,9 @@ export default function VendorDialog({
       const currentWeek = weekMap.get(weekKey)!
       currentWeek.ventas.push(venta)
       currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0
-      currentWeek.ganancia = parseFloat((currentWeek.total * 0.08).toFixed(2))
+      // Use vendor's salary percentage instead of hardcoded 8%
+      const salaryPercentageDecimal = salaryPercentage / 100
+      currentWeek.ganancia = parseFloat((currentWeek.total * salaryPercentageDecimal).toFixed(2))
     })
 
     const ventasSemanales = Array.from(weekMap.values())
@@ -1319,7 +1327,7 @@ export default function VendorDialog({
       const dateB = parseISO(b.fechaInicio)
       return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0
     })
-  }, [])
+  }, [salaryPercentage])
 
   useEffect(() => {
     setVentasSemanales(agruparVentasPorSemana(ventasLocales))

@@ -23,7 +23,8 @@ import {
   getVentasMes,
   getTransaccionesProducto,
   getVentasProducto,
-  getVendedores
+  getVendedores,
+  getSalarioVendedor
 } from '../../../services/api'
 import { WeekPicker } from '@/components/Weekpicker'
 import { NotificacionesBell } from '@/components/NotificacionesBell'
@@ -160,6 +161,7 @@ const useVendedorData = (vendedorId: string) => {
   const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
   const [isSubmittingVenta, setIsSubmittingVenta] = useState(false)
   const [vendedores, setVendedores] = useState<Vendedor[]>([])
+  const [salarioVendedor, setSalarioVendedor] = useState<number>(0)
 
   const handleEnviarVenta = async () => {
     if (productosSeleccionados.length === 0) {
@@ -292,7 +294,9 @@ const useVendedorData = (vendedorId: string) => {
       const currentWeek = weekMap.get(weekKey)!;
       currentWeek.ventas.push(venta);
       currentWeek.total += typeof venta.total === 'number' ? venta.total : parseFloat(venta.total) || 0;
-      currentWeek.ganancia = parseFloat((currentWeek.total * 0.08).toFixed(2));
+      // Use seller's salary percentage instead of hardcoded 8%
+      const porcentajeSalario = salarioVendedor / 100;
+      currentWeek.ganancia = parseFloat((currentWeek.total * porcentajeSalario).toFixed(2));
     });
 
     const ventasSemanales = Array.from(weekMap.values());
@@ -302,7 +306,7 @@ const useVendedorData = (vendedorId: string) => {
       const dateB = parseISO(b.fechaInicio);
       return isValid(dateB) && isValid(dateA) ? dateB.getTime() - dateA.getTime() : 0;
     });
-  }, []);
+  }, [salarioVendedor]);
 
   const fetchProductos = useCallback(async () => {
     try {
@@ -338,7 +342,7 @@ const useVendedorData = (vendedorId: string) => {
         setError('No se pudo cargar el registro de ventas. Por favor, intenta de nuevo.');
       }
     }
-  }, [vendedorId, agruparVentas, agruparVentasPorSemana, agruparVentasPorDia]);
+  }, [vendedorId, agruparVentas, agruparVentasPorSemana, agruparVentasPorDia, salarioVendedor]);
 
   const fetchTransacciones = useCallback(async () => {
     try {
@@ -347,6 +351,16 @@ const useVendedorData = (vendedorId: string) => {
     } catch (error) {
       console.error('Error al obtener transacciones:', error);
       setError('No se pudieron cargar las transacciones. Por favor, intenta de nuevo.');
+    }
+  }, [vendedorId]);
+
+  const fetchSalarioVendedor = useCallback(async () => {
+    try {
+      const data = await getSalarioVendedor(vendedorId);
+      setSalarioVendedor(data.salario || 0);
+    } catch (error) {
+      console.error('Error al obtener salario del vendedor:', error);
+      setSalarioVendedor(0);
     }
   }, [vendedorId]);
 
@@ -372,7 +386,7 @@ const useVendedorData = (vendedorId: string) => {
           fetchVentasRegistro(),
           fetchTransacciones(),
           fetchVendedores(),
-          fetchVendedores()
+          fetchSalarioVendedor()
         ]);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -383,7 +397,7 @@ const useVendedorData = (vendedorId: string) => {
     };
 
     loadData();
-  }, [vendedorId, fetchProductos, fetchVentasRegistro, fetchTransacciones, fetchVendedores]);
+  }, [vendedorId, fetchProductos, fetchVentasRegistro, fetchTransacciones, fetchVendedores, fetchSalarioVendedor]);
 
   return {
     isLoading,
@@ -419,7 +433,8 @@ const useVendedorData = (vendedorId: string) => {
     setParametrosDialogOpen,
     productQuantities,
     setProductQuantities,
-    vendedores
+    vendedores,
+    salarioVendedor
   }
 }
 
@@ -561,7 +576,9 @@ const VentaSemanaDesplegable = ({ venta, busqueda }: { venta: VentaSemana, busqu
     return total + (ventaTotal || 0);
   }, 0);
 
-  const gananciaFiltrada = totalFiltrado * 0.08;
+  // Use the already calculated ganancia from the VentaSemana data
+  // The ganancia was calculated using the seller's salary percentage in agruparVentasPorSemana
+  const gananciaFiltrada = totalFiltrado > 0 ? (venta.ganancia / venta.total) * totalFiltrado : 0;
 
   return (
     <div className="border rounded-lg mb-2">

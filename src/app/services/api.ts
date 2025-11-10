@@ -110,6 +110,11 @@ export const getVendedores = async (): Promise<Vendedor[]> => {
   return response.data;
 };
 
+export const getSalarioVendedor = async (vendedorId: string): Promise<{ id: string; nombre: string; salario: number }> => {
+  const response = await api.get(`/usuarios/salario?vendedorId=${vendedorId}`);
+  return response.data;
+};
+
 export const getInventario = async (): Promise<Producto[]> => {
   try {
     const response = await api.get<Producto[]>('/productos');
