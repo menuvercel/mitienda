@@ -111,18 +111,22 @@ async function calculateSellerAccounting(
   const seller = sellerResult.rows[0];
   const salaryPercentage = parseFloat(seller.salario) || 0;
 
-  // Get sales data for the date range
+  // 🔥 SOLUCIÓN DEFINITIVA: Comparar solo las fechas, ignorando las horas
   const salesResult = await query(
-    `SELECT p.nombre, v.cantidad, v.precio_unitario, p.precio_compra
+    `SELECT p.nombre, v.cantidad, v.precio_unitario, p.precio_compra, v.fecha
      FROM ventas v
      LEFT JOIN productos p ON v.producto = p.id
      WHERE v.vendedor = $1
-     AND DATE(v.fecha) >= $2
-     AND DATE(v.fecha) <= $3
+     AND DATE(v.fecha) >= DATE($2)
+     AND DATE(v.fecha) <= DATE($3)
      ORDER BY v.fecha`,
     [parseInt(vendedorId), fechaInicio, fechaFin]
   );
 
+  console.log('📅 Búsqueda de ventas:');
+  console.log('  Desde:', fechaInicio);
+  console.log('  Hasta:', fechaFin);
+  console.log('  Ventas encontradas:', salesResult.rows.length);
   console.log('Sales query result for vendor', vendedorId, ':', salesResult.rows);
 
   // Calculate total sales and gross profit
@@ -137,23 +141,23 @@ async function calculateSellerAccounting(
   }> = [];
 
   for (const sale of salesResult.rows) {
-  console.log('Processing sale:', sale);
-  const precioCompra = parseFloat(sale.precio_compra || '0') || 0;
-  const cantidad = parseInt(sale.cantidad || '0');
-  const precioVenta = parseFloat(sale.precio_unitario || '0') || 0;
-  const gananciaProducto = (precioVenta - precioCompra) * cantidad;
+    console.log('Processing sale:', sale);
+    const precioCompra = parseFloat(sale.precio_compra || '0') || 0;
+    const cantidad = parseInt(sale.cantidad || '0');
+    const precioVenta = parseFloat(sale.precio_unitario || '0') || 0;
+    const gananciaProducto = (precioVenta - precioCompra) * cantidad;
 
-  ventaTotal += precioVenta * cantidad;
-  gananciaBruta += gananciaProducto;
+    ventaTotal += precioVenta * cantidad;
+    gananciaBruta += gananciaProducto;
 
-  ventasDetalle.push({
-    producto: sale.nombre,
-    cantidad,
-    precioVenta,
-    precioCompra,
-    gananciaProducto
-  });
-}
+    ventasDetalle.push({
+      producto: sale.nombre,
+      cantidad,
+      precioVenta,
+      precioCompra,
+      gananciaProducto
+    });
+  }
 
   // Calculate prorated expenses
   const gastosDesglosados = await getProratedExpenses(
@@ -184,6 +188,8 @@ async function calculateSellerAccounting(
   };
 }
 
+
+
 async function getProratedExpenses(
   vendedorId: string,
   fechaInicio: string,
@@ -197,12 +203,12 @@ async function getProratedExpenses(
   // Get the month and year of the selected period
   const startDate = new Date(fechaInicio);
   const endDate = new Date(fechaFin);
-  
+
   // Get all months in the range
   const monthsInRange: Array<{ mes: number; anio: number }> = [];
   const current = new Date(startDate);
   current.setDate(1); // Start from first day of month
-  
+
   while (current <= endDate) {
     monthsInRange.push({
       mes: current.getMonth() + 1,
@@ -224,7 +230,7 @@ async function getProratedExpenses(
     const monthEnd = new Date(anio, mes, 0); // Last day of month
     const actualStart = new Date(Math.max(monthStart.getTime(), startDate.getTime()));
     const actualEnd = new Date(Math.min(monthEnd.getTime(), endDate.getTime()));
-    
+
     const diasEnMes = monthEnd.getDate();
     const diasSeleccionados = Math.floor((actualEnd.getTime() - actualStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
