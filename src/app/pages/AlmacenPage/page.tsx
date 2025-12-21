@@ -2467,7 +2467,7 @@ export default function AlmacenPage() {
                           </span>
                         )}
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="text-center">
                           <p className="text-sm text-gray-600">Total Productos Vendidos</p>
                           <p className="text-2xl font-bold text-blue-600">
@@ -2481,6 +2481,26 @@ export default function AlmacenPage() {
                           </p>
                         </div>
                         <div className="text-center">
+                          <p className="text-sm text-gray-600">Ganancia Bruta</p>
+                          <p className="text-2xl font-bold text-orange-600">
+                            ${getContabilidadData().reduce((sum, item) => {
+                              // Calcular ganancia por cada venta del producto
+                              const gananciaProducto = item.ventas.reduce((gananciaSum, venta) => {
+                                const producto = inventario.find(p => p.nombre === venta.producto_nombre);
+                                if (!producto) return gananciaSum;
+
+                                const precioVenta = parseFloat(venta.total.toString());
+                                const precioCompra = producto.precio_compra || 0;
+                                const cantidad = venta.cantidad;
+
+                                return gananciaSum + ((precioVenta / cantidad) - precioCompra) * cantidad;
+                              }, 0);
+
+                              return sum + gananciaProducto;
+                            }, 0).toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="text-center">
                           <p className="text-sm text-gray-600">Total de Transacciones</p>
                           <p className="text-2xl font-bold text-purple-600">
                             {getContabilidadData().reduce((sum, item) => sum + item.ventas.length, 0)}
@@ -2489,6 +2509,7 @@ export default function AlmacenPage() {
                       </div>
                     </div>
                   </div>
+
                 </div>
               )}
             </CardContent>
