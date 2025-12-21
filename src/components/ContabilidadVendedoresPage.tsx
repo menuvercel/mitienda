@@ -11,11 +11,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Calendar, 
-  Calculator, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  Calendar,
+  Calculator,
+  TrendingUp,
+  TrendingDown,
   DollarSign,
   FileText,
   User,
@@ -78,11 +78,11 @@ export default function ContabilidadVendedoresPage({ vendedores, onRefresh }: Co
     try {
       const fechaInicioStr = format(fechaInicio, 'yyyy-MM-dd')
       const fechaFinStr = format(fechaFin, 'yyyy-MM-dd')
-      
+
       const response = await fetch(
         `/api/contabilidad-vendedores?fechaInicio=${fechaInicioStr}&fechaFin=${fechaFinStr}`
       )
-      
+
       if (response.ok) {
         const data = await response.json()
         setCalculos(data)
@@ -138,7 +138,7 @@ export default function ContabilidadVendedoresPage({ vendedores, onRefresh }: Co
   )
 
   const filteredCalculos = calculos.filter(calculo =>
-    filtroVendedor === '' || 
+    filtroVendedor === '' ||
     calculo.vendedorNombre.toLowerCase().includes(filtroVendedor.toLowerCase())
   )
 
@@ -549,7 +549,7 @@ export default function ContabilidadVendedoresPage({ vendedores, onRefresh }: Co
                       <FileText className="h-4 w-4" />
                       Análisis Financiero Adicional
                     </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="p-3 bg-white rounded border">
                         <p className="text-xs sm:text-sm text-gray-600">Gastos como % de Ventas</p>
                         <p className="font-semibold text-sm sm:text-base text-red-600">
@@ -560,6 +560,16 @@ export default function ContabilidadVendedoresPage({ vendedores, onRefresh }: Co
                         <p className="text-xs sm:text-sm text-gray-600">Salarios como % de Ventas</p>
                         <p className="font-semibold text-sm sm:text-base text-red-600">
                           {totalVentaGlobal > 0 ? `${((totalSalariosGlobal / totalVentaGlobal) * 100).toFixed(1)}%` : '0%'}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-white rounded border">
+                        <p className="text-xs sm:text-sm text-gray-600">Margen de Ganancia Neto</p>
+                        <p className={cn(
+                          "font-semibold text-sm sm:text-base",
+                          totalVentaGlobal > 0 ? (resultadoGlobal / totalVentaGlobal >= 0.15 ? "text-green-600" :
+                            resultadoGlobal / totalVentaGlobal >= 0 ? "text-yellow-600" : "text-red-600") : "text-gray-600"
+                        )}>
+                          {totalVentaGlobal > 0 ? `${((resultadoGlobal / totalVentaGlobal) * 100).toFixed(1)}%` : '0%'}
                         </p>
                       </div>
                     </div>
