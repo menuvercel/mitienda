@@ -74,6 +74,7 @@ import { Store, Settings, LayoutGrid } from "lucide-react"
 import TiendaSection from '@/components/TiendaSection'
 import ReajusteUSDSection from '@/components/ReajusteUSDSection';
 import ContabilidadVendedoresPage from '@/components/ContabilidadVendedoresPage';
+import ComparativaGeneral from '@/components/ComparativaGeneral';
 
 
 interface VentaSemana {
@@ -1833,6 +1834,16 @@ export default function AlmacenPage() {
               >
                 Reajuste USD
               </Button>
+            <Button
+              variant="ghost"
+              className={activeSection === 'comparativa-general' ? 'bg-accent' : ''}
+              onClick={() => {
+                setActiveSection('comparativa-general')
+                setIsMenuOpen(false)
+              }}
+            >
+              Comparativa general
+            </Button>
             </nav>
           </SheetContent>
         </Sheet>
@@ -2160,6 +2171,13 @@ export default function AlmacenPage() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {activeSection === 'comparativa-general' && (
+        <ComparativaGeneral
+          inventario={inventario}
+          vendedores={vendedores}
+        />
       )}
 
       {activeSection === 'reajusteUSD' && (
