@@ -41,6 +41,7 @@ export default function ContabilidadVendedoresPage({ vendedores, onRefresh }: Co
   const [showDatePicker, setShowDatePicker] = useState<'inicio' | 'fin' | null>(null)
   const [isCalculating, setIsCalculating] = useState(false)
   const [calculos, setCalculos] = useState<CalculoContabilidadVendedor[]>([])
+  const [totalMermas, setTotalMermas] = useState(0)
   const [expandedSellers, setExpandedSellers] = useState<Set<string>>(new Set())
   const [showGastosDialog, setShowGastosDialog] = useState(false)
   const [selectedVendedor, setSelectedVendedor] = useState<Vendedor | null>(null)
@@ -85,7 +86,8 @@ export default function ContabilidadVendedoresPage({ vendedores, onRefresh }: Co
 
       if (response.ok) {
         const data = await response.json()
-        setCalculos(data)
+        setCalculos(data.vendedores || [])
+        setTotalMermas(data.totalMermas || 0)
         toast({
           title: "Éxito",
           description: "Cálculos completados correctamente",
@@ -482,12 +484,12 @@ export default function ContabilidadVendedoresPage({ vendedores, onRefresh }: Co
               const totalGananciaBrutaGlobal = filteredCalculos.reduce((sum, calc) => sum + calc.gananciaBruta, 0)
               const totalGastosGlobal = filteredCalculos.reduce((sum, calc) => sum + calc.gastos, 0)
               const totalSalariosGlobal = filteredCalculos.reduce((sum, calc) => sum + calc.salario, 0)
-              const resultadoGlobal = filteredCalculos.reduce((sum, calc) => sum + calc.resultado, 0)
+              const resultadoGlobal = filteredCalculos.reduce((sum, calc) => sum + calc.resultado, 0) - totalMermas
 
               return (
                 <div className="space-y-6">
                   {/* Main totals grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
                     <div className="text-center p-3 sm:p-4 bg-blue-50 rounded-lg border">
                       <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500 mx-auto mb-2" />
                       <p className="text-xs sm:text-sm text-gray-600 font-medium">Venta Total Global</p>
@@ -507,6 +509,11 @@ export default function ContabilidadVendedoresPage({ vendedores, onRefresh }: Co
                       <TrendingDown className="h-5 w-5 sm:h-6 sm:w-6 text-red-500 mx-auto mb-2" />
                       <p className="text-xs sm:text-sm text-gray-600 font-medium">Salarios Totales</p>
                       <p className="font-bold text-sm sm:text-lg text-red-600 break-words">{formatCurrency(totalSalariosGlobal)}</p>
+                    </div>
+                    <div className="text-center p-3 sm:p-4 bg-orange-50 rounded-lg border">
+                      <TrendingDown className="h-5 w-5 sm:h-6 sm:w-6 text-orange-500 mx-auto mb-2" />
+                      <p className="text-xs sm:text-sm text-gray-600 font-medium">Mermas (Gastos)</p>
+                      <p className="font-bold text-sm sm:text-lg text-orange-600 break-words">{formatCurrency(totalMermas)}</p>
                     </div>
                     <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg border sm:col-span-2 lg:col-span-1">
                       <Calculator className="h-5 w-5 sm:h-6 sm:w-6 text-gray-500 mx-auto mb-2" />

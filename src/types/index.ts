@@ -215,3 +215,8 @@ export interface CalculoContabilidadVendedor {
 export interface VendedorConSalario extends Vendedor {
   salario: number;
 }
+
+export interface ContabilidadResponse {
+  vendedores: CalculoContabilidadVendedor[];
+  totalMermas: number;
+}

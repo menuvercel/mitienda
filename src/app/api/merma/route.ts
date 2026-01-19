@@ -168,24 +168,33 @@ export async function GET(request: Request) {
       ORDER BY m.fecha DESC
     `;
 
-    const mermasFormateadas = await Promise.all(mermas.rows.map(async merma => {
-      let parametros: Parametro[] = [];
+    // Get all merma IDs that have parameters to fetch them in one go
+    const mermaIdsWithParams = mermas.rows
+      .filter(m => m.tiene_parametros)
+      .map(m => m.id);
 
-      if (merma.tiene_parametros) {
-        // Obtener los parámetros de merma_parametros
-        const parametrosResult = await sql`
-          SELECT 
-            nombre,
-            cantidad
-          FROM merma_parametros
-          WHERE merma_id = ${merma.id}
-        `;
-        
-        parametros = parametrosResult.rows.map(row => ({
-          nombre: row.nombre,
-          cantidad: row.cantidad
+    let allParametros: any[] = [];
+    if (mermaIdsWithParams.length > 0) {
+      // Fetch all parameters for these mermas at once
+      const parametrosResult = await sql.query(
+        `SELECT 
+          merma_id,
+          nombre,
+          cantidad
+        FROM merma_parametros
+        WHERE merma_id = ANY ($1)`,
+        [mermaIdsWithParams]
+      );
+      allParametros = parametrosResult.rows;
+    }
+
+    const mermasFormateadas = mermas.rows.map(merma => {
+      const parametros = allParametros
+        .filter(p => p.merma_id === merma.id)
+        .map(p => ({
+          nombre: p.nombre,
+          cantidad: p.cantidad
         }));
-      }
 
       return {
         id: merma.id,
@@ -201,7 +210,7 @@ export async function GET(request: Request) {
           parametros: parametros
         }
       };
-    }));
+    });
 
     return NextResponse.json(mermasFormateadas);
   } catch (error) {

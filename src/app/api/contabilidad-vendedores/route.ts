@@ -52,34 +52,39 @@ export async function GET(request: NextRequest) {
       const result = await calculateSellerAccounting(vendedorId, fechaInicio, fechaFin);
       return NextResponse.json(result);
     } else {
-      // Calculate for all sellers
       const sellersResult = await query(
         'SELECT id, nombre FROM usuarios WHERE rol = $1 ORDER BY nombre',
         ['Vendedor']
       );
 
-      const calculations = await Promise.all(
-        sellersResult.rows.map(async (seller) => {
-          try {
-            return await calculateSellerAccounting(seller.id, fechaInicio, fechaFin);
-          } catch (error) {
-            console.error(`Error calculating for seller ${seller.id}:`, error);
-            return {
-              vendedorId: seller.id,
-              vendedorNombre: seller.nombre,
-              ventaTotal: 0,
-              gananciaBruta: 0,
-              gastos: 0,
-              salario: 0,
-              resultado: 0,
-              detalles: { ventas: [], gastosDesglosados: [] },
-              error: 'Error calculating'
-            };
-          }
-        })
-      );
+      const calculations = [];
+      for (const seller of sellersResult.rows) {
+        try {
+          const result = await calculateSellerAccounting(seller.id, fechaInicio, fechaFin);
+          calculations.push(result);
+        } catch (error) {
+          console.error(`Error calculating for seller ${seller.id}:`, error);
+          calculations.push({
+            vendedorId: seller.id,
+            vendedorNombre: seller.nombre,
+            ventaTotal: 0,
+            gananciaBruta: 0,
+            gastos: 0,
+            salario: 0,
+            resultado: 0,
+            detalles: { ventas: [], gastosDesglosados: [] },
+            error: 'Error calculating'
+          });
+        }
+      }
 
-      return NextResponse.json(calculations);
+      // Calculate total mermas for the period
+      const totalMermas = await calculateTotalMermas(fechaInicio, fechaFin);
+
+      return NextResponse.json({
+        vendedores: calculations,
+        totalMermas
+      });
     }
   } catch (error) {
     console.error('Error calculating seller accounting:', error);
@@ -224,6 +229,19 @@ async function getProratedExpenses(
     valorProrrateado: number;
   }> = [];
 
+  // Fetch all expenses for this seller in the relevant months at once
+  const startPeriod = startDate.getFullYear() * 100 + (startDate.getMonth() + 1);
+  const endPeriod = endDate.getFullYear() * 100 + (endDate.getMonth() + 1);
+
+  const expensesResult = await query(
+    `SELECT nombre, valor, mes, anio 
+     FROM gastos_vendedores 
+     WHERE vendedor_id = $1 
+     AND (anio * 100 + mes) >= $2 
+     AND (anio * 100 + mes) <= $3`,
+    [parseInt(vendedorId), startPeriod, endPeriod]
+  );
+
   for (const { mes, anio } of monthsInRange) {
     // Get days in this month within the selected range
     const monthStart = new Date(anio, mes - 1, 1);
@@ -234,13 +252,10 @@ async function getProratedExpenses(
     const diasEnMes = monthEnd.getDate();
     const diasSeleccionados = Math.floor((actualEnd.getTime() - actualStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-    // Get expenses for this month
-    const expensesResult = await query(
-      'SELECT nombre, valor FROM gastos_vendedores WHERE vendedor_id = $1 AND mes = $2 AND anio = $3',
-      [parseInt(vendedorId), mes, anio]
-    );
+    // Filter expenses for this specific month from the pre-fetched result
+    const monthExpenses = expensesResult.rows.filter(e => e.mes === mes && e.anio === anio);
 
-    for (const expense of expensesResult.rows) {
+    for (const expense of monthExpenses) {
       const valorMensual = parseFloat(expense.valor);
       const valorProrrateado = (valorMensual / diasEnMes) * diasSeleccionados;
 
@@ -261,4 +276,24 @@ async function getProratedExpenses(
   }
 
   return proratedExpenses;
+}
+
+async function calculateTotalMermas(fechaInicio: string, fechaFin: string): Promise<number> {
+  const mermasResult = await query(
+    `SELECT m.cantidad, p.precio 
+     FROM merma m
+     JOIN productos p ON m.producto_id = p.id
+     WHERE DATE(m.fecha) >= DATE($1)
+     AND DATE(m.fecha) <= DATE($2)`,
+    [fechaInicio, fechaFin]
+  );
+
+  let totalMermas = 0;
+  for (const row of mermasResult.rows) {
+    const cantidad = parseInt(row.cantidad || '0');
+    const precio = parseFloat(row.precio || '0');
+    totalMermas += cantidad * precio;
+  }
+
+  return totalMermas;
 }

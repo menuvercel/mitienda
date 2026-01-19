@@ -285,7 +285,7 @@ export default function AlmacenPage() {
   const [expandedMermas, setExpandedMermas] = useState<Set<string>>(new Set());
   const [mermaSearchTerm, setMermaSearchTerm] = useState("")
   const [mermaSortOrder, setMermaSortOrder] = useState<'asc' | 'desc'>('asc')
-  const [mermaSortBy, setMermaSortBy] = useState<'nombre' | 'cantidad'>('nombre')
+  const [mermaSortBy, setMermaSortBy] = useState<'nombre' | 'cantidad' | 'fecha'>('nombre')
   const [nombreExiste, setNombreExiste] = useState(false);
   const [verificandoNombre, setVerificandoNombre] = useState(false);
   const { updateProductQuantity } = useVendorProducts();
@@ -1018,7 +1018,7 @@ export default function AlmacenPage() {
     });
   };
 
-  const handleMermaSort = (key: 'nombre' | 'cantidad') => {
+  const handleMermaSort = (key: 'nombre' | 'cantidad' | 'fecha') => {
     if (mermaSortBy === key) {
       setMermaSortOrder(mermaSortOrder === 'asc' ? 'desc' : 'asc')
     } else {
@@ -1834,16 +1834,16 @@ export default function AlmacenPage() {
               >
                 Reajuste USD
               </Button>
-            <Button
-              variant="ghost"
-              className={activeSection === 'comparativa-general' ? 'bg-accent' : ''}
-              onClick={() => {
-                setActiveSection('comparativa-general')
-                setIsMenuOpen(false)
-              }}
-            >
-              Comparativa general
-            </Button>
+              <Button
+                variant="ghost"
+                className={activeSection === 'comparativa-general' ? 'bg-accent' : ''}
+                onClick={() => {
+                  setActiveSection('comparativa-general')
+                  setIsMenuOpen(false)
+                }}
+              >
+                Comparativa general
+              </Button>
             </nav>
           </SheetContent>
         </Sheet>
@@ -1923,7 +1923,6 @@ export default function AlmacenPage() {
                     />
                   </div>
 
-                  {/* Botones de ordenamiento */}
                   <div className="flex justify-start space-x-2 mb-2">
                     <Button
                       variant="outline"
@@ -1941,6 +1940,15 @@ export default function AlmacenPage() {
                       className="flex items-center text-xs px-2 py-1"
                     >
                       Cantidad
+                      <ArrowUpDown className="ml-1 h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleMermaSort('fecha')}
+                      className="flex items-center text-xs px-2 py-1"
+                    >
+                      Fecha
                       <ArrowUpDown className="ml-1 h-3 w-3" />
                     </Button>
                   </div>
@@ -1961,10 +1969,17 @@ export default function AlmacenPage() {
                             return mermaSortOrder === 'asc'
                               ? a.producto.nombre.localeCompare(b.producto.nombre)
                               : b.producto.nombre.localeCompare(a.producto.nombre);
-                          } else {
+                          } else if (mermaSortBy === 'cantidad') {
                             return mermaSortOrder === 'asc'
                               ? a.cantidad - b.cantidad
                               : b.cantidad - a.cantidad;
+                          } else {
+                            // Ordenar por fecha
+                            const dateA = new Date(a.fecha).getTime();
+                            const dateB = new Date(b.fecha).getTime();
+                            return mermaSortOrder === 'asc'
+                              ? dateA - dateB
+                              : dateB - dateA;
                           }
                         })
                         .map((merma) => {
@@ -2133,102 +2148,214 @@ export default function AlmacenPage() {
 
           </Card>
         </div>
-      )}
+      )
+      }
 
 
-      {activeSection === 'vendedores' && (
-        <div>
-          <div className="flex justify-end mb-4">
-            <Button
-              onClick={() => setShowRegisterModal(true)}
-              className="bg-purple-500 hover:bg-purple-600 text-white"
-            >
-              <UserPlus className="mr-2 h-4 w-4" /> Agregar Usuario
-            </Button>
-          </div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Vendedores</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {vendedores.map((vendedor) => (
-                  <Button
-                    key={vendedor.id}
-                    onClick={() => handleVerVendedor(vendedor)}
-                    className="w-full h-auto p-4 flex items-center text-left bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors"
-                    variant="ghost"
-                  >
-                    <div className="flex-grow">
-                      <span className="font-semibold text-gray-800">{vendedor.nombre}</span>
-                      <div className="text-sm text-gray-600">
-                        <span>Teléfono: {vendedor.telefono}</span>
-                      </div>
-                    </div>
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {activeSection === 'comparativa-general' && (
-        <ComparativaGeneral
-          inventario={inventario}
-          vendedores={vendedores}
-        />
-      )}
-
-      {activeSection === 'reajusteUSD' && (
-        <ReajusteUSDSection />
-      )}
-
-
-      {activeSection === 'ventas' && (
-        <SalesSection userRole="Almacen" />
-      )}
-
-      {activeSection === 'contabilidad' && (
-        <div>
-          <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
-            <h2 className="text-xl font-bold">Contabilidad por producto</h2>
-            <Button
-              onClick={exportContabilidadToExcel}
-              className="bg-green-500 hover:bg-green-600 text-white"
-              disabled={isLoadingContabilidad}
-            >
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              Exportar Excel
-            </Button>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Resumen de Ventas por Producto</CardTitle>
-              <div className="flex flex-wrap gap-2">
-                <Input
-                  placeholder="Buscar producto..."
-                  value={searchTermContabilidad}
-                  onChange={(e) => setSearchTermContabilidad(e.target.value)}
-                  className="max-w-sm"
-                />
-
-                {/* Selector de rango de fechas CORREGIDO */}
-                <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
-                  <PopoverTrigger asChild>
+      {
+        activeSection === 'vendedores' && (
+          <div>
+            <div className="flex justify-end mb-4">
+              <Button
+                onClick={() => setShowRegisterModal(true)}
+                className="bg-purple-500 hover:bg-purple-600 text-white"
+              >
+                <UserPlus className="mr-2 h-4 w-4" /> Agregar Usuario
+              </Button>
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Vendedores</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {vendedores.map((vendedor) => (
                     <Button
-                      variant="outline"
-                      className={cn(
-                        "w-[280px] justify-start text-left font-normal",
-                        (!fechaInicio && !fechaFin) && "text-muted-foreground"
-                      )}
+                      key={vendedor.id}
+                      onClick={() => handleVerVendedor(vendedor)}
+                      className="w-full h-auto p-4 flex items-center text-left bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-colors"
+                      variant="ghost"
                     >
-                      <CalendarDays className="mr-2 h-4 w-4" />
-                      {fechaInicio || fechaFin ? (
-                        <span className="truncate">
+                      <div className="flex-grow">
+                        <span className="font-semibold text-gray-800">{vendedor.nombre}</span>
+                        <div className="text-sm text-gray-600">
+                          <span>Teléfono: {vendedor.telefono}</span>
+                        </div>
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )
+      }
+
+      {
+        activeSection === 'comparativa-general' && (
+          <ComparativaGeneral
+            inventario={inventario}
+            vendedores={vendedores}
+          />
+        )
+      }
+
+      {
+        activeSection === 'reajusteUSD' && (
+          <ReajusteUSDSection />
+        )
+      }
+
+
+      {
+        activeSection === 'ventas' && (
+          <SalesSection userRole="Almacen" />
+        )
+      }
+
+      {
+        activeSection === 'contabilidad' && (
+          <div>
+            <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
+              <h2 className="text-xl font-bold">Contabilidad por producto</h2>
+              <Button
+                onClick={exportContabilidadToExcel}
+                className="bg-green-500 hover:bg-green-600 text-white"
+                disabled={isLoadingContabilidad}
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Exportar Excel
+              </Button>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Resumen de Ventas por Producto</CardTitle>
+                <div className="flex flex-wrap gap-2">
+                  <Input
+                    placeholder="Buscar producto..."
+                    value={searchTermContabilidad}
+                    onChange={(e) => setSearchTermContabilidad(e.target.value)}
+                    className="max-w-sm"
+                  />
+
+                  {/* Selector de rango de fechas CORREGIDO */}
+                  <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-[280px] justify-start text-left font-normal",
+                          (!fechaInicio && !fechaFin) && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarDays className="mr-2 h-4 w-4" />
+                        {fechaInicio || fechaFin ? (
+                          <span className="truncate">
+                            {fechaInicio && fechaFin
+                              ? `${format(fechaInicio, 'dd/MM/yyyy')} - ${format(fechaFin, 'dd/MM/yyyy')}`
+                              : fechaInicio
+                                ? `Desde: ${format(fechaInicio, 'dd/MM/yyyy')}`
+                                : fechaFin
+                                  ? `Hasta: ${format(fechaFin, 'dd/MM/yyyy')}`
+                                  : ""
+                            }
+                          </span>
+                        ) : (
+                          "Seleccionar rango de fechas"
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <div className="p-4 space-y-4">
+                        <div className="text-sm font-medium text-gray-700 mb-2">
+                          Seleccionar rango de fechas
+                        </div>
+
+                        {/* Fecha de inicio */}
+                        <div className="space-y-2">
+                          <label className="text-xs text-gray-600">Fecha de inicio:</label>
+                          <CalendarComponent
+                            mode="single"
+                            selected={fechaInicio || undefined}
+                            onSelect={(date) => {
+                              setFechaInicio(date || null);
+                              // Validar que la fecha de inicio no sea posterior a la de fin
+                              if (date && fechaFin && date > fechaFin) {
+                                setFechaFin(null);
+                              }
+                            }}
+                            disabled={createDisabledMatcher(fechaFin, 'before')}
+                            initialFocus
+                          />
+                        </div>
+
+                        {/* Fecha de fin */}
+                        <div className="space-y-2">
+                          <label className="text-xs text-gray-600">Fecha de fin:</label>
+                          <CalendarComponent
+                            mode="single"
+                            selected={fechaFin || undefined}
+                            onSelect={(date) => {
+                              setFechaFin(date || null);
+                              // Validar que la fecha de fin no sea anterior a la de inicio
+                              if (date && fechaInicio && date < fechaInicio) {
+                                setFechaInicio(null);
+                              }
+                            }}
+                            disabled={createDisabledMatcher(fechaInicio, 'after')}
+                          />
+                        </div>
+
+                        {/* Validación de rango */}
+                        {validarRangoFechas(fechaInicio, fechaFin) && (
+                          <div className="text-xs text-red-500 bg-red-50 p-2 rounded">
+                            {validarRangoFechas(fechaInicio, fechaFin)}
+                          </div>
+                        )}
+
+                        {/* Botones de acción */}
+                        <div className="flex space-x-2 pt-2 border-t">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={limpiarFiltroFechas}
+                          >
+                            Limpiar
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setShowDatePicker(false)}
+                            disabled={!!validarRangoFechas(fechaInicio, fechaFin)}
+                          >
+                            Aplicar
+                          </Button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => setSortOrderContabilidad(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    className="flex items-center"
+                  >
+                    Ordenar por monto
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Mostrar información del filtro aplicado */}
+                {(fechaInicio || fechaFin) && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center text-blue-700">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        <span className="text-sm font-medium">
                           {fechaInicio && fechaFin
-                            ? `${format(fechaInicio, 'dd/MM/yyyy')} - ${format(fechaFin, 'dd/MM/yyyy')}`
+                            ? `Período: ${format(fechaInicio, 'dd/MM/yyyy')} - ${format(fechaFin, 'dd/MM/yyyy')}`
                             : fechaInicio
                               ? `Desde: ${format(fechaInicio, 'dd/MM/yyyy')}`
                               : fechaFin
@@ -2236,540 +2363,451 @@ export default function AlmacenPage() {
                                 : ""
                           }
                         </span>
-                      ) : (
-                        "Seleccionar rango de fechas"
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <div className="p-4 space-y-4">
-                      <div className="text-sm font-medium text-gray-700 mb-2">
-                        Seleccionar rango de fechas
                       </div>
-
-                      {/* Fecha de inicio */}
-                      <div className="space-y-2">
-                        <label className="text-xs text-gray-600">Fecha de inicio:</label>
-                        <CalendarComponent
-                          mode="single"
-                          selected={fechaInicio || undefined}
-                          onSelect={(date) => {
-                            setFechaInicio(date || null);
-                            // Validar que la fecha de inicio no sea posterior a la de fin
-                            if (date && fechaFin && date > fechaFin) {
-                              setFechaFin(null);
-                            }
-                          }}
-                          disabled={createDisabledMatcher(fechaFin, 'before')}
-                          initialFocus
-                        />
-                      </div>
-
-                      {/* Fecha de fin */}
-                      <div className="space-y-2">
-                        <label className="text-xs text-gray-600">Fecha de fin:</label>
-                        <CalendarComponent
-                          mode="single"
-                          selected={fechaFin || undefined}
-                          onSelect={(date) => {
-                            setFechaFin(date || null);
-                            // Validar que la fecha de fin no sea anterior a la de inicio
-                            if (date && fechaInicio && date < fechaInicio) {
-                              setFechaInicio(null);
-                            }
-                          }}
-                          disabled={createDisabledMatcher(fechaInicio, 'after')}
-                        />
-                      </div>
-
-                      {/* Validación de rango */}
-                      {validarRangoFechas(fechaInicio, fechaFin) && (
-                        <div className="text-xs text-red-500 bg-red-50 p-2 rounded">
-                          {validarRangoFechas(fechaInicio, fechaFin)}
-                        </div>
-                      )}
-
-                      {/* Botones de acción */}
-                      <div className="flex space-x-2 pt-2 border-t">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={limpiarFiltroFechas}
-                        >
-                          Limpiar
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => setShowDatePicker(false)}
-                          disabled={!!validarRangoFechas(fechaInicio, fechaFin)}
-                        >
-                          Aplicar
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={limpiarFiltroFechas}
+                        className="text-blue-700 hover:text-blue-900"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
-                  </PopoverContent>
-                </Popover>
+                  </div>
+                )}
+              </CardHeader>
 
-                <Button
-                  variant="outline"
-                  onClick={() => setSortOrderContabilidad(prev => prev === 'asc' ? 'desc' : 'asc')}
-                  className="flex items-center"
-                >
-                  Ordenar por monto
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* Mostrar información del filtro aplicado */}
-              {(fechaInicio || fechaFin) && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center text-blue-700">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      <span className="text-sm font-medium">
-                        {fechaInicio && fechaFin
-                          ? `Período: ${format(fechaInicio, 'dd/MM/yyyy')} - ${format(fechaFin, 'dd/MM/yyyy')}`
-                          : fechaInicio
-                            ? `Desde: ${format(fechaInicio, 'dd/MM/yyyy')}`
-                            : fechaFin
-                              ? `Hasta: ${format(fechaFin, 'dd/MM/yyyy')}`
-                              : ""
-                        }
-                      </span>
+              <CardContent>
+                {isLoadingContabilidad ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
+                      <p>Cargando datos de contabilidad...</p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={limpiarFiltroFechas}
-                      className="text-blue-700 hover:text-blue-900"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
                   </div>
-                </div>
-              )}
-            </CardHeader>
-
-            <CardContent>
-              {isLoadingContabilidad ? (
-                <div className="flex justify-center items-center py-8">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
-                    <p>Cargando datos de contabilidad...</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Tabla de resumen expandible */}
-                  <div className="overflow-x-auto">
-                    <div className="border rounded-lg">
-                      <div className="max-h-[500px] overflow-y-auto">
-                        <table className="w-full border-collapse">
-                          <thead className="sticky top-0 bg-white border-b">
-                            <tr>
-                              <th className="text-left p-3 font-medium">Producto</th>
-                              <th className="text-right p-3 font-medium">Cantidad Total</th>
-                              <th className="text-right p-3 font-medium">Monto Total</th>
-                              <th className="text-right p-3 font-medium">N° Ventas</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {getContabilidadData().length === 0 ? (
+                ) : (
+                  <div className="space-y-4">
+                    {/* Tabla de resumen expandible */}
+                    <div className="overflow-x-auto">
+                      <div className="border rounded-lg">
+                        <div className="max-h-[500px] overflow-y-auto">
+                          <table className="w-full border-collapse">
+                            <thead className="sticky top-0 bg-white border-b">
                               <tr>
-                                <td colSpan={4} className="text-center py-8 text-gray-500">
-                                  {searchTermContabilidad
-                                    ? 'No se encontraron productos que coincidan con la búsqueda.'
-                                    : (fechaInicio || fechaFin)
-                                      ? `No hay datos de ventas en el período seleccionado.`
-                                      : 'No hay datos de ventas disponibles.'}
-                                </td>
+                                <th className="text-left p-3 font-medium">Producto</th>
+                                <th className="text-right p-3 font-medium">Cantidad Total</th>
+                                <th className="text-right p-3 font-medium">Monto Total</th>
+                                <th className="text-right p-3 font-medium">N° Ventas</th>
                               </tr>
-                            ) : (
-                              getContabilidadData().map((item, index) => (
-                                <React.Fragment key={index}>
-                                  {/* Fila principal del producto */}
-                                  <tr
-                                    className={`border-b hover:bg-gray-50 ${item.tieneParametros ? 'cursor-pointer' : ''
-                                      }`}
-                                    onClick={() => {
-                                      if (item.tieneParametros) {
-                                        toggleExpandContabilidad(item.producto)
-                                      }
-                                    }}
-                                  >
-                                    <td className="p-3">
-                                      <div className="flex items-center">
-                                        <span className="font-medium">{item.producto}</span>
-                                        {item.tieneParametros && (
-                                          <ChevronDown
-                                            className={`ml-2 h-4 w-4 transition-transform ${expandedContabilidadProducts[item.producto] ? 'rotate-180' : ''
-                                              }`}
-                                          />
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td className="p-3 text-right font-semibold">{item.cantidadTotal}</td>
-                                    <td className="p-3 text-right font-semibold text-green-600">
-                                      ${item.montoTotal.toFixed(2)}
-                                    </td>
-                                    <td className="p-3 text-right">{item.ventas.length}</td>
-                                  </tr>
+                            </thead>
+                            <tbody>
+                              {getContabilidadData().length === 0 ? (
+                                <tr>
+                                  <td colSpan={4} className="text-center py-8 text-gray-500">
+                                    {searchTermContabilidad
+                                      ? 'No se encontraron productos que coincidan con la búsqueda.'
+                                      : (fechaInicio || fechaFin)
+                                        ? `No hay datos de ventas en el período seleccionado.`
+                                        : 'No hay datos de ventas disponibles.'}
+                                  </td>
+                                </tr>
+                              ) : (
+                                getContabilidadData().map((item, index) => (
+                                  <React.Fragment key={index}>
+                                    {/* Fila principal del producto */}
+                                    <tr
+                                      className={`border-b hover:bg-gray-50 ${item.tieneParametros ? 'cursor-pointer' : ''
+                                        }`}
+                                      onClick={() => {
+                                        if (item.tieneParametros) {
+                                          toggleExpandContabilidad(item.producto)
+                                        }
+                                      }}
+                                    >
+                                      <td className="p-3">
+                                        <div className="flex items-center">
+                                          <span className="font-medium">{item.producto}</span>
+                                          {item.tieneParametros && (
+                                            <ChevronDown
+                                              className={`ml-2 h-4 w-4 transition-transform ${expandedContabilidadProducts[item.producto] ? 'rotate-180' : ''
+                                                }`}
+                                            />
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="p-3 text-right font-semibold">{item.cantidadTotal}</td>
+                                      <td className="p-3 text-right font-semibold text-green-600">
+                                        ${item.montoTotal.toFixed(2)}
+                                      </td>
+                                      <td className="p-3 text-right">{item.ventas.length}</td>
+                                    </tr>
 
-                                  {/* Filas expandibles para parámetros */}
-                                  {item.tieneParametros &&
-                                    expandedContabilidadProducts[item.producto] &&
-                                    item.parametros.size > 0 && (
-                                      <tr>
-                                        <td colSpan={4} className="p-0">
-                                          <div className="bg-gray-50 border-t">
-                                            <div className="px-6 py-3">
-                                              <div className="text-sm font-medium text-gray-700 mb-2">
-                                                Desglose por parámetros:
-                                              </div>
-                                              <div className="space-y-1">
-                                                {Array.from(item.parametros.entries())
-                                                  .sort(([, a], [, b]) => b.monto - a.monto)
-                                                  .map(([parametroNombre, parametroData], paramIndex) => (
-                                                    <div
-                                                      key={paramIndex}
-                                                      className="flex justify-between items-center py-2 px-3 bg-white rounded border"
-                                                    >
-                                                      <div className="flex items-center">
-                                                        <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                                                        <span className="text-sm font-medium">
-                                                          {parametroNombre}
-                                                        </span>
+                                    {/* Filas expandibles para parámetros */}
+                                    {item.tieneParametros &&
+                                      expandedContabilidadProducts[item.producto] &&
+                                      item.parametros.size > 0 && (
+                                        <tr>
+                                          <td colSpan={4} className="p-0">
+                                            <div className="bg-gray-50 border-t">
+                                              <div className="px-6 py-3">
+                                                <div className="text-sm font-medium text-gray-700 mb-2">
+                                                  Desglose por parámetros:
+                                                </div>
+                                                <div className="space-y-1">
+                                                  {Array.from(item.parametros.entries())
+                                                    .sort(([, a], [, b]) => b.monto - a.monto)
+                                                    .map(([parametroNombre, parametroData], paramIndex) => (
+                                                      <div
+                                                        key={paramIndex}
+                                                        className="flex justify-between items-center py-2 px-3 bg-white rounded border"
+                                                      >
+                                                        <div className="flex items-center">
+                                                          <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                                                          <span className="text-sm font-medium">
+                                                            {parametroNombre}
+                                                          </span>
+                                                        </div>
+                                                        <div className="flex space-x-6 text-sm">
+                                                          <span className="text-gray-600">
+                                                            Cantidad: <span className="font-semibold">{parametroData.cantidad}</span>
+                                                          </span>
+                                                          <span className="text-green-600">
+                                                            Monto: <span className="font-semibold">${parametroData.monto.toFixed(2)}</span>
+                                                          </span>
+                                                        </div>
                                                       </div>
-                                                      <div className="flex space-x-6 text-sm">
-                                                        <span className="text-gray-600">
-                                                          Cantidad: <span className="font-semibold">{parametroData.cantidad}</span>
-                                                        </span>
-                                                        <span className="text-green-600">
-                                                          Monto: <span className="font-semibold">${parametroData.monto.toFixed(2)}</span>
-                                                        </span>
-                                                      </div>
-                                                    </div>
-                                                  ))}
+                                                    ))}
+                                                </div>
                                               </div>
                                             </div>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    )}
-                                </React.Fragment>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Totales */}
-                  <div className="border-t pt-4 mt-4">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h3 className="font-bold text-lg mb-2">
-                        Totales Generales
-                        {(fechaInicio || fechaFin) && (
-                          <span className="text-sm font-normal text-gray-600 ml-2">
-                            {fechaInicio && fechaFin
-                              ? `(${format(fechaInicio, 'dd/MM/yyyy')} - ${format(fechaFin, 'dd/MM/yyyy')})`
-                              : fechaInicio
-                                ? `(desde ${format(fechaInicio, 'dd/MM/yyyy')})`
-                                : fechaFin
-                                  ? `(hasta ${format(fechaFin, 'dd/MM/yyyy')})`
-                                  : ""
-                            }
-                          </span>
-                        )}
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="text-center">
-                          <p className="text-sm text-gray-600">Total Productos Vendidos</p>
-                          <p className="text-2xl font-bold text-blue-600">
-                            {getContabilidadData().reduce((sum, item) => sum + item.cantidadTotal, 0)}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm text-gray-600">Total en Ventas</p>
-                          <p className="text-2xl font-bold text-green-600">
-                            ${getContabilidadData().reduce((sum, item) => sum + item.montoTotal, 0).toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm text-gray-600">Ganancia Bruta</p>
-                          <p className="text-2xl font-bold text-orange-600">
-                            ${getContabilidadData().reduce((sum, item) => {
-                              // Calcular ganancia por cada venta del producto
-                              const gananciaProducto = item.ventas.reduce((gananciaSum, venta) => {
-                                const producto = inventario.find(p => p.nombre === venta.producto_nombre);
-                                if (!producto) return gananciaSum;
-
-                                const precioVenta = parseFloat(venta.total.toString());
-                                const precioCompra = producto.precio_compra || 0;
-                                const cantidad = venta.cantidad;
-
-                                return gananciaSum + ((precioVenta / cantidad) - precioCompra) * cantidad;
-                              }, 0);
-
-                              return sum + gananciaProducto;
-                            }, 0).toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm text-gray-600">Total de Transacciones</p>
-                          <p className="text-2xl font-bold text-purple-600">
-                            {getContabilidadData().reduce((sum, item) => sum + item.ventas.length, 0)}
-                          </p>
+                                          </td>
+                                        </tr>
+                                      )}
+                                  </React.Fragment>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     </div>
-                  </div>
 
+                    {/* Totales */}
+                    <div className="border-t pt-4 mt-4">
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h3 className="font-bold text-lg mb-2">
+                          Totales Generales
+                          {(fechaInicio || fechaFin) && (
+                            <span className="text-sm font-normal text-gray-600 ml-2">
+                              {fechaInicio && fechaFin
+                                ? `(${format(fechaInicio, 'dd/MM/yyyy')} - ${format(fechaFin, 'dd/MM/yyyy')})`
+                                : fechaInicio
+                                  ? `(desde ${format(fechaInicio, 'dd/MM/yyyy')})`
+                                  : fechaFin
+                                    ? `(hasta ${format(fechaFin, 'dd/MM/yyyy')})`
+                                    : ""
+                              }
+                            </span>
+                          )}
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div className="text-center">
+                            <p className="text-sm text-gray-600">Total Productos Vendidos</p>
+                            <p className="text-2xl font-bold text-blue-600">
+                              {getContabilidadData().reduce((sum, item) => sum + item.cantidadTotal, 0)}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm text-gray-600">Total en Ventas</p>
+                            <p className="text-2xl font-bold text-green-600">
+                              ${getContabilidadData().reduce((sum, item) => sum + item.montoTotal, 0).toFixed(2)}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm text-gray-600">Ganancia Bruta</p>
+                            <p className="text-2xl font-bold text-orange-600">
+                              ${getContabilidadData().reduce((sum, item) => {
+                                // Calcular ganancia por cada venta del producto
+                                const gananciaProducto = item.ventas.reduce((gananciaSum, venta) => {
+                                  const producto = inventario.find(p => p.nombre === venta.producto_nombre);
+                                  if (!producto) return gananciaSum;
+
+                                  const precioVenta = parseFloat(venta.total.toString());
+                                  const precioCompra = producto.precio_compra || 0;
+                                  const cantidad = venta.cantidad;
+
+                                  return gananciaSum + ((precioVenta / cantidad) - precioCompra) * cantidad;
+                                }, 0);
+
+                                return sum + gananciaProducto;
+                              }, 0).toFixed(2)}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm text-gray-600">Total de Transacciones</p>
+                            <p className="text-2xl font-bold text-purple-600">
+                              {getContabilidadData().reduce((sum, item) => sum + item.ventas.length, 0)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )
+      }
+
+      {
+        activeSection === 'contabilidad-vendedores' && (
+          <ContabilidadVendedoresPage
+            vendedores={vendedores}
+            onRefresh={fetchVendedores}
+          />
+        )
+      }
+
+      {
+        activeSection === 'notificaciones' && (
+          <NotificacionesSystem mode="admin" />
+        )
+      }
+
+      {
+        activeSection === 'tienda' && !showSubsecciones && (
+          <TiendaSection
+            activeTiendaTab={activeTiendaTab}
+            setActiveTiendaTab={setActiveTiendaTab}
+            secciones={secciones}
+            handleCreateSeccion={handleCreateSeccion}
+            handleEditSeccion={handleEditSeccion}
+            handleDeleteSeccion={handleDeleteSeccion}
+            handleSeccionClick={handleSeccionClick}
+            productosDestacados={productosDestacados}
+            handleManageProductosDestacados={() => setShowProductosDestacadosDialog(true)}
+            setSelectedProduct={setSelectedProduct}
+            SeccionCard={SeccionCard}
+            ProductoDestacadoCard={ProductoDestacadoCard}
+          />
+        )
+      }
+
+      {
+        activeSection === 'tienda' && activeTiendaTab === 'secciones' && showSubsecciones && selectedSeccion && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowSubsecciones(false);
+                    setSelectedSeccion(null);
+                  }}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Volver a Secciones
+                </Button>
+                <div>
+                  <h2 className="text-2xl font-bold">{selectedSeccion.nombre}</h2>
+                  <p className="text-gray-600">{subsecciones.length} subsecciones</p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {activeSection === 'contabilidad-vendedores' && (
-        <ContabilidadVendedoresPage
-          vendedores={vendedores}
-          onRefresh={fetchVendedores}
-        />
-      )}
-
-      {activeSection === 'notificaciones' && (
-        <NotificacionesSystem mode="admin" />
-      )}
-
-      {activeSection === 'tienda' && !showSubsecciones && (
-        <TiendaSection
-          activeTiendaTab={activeTiendaTab}
-          setActiveTiendaTab={setActiveTiendaTab}
-          secciones={secciones}
-          handleCreateSeccion={handleCreateSeccion}
-          handleEditSeccion={handleEditSeccion}
-          handleDeleteSeccion={handleDeleteSeccion}
-          handleSeccionClick={handleSeccionClick}
-          productosDestacados={productosDestacados}
-          handleManageProductosDestacados={() => setShowProductosDestacadosDialog(true)}
-          setSelectedProduct={setSelectedProduct}
-          SeccionCard={SeccionCard}
-          ProductoDestacadoCard={ProductoDestacadoCard}
-        />
-      )}
-
-      {activeSection === 'tienda' && activeTiendaTab === 'secciones' && showSubsecciones && selectedSeccion && (
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowSubsecciones(false);
-                  setSelectedSeccion(null);
-                }}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Volver a Secciones
-              </Button>
-              <div>
-                <h2 className="text-2xl font-bold">{selectedSeccion.nombre}</h2>
-                <p className="text-gray-600">{subsecciones.length} subsecciones</p>
               </div>
-            </div>
 
-            <Button
-              onClick={handleCreateSubseccion}
-              className="bg-green-500 hover:bg-green-600 text-white"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Nueva Subsección
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {subsecciones.map((subseccion) => (
-              <SubseccionCard
-                key={subseccion.id}
-                subseccion={subseccion}
-                onEdit={handleEditSubseccion}
-                onDelete={handleDeleteSubseccion}
-                onClick={handleSubseccionClick}
-              />
-            ))}
-          </div>
-
-          {subsecciones.length === 0 && (
-            <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 text-gray-400 mb-4">📁</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No hay subsecciones en esta sección
-              </h3>
-              <p className="text-gray-500 mb-4">
-                Crea subsecciones para organizar mejor tus productos dentro de esta sección
-              </p>
-              <Button onClick={handleCreateSubseccion} className="bg-green-500 hover:bg-green-600">
+              <Button
+                onClick={handleCreateSubseccion}
+                className="bg-green-500 hover:bg-green-600 text-white"
+              >
                 <Plus className="mr-2 h-4 w-4" />
-                Crear Primera Subsección
+                Nueva Subsección
               </Button>
             </div>
-          )}
-        </div>
-      )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {subsecciones.map((subseccion) => (
+                <SubseccionCard
+                  key={subseccion.id}
+                  subseccion={subseccion}
+                  onEdit={handleEditSubseccion}
+                  onDelete={handleDeleteSubseccion}
+                  onClick={handleSubseccionClick}
+                />
+              ))}
+            </div>
+
+            {subsecciones.length === 0 && (
+              <div className="text-center py-12">
+                <div className="mx-auto h-12 w-12 text-gray-400 mb-4">📁</div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No hay subsecciones en esta sección
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  Crea subsecciones para organizar mejor tus productos dentro de esta sección
+                </p>
+                <Button onClick={handleCreateSubseccion} className="bg-green-500 hover:bg-green-600">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Crear Primera Subsección
+                </Button>
+              </div>
+            )}
+          </div>
+        )
+      }
 
       {/* Vista de productos de una subsección */}
-      {activeSection === 'subseccion-productos' && selectedSubseccion && (
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="outline"
-                onClick={handleBackToSubsecciones}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Volver a Subsecciones
-              </Button>
-              <div>
-                <h2 className="text-2xl font-bold">{selectedSubseccion.nombre}</h2>
-                <p className="text-gray-600">{productosEnSubseccion.length} productos</p>
+      {
+        activeSection === 'subseccion-productos' && selectedSubseccion && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-4">
+                <Button
+                  variant="outline"
+                  onClick={handleBackToSubsecciones}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Volver a Subsecciones
+                </Button>
+                <div>
+                  <h2 className="text-2xl font-bold">{selectedSubseccion.nombre}</h2>
+                  <p className="text-gray-600">{productosEnSubseccion.length} productos</p>
+                </div>
               </div>
+
+              <Button
+                onClick={handleManageProductsInSubseccion}
+                className="bg-green-500 hover:bg-green-600 text-white"
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Gestionar Productos
+              </Button>
             </div>
 
-            <Button
-              onClick={handleManageProductsInSubseccion}
-              className="bg-green-500 hover:bg-green-600 text-white"
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              Gestionar Productos
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {productosEnSubseccion.map((producto) => (
-              <div
-                key={producto.id}
-                onClick={() => setSelectedProduct(producto)}
-                className="flex items-center p-3 rounded-lg border bg-white hover:bg-gray-50 cursor-pointer"
-              >
-                <div className="w-12 h-12 flex-shrink-0 relative mr-4">
-                  <Image
-                    src={imageErrors[producto.id] ? '/placeholder.svg' : (producto.foto || '/placeholder.svg')}
-                    alt={producto.nombre}
-                    fill
-                    className="rounded-md object-cover"
-                    onError={() => {
-                      setImageErrors(prev => ({
-                        ...prev,
-                        [producto.id]: true
-                      }));
-                    }}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-medium text-gray-900 truncate">
-                    {producto.nombre}
-                  </h3>
-                  <div className="flex flex-wrap gap-x-4 text-sm text-gray-500">
-                    <p>Precio: ${Number(producto.precio).toFixed(2)}</p>
-                    <p>Cantidad: {calcularCantidadTotal(producto)}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {productosEnSubseccion.map((producto) => (
+                <div
+                  key={producto.id}
+                  onClick={() => setSelectedProduct(producto)}
+                  className="flex items-center p-3 rounded-lg border bg-white hover:bg-gray-50 cursor-pointer"
+                >
+                  <div className="w-12 h-12 flex-shrink-0 relative mr-4">
+                    <Image
+                      src={imageErrors[producto.id] ? '/placeholder.svg' : (producto.foto || '/placeholder.svg')}
+                      alt={producto.nombre}
+                      fill
+                      className="rounded-md object-cover"
+                      onError={() => {
+                        setImageErrors(prev => ({
+                          ...prev,
+                          [producto.id]: true
+                        }));
+                      }}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-medium text-gray-900 truncate">
+                      {producto.nombre}
+                    </h3>
+                    <div className="flex flex-wrap gap-x-4 text-sm text-gray-500">
+                      <p>Precio: ${Number(producto.precio).toFixed(2)}</p>
+                      <p>Cantidad: {calcularCantidadTotal(producto)}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {productosEnSubseccion.length === 0 && (
-            <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 text-gray-400 mb-4">📦</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No hay productos en esta subsección
-              </h3>
-              <p className="text-gray-500 mb-4">
-                Usa el botón Gestionar Productos para agregar productos a esta subsección
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-
-      {activeSection === 'seccion-productos' && seccionParaProductos && (
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="outline"
-                onClick={() => setActiveSection('tienda')}
-              >
-                ← Volver a Secciones
-              </Button>
-              <div>
-                <h2 className="text-2xl font-bold">{seccionParaProductos.nombre}</h2>
-                <p className="text-gray-600">{productosEnSeccion.length} productos</p>
-              </div>
+              ))}
             </div>
 
-            <Button
-              onClick={handleManageProductsInSeccion}
-              className="bg-green-500 hover:bg-green-600 text-white"
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              Gestionar Productos
-            </Button>
+            {productosEnSubseccion.length === 0 && (
+              <div className="text-center py-12">
+                <div className="mx-auto h-12 w-12 text-gray-400 mb-4">📦</div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No hay productos en esta subsección
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  Usa el botón Gestionar Productos para agregar productos a esta subsección
+                </p>
+              </div>
+            )}
           </div>
+        )
+      }
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {productosEnSeccion.map((producto) => (
-              <div
-                key={producto.id}
-                onClick={() => setSelectedProduct(producto)}
-                className="flex items-center p-3 rounded-lg border bg-white hover:bg-gray-50 cursor-pointer"
-              >
-                <div className="w-12 h-12 flex-shrink-0 relative mr-4">
-                  <Image
-                    src={imageErrors[producto.id] ? '/placeholder.svg' : (producto.foto || '/placeholder.svg')}
-                    alt={producto.nombre}
-                    fill
-                    className="rounded-md object-cover"
-                    onError={() => {
-                      setImageErrors(prev => ({
-                        ...prev,
-                        [producto.id]: true
-                      }));
-                    }}
-                  />
+
+      {
+        activeSection === 'seccion-productos' && seccionParaProductos && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setActiveSection('tienda')}
+                >
+                  ← Volver a Secciones
+                </Button>
+                <div>
+                  <h2 className="text-2xl font-bold">{seccionParaProductos.nombre}</h2>
+                  <p className="text-gray-600">{productosEnSeccion.length} productos</p>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-medium text-gray-900 truncate">
-                    {producto.nombre}
-                  </h3>
-                  <div className="flex flex-wrap gap-x-4 text-sm text-gray-500">
-                    <p>Precio: ${Number(producto.precio).toFixed(2)}</p>
-                    <p>Cantidad: {calcularCantidadTotal(producto)}</p>
+              </div>
+
+              <Button
+                onClick={handleManageProductsInSeccion}
+                className="bg-green-500 hover:bg-green-600 text-white"
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Gestionar Productos
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {productosEnSeccion.map((producto) => (
+                <div
+                  key={producto.id}
+                  onClick={() => setSelectedProduct(producto)}
+                  className="flex items-center p-3 rounded-lg border bg-white hover:bg-gray-50 cursor-pointer"
+                >
+                  <div className="w-12 h-12 flex-shrink-0 relative mr-4">
+                    <Image
+                      src={imageErrors[producto.id] ? '/placeholder.svg' : (producto.foto || '/placeholder.svg')}
+                      alt={producto.nombre}
+                      fill
+                      className="rounded-md object-cover"
+                      onError={() => {
+                        setImageErrors(prev => ({
+                          ...prev,
+                          [producto.id]: true
+                        }));
+                      }}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-medium text-gray-900 truncate">
+                      {producto.nombre}
+                    </h3>
+                    <div className="flex flex-wrap gap-x-4 text-sm text-gray-500">
+                      <p>Precio: ${Number(producto.precio).toFixed(2)}</p>
+                      <p>Cantidad: {calcularCantidadTotal(producto)}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {productosEnSeccion.length === 0 && (
-            <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 text-gray-400 mb-4">📦</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No hay productos en esta sección
-              </h3>
-              <p className="text-gray-500 mb-4">
-                Usa el botón Gestionar Productos para agregar productos a esta sección
-              </p>
+              ))}
             </div>
-          )}
-        </div>
-      )}
+
+            {productosEnSeccion.length === 0 && (
+              <div className="text-center py-12">
+                <div className="mx-auto h-12 w-12 text-gray-400 mb-4">📦</div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No hay productos en esta sección
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  Usa el botón Gestionar Productos para agregar productos a esta sección
+                </p>
+              </div>
+            )}
+          </div>
+        )
+      }
 
 
 
@@ -3276,40 +3314,44 @@ export default function AlmacenPage() {
       />
 
 
-      {selectedProduct && (
-        <ProductDialog
-          product={{ ...selectedProduct, foto: selectedProduct.foto || '' }}
-          onClose={() => setSelectedProduct(null)}
-          vendedores={vendedores}
-          onEdit={handleEditProduct}
-          onDelete={handleDeleteProduct}
-          onDeliver={handleProductDelivery}
-          getVendorProducts={getVendorProducts} // NUEVA PROP AGREGADA
-        />
-      )}
+      {
+        selectedProduct && (
+          <ProductDialog
+            product={{ ...selectedProduct, foto: selectedProduct.foto || '' }}
+            onClose={() => setSelectedProduct(null)}
+            vendedores={vendedores}
+            onEdit={handleEditProduct}
+            onDelete={handleDeleteProduct}
+            onDeliver={handleProductDelivery}
+            getVendorProducts={getVendorProducts} // NUEVA PROP AGREGADA
+          />
+        )
+      }
 
 
-      {vendedorSeleccionado && (
-        <VendorDialog
-          vendor={vendedorSeleccionado}
-          almacen={inventario}
-          onClose={() => setVendedorSeleccionado(null)}
-          onEdit={handleEditVendedor}
-          productos={productosVendedor}
-          ventas={ventasVendedor}
-          ventasSemanales={ventasSemanales}
-          ventasDiarias={ventasDiarias}
-          transacciones={transacciones}
-          onProductReduce={handleReduceVendorProduct}
-          onDeleteSale={deleteSale}
-          onProductMerma={handleProductMerma}
-          vendedores={vendedores}
-          onProductTransfer={handleProductTransfer}
-          onDeleteVendorData={handleDeleteVendorData}
-          onDeleteVendor={handleDeleteVendor}
-          onUpdateProductQuantity={handleUpdateProductQuantity}
-        />
-      )}
+      {
+        vendedorSeleccionado && (
+          <VendorDialog
+            vendor={vendedorSeleccionado}
+            almacen={inventario}
+            onClose={() => setVendedorSeleccionado(null)}
+            onEdit={handleEditVendedor}
+            productos={productosVendedor}
+            ventas={ventasVendedor}
+            ventasSemanales={ventasSemanales}
+            ventasDiarias={ventasDiarias}
+            transacciones={transacciones}
+            onProductReduce={handleReduceVendorProduct}
+            onDeleteSale={deleteSale}
+            onProductMerma={handleProductMerma}
+            vendedores={vendedores}
+            onProductTransfer={handleProductTransfer}
+            onDeleteVendorData={handleDeleteVendorData}
+            onDeleteVendor={handleDeleteVendor}
+            onUpdateProductQuantity={handleUpdateProductQuantity}
+          />
+        )
+      }
 
       {/* Diálogos para subsecciones */}
       <SubseccionDialog
@@ -3332,6 +3374,6 @@ export default function AlmacenPage() {
         subseccion={selectedSubseccion}
         onSave={handleSaveProductSelectionForSubseccion}
       />
-    </div>
+    </div >
   )
 } 
