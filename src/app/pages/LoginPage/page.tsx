@@ -20,10 +20,10 @@ export default function LoginPage() {
     setError('');
     setIsLoading(true);
     try {
-      console.log('Intentando iniciar sesión con:', { nombre, password });
+
       const userData = await login(nombre, password);
-      console.log('Respuesta del servidor:', userData);
-      
+
+
       // En tu componente LoginPage
       if (userData.rol === 'Vendedor') {
         console.log('Redirigiendo a la página de vendedor');

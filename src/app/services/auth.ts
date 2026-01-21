@@ -9,17 +9,23 @@ interface User {
 
 export const login = async (nombre: string, password: string): Promise<User> => {
   try {
-    console.log('Enviando solicitud de login con:', { nombre, password });
-    const response = await api.post('/auth/login', { nombre, password }, { 
+
+    const response = await api.post('/auth/login', { nombre, password }, {
       withCredentials: true,
       timeout: 10000 // 10 segundos de timeout
     });
-    console.log('Respuesta del servidor:', response.data);
-    
+
+
+    if (response.data && response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      return response.data;
+    }
+
     if (response.data && response.data.id && response.data.nombre && response.data.rol) {
       return response.data;
     }
-    
+
     throw new Error('No se recibió información de usuario válida');
   } catch (error) {
     if (error instanceof AxiosError) {

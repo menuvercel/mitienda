@@ -24,7 +24,8 @@ import {
   getTransaccionesProducto,
   getVentasProducto,
   getVendedores,
-  getSalarioVendedor
+  getSalarioVendedor,
+  getCurrentUser
 } from '../../../services/api'
 import { WeekPicker } from '@/components/Weekpicker'
 import { NotificacionesBell } from '@/components/NotificacionesBell'
@@ -162,6 +163,27 @@ const useVendedorData = (vendedorId: string) => {
   const [isSubmittingVenta, setIsSubmittingVenta] = useState(false)
   const [vendedores, setVendedores] = useState<Vendedor[]>([])
   const [salarioVendedor, setSalarioVendedor] = useState<number>(0)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const user = await getCurrentUser();
+        // Allow if Almacen or if the user is the vendor
+        if (user && (user.rol === 'Almacen' || user.id === vendedorId)) {
+          setIsAuthenticated(true);
+        } else {
+          router.push('/pages/LoginPage');
+        }
+      } catch (e) {
+        router.push('/pages/LoginPage');
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    }
+    checkAuth();
+  }, [vendedorId, router]);
 
   const handleEnviarVenta = async () => {
     if (productosSeleccionados.length === 0) {
@@ -378,6 +400,8 @@ const useVendedorData = (vendedorId: string) => {
 
   useEffect(() => {
     const loadData = async () => {
+      if (!isAuthenticated) return;
+
       setIsLoading(true);
       setError(null);
       try {
@@ -397,7 +421,7 @@ const useVendedorData = (vendedorId: string) => {
     };
 
     loadData();
-  }, [vendedorId, fetchProductos, fetchVentasRegistro, fetchTransacciones, fetchVendedores, fetchSalarioVendedor]);
+  }, [vendedorId, isAuthenticated, fetchProductos, fetchVentasRegistro, fetchTransacciones, fetchVendedores, fetchSalarioVendedor]);
 
   return {
     isLoading,
@@ -434,9 +458,12 @@ const useVendedorData = (vendedorId: string) => {
     productQuantities,
     setProductQuantities,
     vendedores,
-    salarioVendedor
+    salarioVendedor,
+    isAuthenticated,
+    isCheckingAuth
   }
 }
+
 
 const formatDate = (dateString: string): string => {
   try {
@@ -1262,8 +1289,18 @@ export default function VendedorPage() {
     setParametrosDialogOpen,
     productQuantities,
     setProductQuantities,
-    vendedores
+    vendedores,
+    isAuthenticated,
+    isCheckingAuth
   } = useVendedorData(vendedorId)
+
+  if (isCheckingAuth) {
+    return <div className="flex justify-center items-center h-screen">Cargando autenticación...</div>
+  }
+
+  if (!isAuthenticated) {
+    return null; // El hook redirige
+  }
 
   const [busqueda, setBusqueda] = useState('')
   const [seccionActual, setSeccionActual] = useState<'productos' | 'ventas' | 'registro'>('productos')
@@ -1823,7 +1860,7 @@ export default function VendedorPage() {
             </div>
           </div>
         )}
-  
+
 
       </main>
       <ParametrosDialog

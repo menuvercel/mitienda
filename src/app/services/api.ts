@@ -9,6 +9,14 @@ export const api = axios.create({
   baseURL: API_URL
 });
 
+// Inicializar token si existe
+if (typeof window !== 'undefined') {
+  const token = localStorage.getItem('token');
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  }
+}
+
 interface User {
   id: string;
   nombre: string;
