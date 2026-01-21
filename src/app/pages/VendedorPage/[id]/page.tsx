@@ -1294,6 +1294,11 @@ export default function VendedorPage() {
     isCheckingAuth
   } = useVendedorData(vendedorId)
 
+  const [busqueda, setBusqueda] = useState('')
+  const [seccionActual, setSeccionActual] = useState<'productos' | 'ventas' | 'registro'>('productos')
+  const [menuAbierto, setMenuAbierto] = useState(false)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+
   if (isCheckingAuth) {
     return <div className="flex justify-center items-center h-screen">Cargando autenticación...</div>
   }
@@ -1301,11 +1306,6 @@ export default function VendedorPage() {
   if (!isAuthenticated) {
     return null; // El hook redirige
   }
-
-  const [busqueda, setBusqueda] = useState('')
-  const [seccionActual, setSeccionActual] = useState<'productos' | 'ventas' | 'registro'>('productos')
-  const [menuAbierto, setMenuAbierto] = useState(false)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const handleSort = (key: 'nombre' | 'cantidad') => {
     if (sortBy === key) {
