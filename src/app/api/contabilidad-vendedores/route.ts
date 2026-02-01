@@ -118,7 +118,7 @@ async function calculateSellerAccounting(
 
   // 🔥 SOLUCIÓN DEFINITIVA: Comparar solo las fechas, ignorando las horas
   const salesResult = await query(
-    `SELECT p.nombre, v.cantidad, v.precio_unitario, p.precio_compra, v.fecha
+    `SELECT p.nombre, v.cantidad, v.precio_unitario, COALESCE(v.precio_compra, p.precio_compra) as precio_compra, v.fecha
      FROM ventas v
      LEFT JOIN productos p ON v.producto = p.id
      WHERE v.vendedor = $1

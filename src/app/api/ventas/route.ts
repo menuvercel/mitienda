@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar si el producto tiene parámetros
     const productoResult = await query(
-      `SELECT p.precio, p.tiene_parametros, up.cantidad as stock_vendedor 
+      `SELECT p.precio, p.precio_compra, p.tiene_parametros, up.cantidad as stock_vendedor 
        FROM productos p 
        JOIN usuario_productos up ON p.id = up.producto_id 
        WHERE p.id = $1 AND up.usuario_id = $2`,
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Producto no encontrado o no asignado al vendedor' }, { status: 404 });
     }
 
-    const { precio: precioUnitario, stock_vendedor, tiene_parametros } = productoResult.rows[0];
+    const { precio: precioUnitario, precio_compra, stock_vendedor, tiene_parametros } = productoResult.rows[0];
 
     // Verificar stock según si tiene parámetros o no
     if (tiene_parametros && parametros) {
@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
 
         if (!stockParam.rows.length || stockParam.rows[0].cantidad < param.cantidad) {
           await query('ROLLBACK');
-          return NextResponse.json({ 
-            error: `Stock insuficiente para el parámetro ${param.nombre}` 
+          return NextResponse.json({
+            error: `Stock insuficiente para el parámetro ${param.nombre}`
           }, { status: 400 });
         }
       }
@@ -53,14 +53,15 @@ export async function POST(request: NextRequest) {
 
     // Crear venta
     const ventaResult = await query(
-      `INSERT INTO ventas (producto, cantidad, precio_unitario, total, vendedor, fecha) 
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      `INSERT INTO ventas (producto, cantidad, precio_unitario, precio_compra, total, vendedor, fecha) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [
-        productoId, 
-        cantidad, 
-        precioUnitario, 
-        precioUnitario * cantidad, 
-        vendedorId, 
+        productoId,
+        cantidad,
+        precioUnitario,
+        precio_compra || 0, // Fallback to 0 if undefined, though it should be set
+        precioUnitario * cantidad,
+        vendedorId,
         fechaVenta
       ]
     );
@@ -108,7 +109,7 @@ export async function GET(request: NextRequest) {
 
   try {
     let result;
-    
+
     if (ventaId) {
       // Obtener venta con sus parámetros
       result = await query(
@@ -132,7 +133,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(result.rows[0]);
     }
-    
+
     // Consultas para listar ventas
     const baseQuery = `
       SELECT v.*, p.nombre as producto_nombre, p.foto as producto_foto, 
@@ -149,7 +150,7 @@ export async function GET(request: NextRequest) {
     if (productoId) {
       const vendedorFilter = vendedorId ? 'AND v.vendedor = $2' : '';
       const params = vendedorId ? [productoId, vendedorId] : [productoId];
-      
+
       result = await query(
         `${baseQuery}
          WHERE v.producto = $1 ${vendedorFilter}
