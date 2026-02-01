@@ -280,7 +280,7 @@ async function getProratedExpenses(
 
 async function calculateTotalMermas(fechaInicio: string, fechaFin: string): Promise<number> {
   const mermasResult = await query(
-    `SELECT m.cantidad, p.precio 
+    `SELECT m.cantidad, p.precio_compra 
      FROM merma m
      JOIN productos p ON m.producto_id = p.id
      WHERE DATE(m.fecha) >= DATE($1)
@@ -291,8 +291,8 @@ async function calculateTotalMermas(fechaInicio: string, fechaFin: string): Prom
   let totalMermas = 0;
   for (const row of mermasResult.rows) {
     const cantidad = parseInt(row.cantidad || '0');
-    const precio = parseFloat(row.precio || '0');
-    totalMermas += cantidad * precio;
+    const precioCompra = parseFloat(row.precio_compra || '0');
+    totalMermas += cantidad * precioCompra;
   }
 
   return totalMermas;
