@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useId } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Scan, X, AlertCircle } from 'lucide-react';
+import { Scan, X, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 interface BarcodeScannerProps {
   onScan: (barcode: string) => void;
@@ -12,6 +12,7 @@ interface BarcodeScannerProps {
 
 const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose, open }) => {
   const [scannerReady, setScannerReady] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -63,6 +64,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose, open }
     try {
       // 1. Limpieza previa profunda
       await forceStopScanner();
+      setIsProcessing(false);
       
       // 2. Verificar que el elemento existe antes de inicializar
       const containerNode = document.getElementById(scannerContainerId);
@@ -91,15 +93,24 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose, open }
           // Primero apagamos la cámara, esperamos a que termine, y LUEGO avisamos al padre para cerrar el modal.
           // Esto evita el error de "removeChild".
           try {
+            setIsProcessing(true);
+            setScannerReady(false);
+            
             if (html5QrCode.isScanning) {
               await html5QrCode.stop();
               html5QrCode.clear();
             }
-            setScannerReady(false);
-            onScan(decodedText); // Notificar al padre después de apagar todo
+
+            // Pequeño delay artificial para que el usuario vea que se detectó correctamente
+            setTimeout(() => {
+              onScan(decodedText);
+              setIsProcessing(false);
+            }, 600);
+
           } catch (err) {
             console.warn("Scan successful but stop failed", err);
             onScan(decodedText);
+            setIsProcessing(false);
           }
         },
         () => { /* Ignorar errores de escaneo fallido entre capturas */ }
@@ -170,6 +181,22 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose, open }
                         >
                             Reintentar acceso
                         </Button>
+                    </div>
+                )}
+
+                {/* Overlay de Procesamiento (Éxito) */}
+                {isProcessing && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-blue-600/90 z-40 backdrop-blur-sm animate-in fade-in zoom-in duration-300">
+                        <div className="bg-white/20 p-4 rounded-full">
+                            <CheckCircle2 className="h-12 w-12 text-white animate-bounce" />
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                            <p className="text-white font-bold text-lg">¡Código Detectado!</p>
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 text-white/70 animate-spin" />
+                                <p className="text-white/80 text-sm">Procesando...</p>
+                            </div>
+                        </div>
                     </div>
                 )}
 
