@@ -3200,17 +3200,7 @@ export default function AlmacenPage() {
                     });
                 }}
             />
-            <div>
-              <label htmlFor="precioCompra" className="block text-sm font-medium text-gray-700">Precio de compra</label>
-              <Input
-                id="precioCompra"
-                name="precioCompra"
-                type="number"
-                value={newProduct.precioCompra}
-                onChange={handleProductInputChange}
-                placeholder="Precio de compra"
-              />
-            </div>
+
 
             {/* NUEVOS CAMPOS */}
             {/* Precio de compra en USD */}
