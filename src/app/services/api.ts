@@ -36,6 +36,7 @@ interface Producto {
     nombre: string;
     cantidad: number;
   }>;
+  codigo_barras?: string;
 }
 
 

@@ -8,9 +8,17 @@ import { Textarea } from "@/components/ui/textarea"; // Nuevo import para el cam
 import Image from 'next/image';
 import { toast } from "@/hooks/use-toast";
 import { Producto, Vendedor, Parametro } from '@/types';
-import { Plus, Minus } from 'lucide-react';
+import { ChevronDown, Download, Barcode, Scan, Plus, Minus } from 'lucide-react';
+import JsBarcode from 'jsbarcode';
+import { useRef } from 'react';
+import BarcodeScanner from './BarcodeScanner';
 import { ImageUpload } from '@/components/ImageUpload';
-import { ChevronDown } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 
 interface ProductDialogProps {
@@ -174,6 +182,83 @@ const VendorsTab = ({
   );
 };
 
+const BarcodeDisplay = ({ value, name }: { value: string, name: string }) => {
+  const barcodeRef = React.useRef<SVGSVGElement>(null);
+
+  React.useEffect(() => {
+    if (barcodeRef.current && value) {
+      try {
+        JsBarcode(barcodeRef.current, value, {
+          format: "CODE128",
+          lineColor: "#000",
+          width: 2,
+          height: 60,
+          displayValue: true,
+          fontSize: 14
+        });
+      } catch (error) {
+        console.error('Error generating barcode:', error);
+      }
+    }
+  }, [value]);
+
+  const downloadBarcode = () => {
+    const svg = barcodeRef.current;
+    if (!svg) return;
+    
+    try {
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement("canvas");
+      const svgSize = svg.getBBox();
+      
+      // Aumentar un poco el tamaño para el padding
+      canvas.width = svgSize.width + 40;
+      canvas.height = svgSize.height + 40;
+      
+      const ctx = canvas.getContext("2d");
+      const img = document.createElement('img');
+      
+      img.onload = () => {
+        if (ctx) {
+          ctx.fillStyle = "white";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 20, 20);
+          const pngUrl = canvas.toDataURL("image/png");
+          const downloadLink = document.createElement("a");
+          downloadLink.href = pngUrl;
+          downloadLink.download = `barcode-${name}-${value}.png`;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        }
+      };
+      
+      // Convertir SVG a data URL compatible con btoa (UTF-8)
+      const encodedData = btoa(unescape(encodeURIComponent(svgData)));
+      img.src = "data:image/svg+xml;base64," + encodedData;
+    } catch (err) {
+      console.error('Error exporting barcode:', err);
+      toast({
+        title: "Error",
+        description: "No se pudo exportar el código de barras",
+        variant: "destructive"
+      });
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center space-y-3 p-4 bg-gray-50 border rounded-lg">
+      <div className="bg-white p-2 rounded shadow-sm overflow-x-auto max-w-full">
+        <svg ref={barcodeRef}></svg>
+      </div>
+      <Button variant="outline" size="sm" onClick={downloadBarcode} className="w-full">
+        <Download className="mr-2 h-4 w-4" />
+        Exportar Código de Barras
+      </Button>
+    </div>
+  );
+};
+
 export default function ProductDialog({
   product,
   onClose,
@@ -197,7 +282,10 @@ export default function ProductDialog({
     valor_compra_usd: product.valor_compra_usd ?? null,
     precio_compra_usd: product.precio_compra_usd ?? null, // ✅ Usar ?? en lugar de ||
     precio_venta_usd: product.precio_venta_usd ?? null, // ✅ Usar ?? en lugar de ||
+    codigo_barras: product.codigo_barras || '',
   });
+
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
 
 
   // También actualizar el useEffect que sincroniza el estado con el producto recibido
@@ -213,6 +301,7 @@ export default function ProductDialog({
       valor_compra_usd: product.valor_compra_usd ?? null,
       precio_compra_usd: product.precio_compra_usd ?? null, // ✅ Cambiar || por ??
       precio_venta_usd: product.precio_venta_usd ?? null, // ✅ Cambiar || por ??
+      codigo_barras: product.codigo_barras || '',
     });
     setImageUrl(product.foto || '');
   }, [product]);
@@ -332,6 +421,7 @@ export default function ProductDialog({
       precio_compra: product.precio_compra || 0, // Aseguramos que precio_compra tenga un valor
       descripcion: product.descripcion || '', // Aseguramos que descripcion tenga un valor
       valor_compra_usd: product.valor_compra_usd || null, // Aseguramos que valor_compra_usd tenga un valor
+      codigo_barras: product.codigo_barras || '',
     });
     setImageUrl(product.foto || '');
   }, [product]);
@@ -467,6 +557,7 @@ export default function ProductDialog({
         valor_compra_usd: editedProduct.valor_compra_usd || null,
         precio_compra_usd: editedProduct.precio_compra_usd || null, // Incluir el nuevo campo
         precio_venta_usd: editedProduct.precio_venta_usd || null, // Incluir el nuevo campo
+        codigo_barras: editedProduct.codigo_barras || '',
       };
 
       console.log('Producto a guardar:', updatedProduct);
@@ -607,6 +698,7 @@ export default function ProductDialog({
               onImageChange={(url) => setImageUrl(url)}
               onSave={handleEdit}
               onCancel={() => setMode('view')}
+              onShowBarcodeScanner={() => setShowBarcodeScanner(true)}
             />
           ) : mode === 'deliver' ? (
             <DeliverMode
@@ -649,6 +741,18 @@ export default function ProductDialog({
           )}
 
         </div>
+        <BarcodeScanner 
+            open={showBarcodeScanner}
+            onClose={() => setShowBarcodeScanner(false)}
+            onScan={(barcode) => {
+                setEditedProduct(prev => ({ ...prev, codigo_barras: barcode }));
+                setShowBarcodeScanner(false);
+                toast({
+                    title: "Escaneado",
+                    description: `Código detectado: ${barcode}`,
+                });
+            }}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -666,6 +770,7 @@ const EditMode = ({
   onImageChange,
   onSave,
   onCancel,
+  onShowBarcodeScanner,
 }: {
   editedProduct: Producto;
   imageUrl: string;
@@ -677,6 +782,7 @@ const EditMode = ({
   onImageChange: (url: string) => void;
   onSave: () => void;
   onCancel: () => void;
+  onShowBarcodeScanner: () => void;
 }) => (
   <>
     <div className="space-y-4">
@@ -754,6 +860,39 @@ const EditMode = ({
           onChange={onInputChange}
           placeholder="Precio de venta en USD"
         />
+      </div>
+      
+      <div>
+        <Label>Código de Barras</Label>
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <Input
+              name="codigo_barras"
+              value={editedProduct.codigo_barras || ''}
+              onChange={onInputChange}
+              placeholder="Código de barras"
+              readOnly
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const random = Math.floor(Math.random() * 900000000000) + 100000000000;
+                onInputChange({ target: { name: 'codigo_barras', value: random.toString() } } as any);
+              }}
+            >
+              Aleatorio
+            </Button>
+          </div>
+          <Button
+            type="button"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={onShowBarcodeScanner}
+          >
+            <Scan className="mr-2 h-4 w-4" />
+            Escanear Código
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center space-x-2">
@@ -1125,6 +1264,16 @@ const ViewMode = ({
             ) : (
               <p className="text-gray-700 mt-4">Cantidad disponible: {product.cantidad}</p>
             )}
+
+            {/* Mostrar código de barras */}
+            <div className="mt-6 border-t pt-4">
+              <h4 className="font-medium text-sm text-gray-700 mb-3">Código de Barras:</h4>
+              {product.codigo_barras ? (
+                <BarcodeDisplay value={product.codigo_barras} name={product.nombre} />
+              ) : (
+                <p className="text-sm text-gray-500 italic">No tiene código de barras asignado</p>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-between gap-2">

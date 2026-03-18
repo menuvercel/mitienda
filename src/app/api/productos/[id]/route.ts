@@ -64,6 +64,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         const valorCompraUSD = formData.get('valor_compra_usd') as string || null;
         const precioCompraUSD = formData.get('precio_compra_usd') as string || null;
         const precioVentaUSD = formData.get('precio_venta_usd') as string || null;
+        const codigo_barras = formData.get('codigo_barras') as string || null;
 
         const currentProduct = await query('SELECT * FROM productos WHERE id = $1', [id]);
 
@@ -78,7 +79,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
         try {
             const result = await query(
-                'UPDATE productos SET nombre = $1, precio = $2, cantidad = $3, foto = $4, tiene_parametros = $5, precio_compra = $6, descripcion = $7, valor_compra_usd = $8, precio_compra_usd = $9, precio_venta_usd = $10 WHERE id = $11 RETURNING *',
+                'UPDATE productos SET nombre = $1, precio = $2, cantidad = $3, foto = $4, tiene_parametros = $5, precio_compra = $6, descripcion = $7, valor_compra_usd = $8, precio_compra_usd = $9, precio_venta_usd = $10, codigo_barras = $11 WHERE id = $12 RETURNING *',
                 [
                     nombre,
                     Number(precio),
@@ -90,6 +91,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                     valorCompraUSD ? Number(valorCompraUSD) : currentProduct.rows[0].valor_compra_usd || null,
                     precioCompraUSD ? Number(precioCompraUSD) : currentProduct.rows[0].precio_compra_usd || null,
                     precioVentaUSD ? Number(precioVentaUSD) : currentProduct.rows[0].precio_venta_usd || null,
+                    codigo_barras,
                     id
                 ]
             );

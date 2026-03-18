@@ -26,6 +26,7 @@ export interface ProductoNuevo {
   valorCompraUSD: number | null; // Añadir este campo
   precioCompraUSD: number | null; // Nuevo campo para precio de compra en USD
   precioVentaUSD: number | null; // Nuevo campo para precio de venta en USD
+  codigo_barras?: string; // Nuevo campo para código de barras
 }
 
 export interface Producto {
@@ -44,6 +45,7 @@ export interface Producto {
   valor_compra_usd?: number | null; // ✅ Permitir null
   precio_compra_usd?: number | null; // Nuevo campo para precio de compra en USD
   precio_venta_usd?: number | null; // Nuevo campo para precio de venta en USD
+  codigo_barras?: string; // Nuevo campo para código de barras
 }
 
 // El resto del archivo se mantiene igual...

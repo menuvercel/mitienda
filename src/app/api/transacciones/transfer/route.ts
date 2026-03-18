@@ -19,6 +19,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 });
     }
 
+    if (fromVendorId === toVendorId) {
+      return NextResponse.json({ error: 'No se puede transferir productos al mismo vendedor' }, { status: 400 });
+    }
+
     // Si cantidad es 0, debe haber parámetros
     if (cantidad === 0 && (!parametros || parametros.length === 0)) {
       return NextResponse.json({ error: 'Si la cantidad es 0, debe especificar parámetros' }, { status: 400 });

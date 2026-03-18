@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X, Percent, ArrowLeft, ChevronDown, ImageIcon, Calendar, CalendarDays, Star } from "lucide-react"
+import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X, Percent, ArrowLeft, ChevronDown, ImageIcon, Calendar, CalendarDays, Star, Scan } from "lucide-react"
+import BarcodeScanner from '@/components/BarcodeScanner'
 import ProductoDestacadoCard from '@/components/ProductoDestacadoCard'
 import ProductosDestacadosSelectionDialog from '@/components/ProductosDestacadosSelectionDialog'
 import { getProductosDestacados, updateProductosDestacados } from '../../services/api'
@@ -256,7 +257,8 @@ export default function AlmacenPage() {
     descripcion: '',
     valorCompraUSD: '', // ← Mantener como string
     precioCompraUSD: '',
-    precioVentaUSD: ''
+    precioVentaUSD: '',
+    codigo_barras: ''
   });
 
   const [searchTerm, setSearchTerm] = useState("")
@@ -288,6 +290,9 @@ export default function AlmacenPage() {
   const [mermaSortBy, setMermaSortBy] = useState<'nombre' | 'cantidad' | 'fecha'>('nombre')
   const [nombreExiste, setNombreExiste] = useState(false);
   const [verificandoNombre, setVerificandoNombre] = useState(false);
+  const [barcodeExiste, setBarcodeExiste] = useState(false);
+  const [verificandoBarcode, setVerificandoBarcode] = useState(false);
+  const [showBarcodeScannerAdd, setShowBarcodeScannerAdd] = useState(false);
   const { updateProductQuantity } = useVendorProducts();
   // Agregar estos estados al inicio del componente
   const [ventasGlobales, setVentasGlobales] = useState<Venta[]>([])
@@ -1441,6 +1446,38 @@ export default function AlmacenPage() {
     return () => clearTimeout(timeoutId);
   }, [newProduct.nombre]);
 
+  useEffect(() => {
+    const verificarBarcode = async () => {
+      if (newProduct.codigo_barras.trim() === '') {
+        setBarcodeExiste(false);
+        return;
+      }
+
+      setVerificandoBarcode(true);
+      try {
+        const response = await fetch(`/api/productos/verificar-barcode?barcode=${encodeURIComponent(newProduct.codigo_barras)}`);
+        const data = await response.json();
+        setBarcodeExiste(data.exists);
+      } catch (error) {
+        console.error('Error verificando barcode:', error);
+      } finally {
+        setVerificandoBarcode(false);
+      }
+    };
+
+    const timeoutId = setTimeout(verificarBarcode, 500);
+    return () => clearTimeout(timeoutId);
+  }, [newProduct.codigo_barras]);
+
+  const generarBarcodeAleatorio = () => {
+    // Generar un código de 12 dígitos aleatorio
+    const randomDigits = Math.floor(Math.random() * 900000000000) + 100000000000;
+    setNewProduct(prev => ({
+      ...prev,
+      codigo_barras: randomDigits.toString()
+    }));
+  };
+
   const handleProductInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
 
@@ -1488,6 +1525,7 @@ export default function AlmacenPage() {
       // Nuevos campos
       formData.append('precioCompraUSD', newProduct.precioCompraUSD || '');
       formData.append('precioVentaUSD', newProduct.precioVentaUSD || '');
+      formData.append('codigo_barras', newProduct.codigo_barras || '');
 
       const response = await fetch('/api/productos', {
         method: 'POST',
@@ -1515,7 +1553,8 @@ export default function AlmacenPage() {
         descripcion: '',
         valorCompraUSD: '',
         precioCompraUSD: '', // Resetear nuevo campo
-        precioVentaUSD: ''   // Resetear nuevo campo
+        precioVentaUSD: '',   // Resetear nuevo campo
+        codigo_barras: ''
       });
 
       setShowAddProductModal(false);
@@ -3097,6 +3136,69 @@ export default function AlmacenPage() {
             </div>
 
             {/* Precio de compra */}
+            <div>
+              <label htmlFor="precioCompra" className="block text-sm font-medium text-gray-700">Precio de compra</label>
+              <Input
+                id="precioCompra"
+                name="precioCompra"
+                type="number"
+                value={newProduct.precioCompra}
+                onChange={handleProductInputChange}
+                placeholder="Precio de compra"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="codigo_barras" className="block text-sm font-medium text-gray-700">Código de barras</label>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                    <Input
+                    id="codigo_barras"
+                    name="codigo_barras"
+                    value={newProduct.codigo_barras}
+                    onChange={handleProductInputChange}
+                    placeholder="Código de barras"
+                    className={barcodeExiste ? 'border-red-500' : ''}
+                    readOnly
+                    />
+                    <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={generarBarcodeAleatorio}
+                    className="whitespace-nowrap"
+                    >
+                    Aleatorio
+                    </Button>
+                </div>
+                <Button 
+                  type="button" 
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => setShowBarcodeScannerAdd(true)}
+                >
+                  <Scan className="mr-2 h-4 w-4" />
+                  Escanear Código
+                </Button>
+              </div>
+              {verificandoBarcode && (
+                <p className="text-xs text-gray-500">Verificando disponibilidad...</p>
+              )}
+              {barcodeExiste && (
+                <p className="text-xs text-red-500">Este código de barras ya está en uso</p>
+              )}
+            </div>
+
+            <BarcodeScanner 
+                open={showBarcodeScannerAdd}
+                onClose={() => setShowBarcodeScannerAdd(false)}
+                onScan={(barcode) => {
+                    setNewProduct(prev => ({ ...prev, codigo_barras: barcode }));
+                    setShowBarcodeScannerAdd(false);
+                    toast({
+                        title: "Escaneado",
+                        description: `Código detectado: ${barcode}`,
+                    });
+                }}
+            />
             <div>
               <label htmlFor="precioCompra" className="block text-sm font-medium text-gray-700">Precio de compra</label>
               <Input
