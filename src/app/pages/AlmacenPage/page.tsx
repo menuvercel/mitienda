@@ -1625,6 +1625,11 @@ export default function AlmacenPage() {
         formData.append('precio_venta_usd', editedProduct.precio_venta_usd.toString());
       }
 
+      // ✅ AGREGAR CODIGO_BARRAS
+      if (editedProduct.codigo_barras) {
+        formData.append('codigo_barras', editedProduct.codigo_barras);
+      }
+
       if (editedProduct.parametros) {
         formData.append('parametros', JSON.stringify(editedProduct.parametros));
       }

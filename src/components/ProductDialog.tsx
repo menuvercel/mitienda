@@ -872,7 +872,6 @@ const EditMode = ({
               value={editedProduct.codigo_barras || ''}
               onChange={onInputChange}
               placeholder="Código de barras"
-              readOnly
             />
             <Button
               variant="outline"
