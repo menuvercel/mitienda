@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import { Producto, Vendedor, Parametro } from '@/types';
 import { ChevronDown, Download, Barcode, Scan, Plus, Minus } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 import { useRef } from 'react';
-import BarcodeScanner from './BarcodeScanner';
+const BarcodeScanner = dynamic(() => import('./BarcodeScanner'), { ssr: false });
 import { ImageUpload } from '@/components/ImageUpload';
 import {
   DropdownMenu,

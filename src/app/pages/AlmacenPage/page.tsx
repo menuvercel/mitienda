@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import * as XLSX from 'xlsx';
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -14,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X, Percent, ArrowLeft, ChevronDown, ImageIcon, Calendar, CalendarDays, Star, Scan } from "lucide-react"
-import BarcodeScanner from '@/components/BarcodeScanner'
+const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner'), { ssr: false })
 import ProductoDestacadoCard from '@/components/ProductoDestacadoCard'
 import ProductosDestacadosSelectionDialog from '@/components/ProductosDestacadosSelectionDialog'
 import { getProductosDestacados, updateProductosDestacados } from '../../services/api'
