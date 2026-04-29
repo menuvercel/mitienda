@@ -29,14 +29,14 @@ interface VendorDialogProps {
     productId: string,
     vendorId: string,
     cantidad: number,
-    parametros?: { nombre: string; cantidad: number }[]
+    parametros?: Parametro[]
   ) => Promise<void>
   onDeleteSale: (saleId: string, vendedorId: string) => Promise<void>
   onProductMerma: (
     productId: string,
     vendorId: string,
     cantidad: number,
-    parametros?: { nombre: string; cantidad: number }[]
+    parametros?: Parametro[]
   ) => Promise<void>
   vendedores: Vendedor[]
   onProductTransfer: (
@@ -44,7 +44,7 @@ interface VendorDialogProps {
     fromVendorId: string,
     toVendorId: string,
     cantidad: number,
-    parametros?: Array<{ nombre: string; cantidad: number }>
+    parametros?: Parametro[]
   ) => Promise<void>;
   onDeleteVendorData: (vendorId: string) => Promise<void>;
   onDeleteVendor?: (vendorId: string) => Promise<void>;
@@ -52,7 +52,7 @@ interface VendorDialogProps {
     vendorId: string,
     productId: string,
     newQuantity: number,
-    parametros?: Array<{ nombre: string; cantidad: number }>
+    parametros?: Parametro[]
   ) => Promise<void>;
 }
 
@@ -62,8 +62,8 @@ interface ComparativeData {
   cantidadVendedor: number;
   cantidadAlmacen: number;
   precio: number;
-  parametrosVendedor?: Array<{ nombre: string; cantidad: number }>;
-  parametrosAlmacen?: Array<{ nombre: string; cantidad: number }>;
+  parametrosVendedor?: Parametro[];
+  parametrosAlmacen?: Parametro[];
   tieneParametros: boolean;
 }
 
@@ -208,7 +208,7 @@ export default function VendorDialog({
           .map(param => ({ ...param }))
         : [];
 
-      const getCantidadTotal = (producto: Producto | undefined, parametros: Array<{ nombre: string; cantidad: number }>) => {
+      const getCantidadTotal = (producto: Producto | undefined, parametros: Parametro[]) => {
         if (!producto) return 0;
         if (parametros && parametros.length > 0) {
           return parametros

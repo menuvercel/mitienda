@@ -128,7 +128,7 @@ export interface TransferProductParams {
   fromVendorId: string;
   toVendorId: string;
   cantidad: number;
-  parametros?: Array<{ nombre: string; cantidad: number }>;
+  parametros?: Parametro[];
 }
 
 export interface Notificacion {

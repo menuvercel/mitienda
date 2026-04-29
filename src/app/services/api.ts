@@ -1,7 +1,7 @@
 //services/api.ts
 
 import axios from 'axios';
-import { Venta, Notificacion, Vendedor, Transaccion, VentaParametro, TransferProductParams, Seccion, Promocion } from '@/types';
+import { Venta, Notificacion, Vendedor, Transaccion, VentaParametro, TransferProductParams, Seccion, Promocion, Parametro } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -32,10 +32,7 @@ interface Producto {
   cantidad: number;
   foto?: string;
   tieneParametros: boolean;
-  parametros?: Array<{
-    nombre: string;
-    cantidad: number;
-  }>;
+  parametros?: Parametro[];
   codigo_barras?: string;
 }
 
@@ -238,7 +235,7 @@ export const entregarProducto = async (
   productoId: string,
   vendedorId: string,
   cantidad: number,
-  parametros?: Array<{ nombre: string; cantidad: number }>
+  parametros?: Parametro[]
 ) => {
   try {
     const response = await api.post('/transacciones', {
@@ -368,7 +365,7 @@ export const reducirProductoVendedor = async (
   productoId: string,
   vendedorId: string,
   cantidad: number,
-  parametros?: Array<{ nombre: string; cantidad: number }>
+  parametros?: Parametro[]
 ) => {
   try {
     const payload = {
@@ -490,7 +487,7 @@ export const createMerma = async (
   producto_id: string,
   usuario_id: string,
   cantidad: number,
-  parametros?: { nombre: string; cantidad: number }[]
+  parametros?: Parametro[]
 ) => {
   const response = await fetch('/api/merma', {
     method: 'POST',

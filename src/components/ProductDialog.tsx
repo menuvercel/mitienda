@@ -32,7 +32,7 @@ interface ProductDialogProps {
     productId: string,
     vendedorId: string,
     cantidadTotal: number,
-    parametros: { nombre: string; cantidad: number }[]
+    parametros: Parametro[]
   ) => Promise<void>;
   // NUEVA PROP AGREGADA
   getVendorProducts?: (vendorId: string) => Promise<Producto[]>;
@@ -50,7 +50,7 @@ const VendorsTab = ({
   vendorsData: Array<{
     vendedor: Vendedor;
     cantidad: number;
-    parametros?: Array<{ nombre: string; cantidad: number }>;
+    parametros?: Parametro[];
   }>;
   isLoading: boolean;
   onRefresh: () => void;
@@ -319,7 +319,7 @@ export default function ProductDialog({
   const [vendorsData, setVendorsData] = useState<Array<{
     vendedor: Vendedor;
     cantidad: number;
-    parametros?: Array<{ nombre: string; cantidad: number }>;
+    parametros?: Parametro[];
   }>>([]);
   const [isLoadingVendors, setIsLoadingVendors] = useState(false);
 
@@ -346,7 +346,7 @@ export default function ProductDialog({
             if (productoEnVendedor) {
               // Calcular cantidad total
               let cantidadTotal = 0;
-              let parametrosVendedor: Array<{ nombre: string; cantidad: number }> = [];
+              let parametrosVendedor: Parametro[] = [];
 
               if (productoEnVendedor.tiene_parametros && productoEnVendedor.parametros) {
                 parametrosVendedor = productoEnVendedor.parametros.filter(p => p.cantidad > 0);
@@ -777,7 +777,7 @@ const EditMode = ({
   imageUrl: string;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onTieneParametrosChange: (checked: boolean) => void;
-  onParametroChange: (index: number, field: 'nombre' | 'cantidad' | 'foto', value: string) => void;
+  onParametroChange: (index: number, field: 'nombre' | 'cantidad' | 'foto' | 'codigo_barras', value: string) => void;
   onAddParametro: () => void;
   onRemoveParametro: (index: number) => void;
   onImageChange: (url: string) => void;
@@ -1170,7 +1170,7 @@ const ViewMode = ({
   vendorsData: Array<{
     vendedor: Vendedor;
     cantidad: number;
-    parametros?: Array<{ nombre: string; cantidad: number }>;
+    parametros?: Parametro[];
   }>;
   isLoadingVendors: boolean;
   onRefreshVendors: () => void;

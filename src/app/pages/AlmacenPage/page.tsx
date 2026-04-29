@@ -255,9 +255,9 @@ export default function AlmacenPage() {
     cantidad: 0,
     foto: '',
     tieneParametros: false,
-    parametros: [] as Array<{ nombre: string; cantidad: number; foto?: string }>, // ← Tipar explícitamente
+    parametros: [] as Parametro[], // Usar el tipo Parametro definido en types
     descripcion: '',
-    valorCompraUSD: '', // ← Mantener como string
+    valorCompraUSD: '',
     precioCompraUSD: '',
     precioVentaUSD: '',
     codigo_barras: ''
@@ -1581,7 +1581,7 @@ export default function AlmacenPage() {
     productId: string,
     vendedorId: string,
     cantidad: number,
-    parametros?: Array<{ nombre: string; cantidad: number }>
+    parametros?: Parametro[]
   ) => {
     try {
       await entregarProducto(productId, vendedorId, cantidad, parametros)
@@ -1663,7 +1663,7 @@ export default function AlmacenPage() {
     productId: string,
     vendorId: string,
     cantidad: number,
-    parametros?: Array<{ nombre: string; cantidad: number }>
+    parametros?: Parametro[]
   ) => {
     try {
       // Si hay parámetros, enviarlos en la reducción
@@ -1698,7 +1698,7 @@ export default function AlmacenPage() {
     fromVendorId: string,
     toVendorId: string,
     cantidad: number,
-    parametros?: Array<{ nombre: string; cantidad: number }>
+    parametros?: Parametro[]
 
   ) => {
     console.log('handleProductTransfer recibió:', {
@@ -1771,7 +1771,7 @@ export default function AlmacenPage() {
     vendorId: string,
     productId: string,
     newQuantity: number,
-    parametros?: Array<{ nombre: string; cantidad: number }>
+    parametros?: Parametro[]
   ) => {
     try {
       await updateProductQuantity(vendorId, productId, newQuantity, parametros);

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { toast } from './use-toast';
+import { Parametro } from '@/types';
 
 interface VendorProduct {
   id: string;
   nombre: string;
   cantidad: number;
-  parametros?: Array<{ nombre: string; cantidad: number }>;
+  parametros?: Parametro[];
 }
 
 export function useVendorProducts() {
@@ -15,7 +16,7 @@ export function useVendorProducts() {
     vendorId: string,
     productId: string,
     newQuantity: number,
-    parametros?: Array<{ nombre: string; cantidad: number }>
+    parametros?: Parametro[]
   ) => {
     setIsLoading(true);
     try {
