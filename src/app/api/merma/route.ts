@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { Parametro, Merma } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     const { producto_id, usuario_id, cantidad, parametros } = await request.json();

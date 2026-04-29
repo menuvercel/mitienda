@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 // GET: Get expenses for a specific seller and month
 export async function GET(request: NextRequest) {
   try {

@@ -1,5 +1,17 @@
 'use client'
 
+// Polyfill for Promise.withResolvers
+if (typeof Promise.withResolvers === 'undefined') {
+    (Promise as any).withResolvers = function() {
+        let resolve, reject;
+        const promise = new Promise((res, rej) => {
+            resolve = res;
+            reject = rej;
+        });
+        return { promise, resolve, reject };
+    };
+}
+
 import { useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import * as XLSX from 'xlsx';

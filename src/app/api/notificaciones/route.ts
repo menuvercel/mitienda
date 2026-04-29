@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getVendedores } from '@/db/usuarios';
 import { query } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 // Obtener todas las notificaciones
 // Crear una nueva notificación
 export async function POST(request: NextRequest) {

@@ -1,3 +1,15 @@
+// Polyfill for Promise.withResolvers
+if (typeof Promise.withResolvers === 'undefined') {
+    (Promise as any).withResolvers = function() {
+        let resolve, reject;
+        const promise = new Promise((res, rej) => {
+            resolve = res;
+            reject = rej;
+        });
+        return { promise, resolve, reject };
+    };
+}
+
 import React, { useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";

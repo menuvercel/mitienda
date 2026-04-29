@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Obtener el valor más reciente usado en cualquier producto
@@ -8,7 +10,7 @@ export async function GET(request: NextRequest) {
       SELECT valor_compra_usd
       FROM productos
       WHERE valor_compra_usd IS NOT NULL
-      ORDER BY updated_at DESC
+      ORDER BY id DESC
       LIMIT 1
     `);
     
