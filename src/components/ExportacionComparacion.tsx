@@ -347,14 +347,14 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
           <TabsTrigger value="comparacion">Comparación</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="exportacion" className="mt-4 p-4 border rounded-lg bg-card">
-          <div className="flex justify-between items-center mb-6">
+        <TabsContent value="exportacion" className="mt-4 p-3 sm:p-4 border rounded-lg bg-card">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <h2 className="text-xl font-semibold">Generar Exportación</h2>
-            <Button onClick={() => setShowExportDialog(true)} className="bg-green-600 hover:bg-green-700 text-white">
+            <Button onClick={() => setShowExportDialog(true)} className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white">
               <Plus className="mr-2 h-4 w-4" /> Nueva Exportación
             </Button>
           </div>
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground border-2 border-dashed rounded-lg bg-gray-50/50">
+          <div className="flex flex-col items-center justify-center py-10 sm:py-12 text-muted-foreground border-2 border-dashed rounded-lg bg-gray-50/50">
             <div className="bg-white p-4 rounded-full shadow-sm mb-4">
                 <FileSpreadsheet className="h-10 w-10 text-green-600" />
             </div>
@@ -363,39 +363,39 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
           </div>
         </TabsContent>
         
-        <TabsContent value="comparacion" className="mt-4 p-4 border rounded-lg bg-card min-h-[400px]">
+        <TabsContent value="comparacion" className="mt-4 p-3 sm:p-4 border rounded-lg bg-card min-h-[400px]">
           {comparisonResults.length > 0 ? (
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h2 className="text-xl font-bold">Resultados de Comparación</h2>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setComparisonResults([])}>
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                  <Button variant="outline" onClick={() => setComparisonResults([])} className="flex-1 sm:flex-none">
                     <RefreshCw className="mr-2 h-4 w-4" /> Nueva
                   </Button>
-                  <Button onClick={exportComparisonToExcel} className="bg-green-600 hover:bg-green-700 text-white">
-                    <Download className="mr-2 h-4 w-4" /> Exportar Comparativa
+                  <Button onClick={exportComparisonToExcel} className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white">
+                    <Download className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">Exportar Comparativa</span><span className="sm:hidden">Exportar</span>
                   </Button>
                 </div>
               </div>
-              <div className="border rounded-lg overflow-hidden">
+              <div className="border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow>
-                      <TableHead>Código</TableHead>
-                      <TableHead>Producto</TableHead>
-                      <TableHead className="text-center">Cant. Web</TableHead>
-                      <TableHead className="text-center">Cant. PDF</TableHead>
-                      <TableHead className="text-center">Diferencia</TableHead>
+                      <TableHead className="min-w-[120px]">Código</TableHead>
+                      <TableHead className="min-w-[150px]">Producto</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Cant. Web</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Cant. PDF</TableHead>
+                      <TableHead className="text-center">Dif.</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {comparisonResults.map((item, idx) => (
                       <TableRow key={idx}>
-                        <TableCell className="font-mono text-xs">{item.codigo}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">{item.productoNombre}</TableCell>
-                        <TableCell className="text-center font-bold text-blue-600 bg-blue-50/30">{item.cantidadWeb}</TableCell>
-                        <TableCell className="text-center font-bold text-purple-600 bg-purple-50/30">{item.cantidadPDF}</TableCell>
-                        <TableCell className={`text-center font-bold ${item.diferencia === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <TableCell className="font-mono text-[10px] sm:text-xs py-2">{item.codigo}</TableCell>
+                        <TableCell className="max-w-[150px] sm:max-w-[200px] truncate py-2 text-xs sm:text-sm">{item.productoNombre}</TableCell>
+                        <TableCell className="text-center font-bold text-blue-600 bg-blue-50/30 py-2 text-xs sm:text-sm">{item.cantidadWeb}</TableCell>
+                        <TableCell className="text-center font-bold text-purple-600 bg-purple-50/30 py-2 text-xs sm:text-sm">{item.cantidadPDF}</TableCell>
+                        <TableCell className={`text-center font-bold py-2 text-xs sm:text-sm ${item.diferencia === 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {item.diferencia > 0 ? `+${item.diferencia}` : item.diferencia}
                         </TableCell>
                       </TableRow>
@@ -450,8 +450,8 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
             </div>
           </div>
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button variant="ghost" onClick={() => setShowExportDialog(false)}>Cancelar</Button>
-            <Button onClick={handleExport} disabled={isExporting || (selectedVendors.length === 0 && !includeAlmacen)} className="bg-green-600 hover:bg-green-700 text-white">
+            <Button variant="ghost" onClick={() => setShowExportDialog(false)} className="w-full sm:w-auto order-2 sm:order-1">Cancelar</Button>
+            <Button onClick={handleExport} disabled={isExporting || (selectedVendors.length === 0 && !includeAlmacen)} className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white order-1 sm:order-2">
               {isExporting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Procesando...</> : <><Download className="mr-2 h-4 w-4" /> Generar .xlsx</>}
             </Button>
           </DialogFooter>
@@ -478,19 +478,19 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
           {compareStep === 1 && (
             <div className="py-8 flex flex-col items-center justify-center space-y-4">
               <div 
-                className="w-full border-2 border-dashed border-purple-200 rounded-xl p-10 flex flex-col items-center justify-center bg-purple-50/30 hover:bg-purple-50 transition-colors cursor-pointer group"
+                className="w-full border-2 border-dashed border-purple-200 rounded-xl p-6 sm:p-10 flex flex-col items-center justify-center bg-purple-50/30 hover:bg-purple-50 transition-colors cursor-pointer group"
                 onClick={() => fileInputRef.current?.click()}
               >
                 {isParsingPDF ? (
                   <div className="flex flex-col items-center">
-                    <Loader2 className="h-12 w-12 text-purple-600 animate-spin mb-4" />
+                    <Loader2 className="h-10 w-10 sm:h-12 sm:w-12 text-purple-600 animate-spin mb-4" />
                     <p className="text-sm font-medium">Analizando PDF...</p>
                   </div>
                 ) : (
                   <>
-                    <Upload className="h-12 w-12 text-purple-400 mb-4 group-hover:scale-110 transition-transform" />
-                    <p className="text-sm font-semibold">Haz clic para subir el PDF</p>
-                    <p className="text-xs text-muted-foreground mt-1 text-center">
+                    <Upload className="h-10 w-10 sm:h-12 sm:w-12 text-purple-400 mb-4 group-hover:scale-110 transition-transform" />
+                    <p className="text-sm font-semibold text-center">Haz clic para subir el PDF</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 text-center">
                       El sistema detectará automáticamente los códigos y cantidades.
                     </p>
                   </>
@@ -512,12 +512,12 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
 
           {compareStep === 2 && (
             <div className="py-4 space-y-6">
-              <div className="flex items-center justify-between bg-green-50 p-3 rounded-lg border border-green-100">
+              <div className="flex flex-col sm:flex-row items-center justify-between bg-green-50 p-3 rounded-lg border border-green-100 gap-2">
                 <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-600" />
-                  <span className="text-sm font-medium text-green-800">PDF procesado: {pdfData.length} productos detectados</span>
+                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm font-medium text-green-800">PDF procesado: {pdfData.length} productos detectados</span>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => setCompareStep(1)} className="text-xs h-7">Cambiar PDF</Button>
+                <Button variant="ghost" size="sm" onClick={() => setCompareStep(1)} className="text-[10px] sm:text-xs h-7 w-full sm:w-auto">Cambiar PDF</Button>
               </div>
 
               <div className="space-y-4">
@@ -553,12 +553,12 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
                 </div>
               </div>
 
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setCompareStep(1)}>Atrás</Button>
+              <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4">
+                <Button variant="outline" onClick={() => setCompareStep(1)} className="w-full sm:w-auto order-2 sm:order-1">Atrás</Button>
                 <Button 
                   onClick={handleStartComparison} 
                   disabled={isExporting || (compareVendors.length === 0 && !compareIncludeAlmacen)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                  className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white order-1 sm:order-2"
                 >
                   {isExporting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Comparando...</> : "Confirmar y Comparar"}
                 </Button>
