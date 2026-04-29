@@ -1,14 +1,3 @@
-// Polyfill for Promise.withResolvers
-if (typeof Promise.withResolvers === 'undefined') {
-    (Promise as any).withResolvers = function() {
-        let resolve, reject;
-        const promise = new Promise((res, rej) => {
-            resolve = res;
-            reject = rej;
-        });
-        return { promise, resolve, reject };
-    };
-}
 
 import React, { useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,10 +10,6 @@ import { Vendedor, Producto } from '@/types';
 import * as XLSX from 'xlsx';
 import { getProductosVendedor } from '@/app/services/api';
 import { toast } from "@/hooks/use-toast";
-import * as pdfjs from 'pdfjs-dist';
-
-// Configurar el worker para pdfjs usando un CDN fiable (v4.4.168 estable)
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs`;
 
 interface ExportacionComparacionProps {
   vendedores: Vendedor[];
@@ -167,7 +152,25 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
 
     setIsParsingPDF(true);
     try {
+      // Polyfill for Promise.withResolvers (needed by pdfjs-dist in some environments)
+      if (typeof Promise.withResolvers === 'undefined') {
+          (Promise as any).withResolvers = function() {
+              let resolve, reject;
+              const promise = new Promise((res, rej) => {
+                  resolve = res;
+                  reject = rej;
+              });
+              return { promise, resolve, reject };
+          };
+      }
+
       console.log("Iniciando lectura de PDF...");
+      
+      // Importación dinámica para evitar errores durante el prerendering en el servidor
+      const pdfjs = await import('pdfjs-dist');
+      // @ts-ignore
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs`;
+
       const arrayBuffer = await file.arrayBuffer();
       const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
       const pdf = await loadingTask.promise;
