@@ -77,6 +77,7 @@ import TiendaSection from '@/components/TiendaSection'
 import ReajusteUSDSection from '@/components/ReajusteUSDSection';
 import ContabilidadVendedoresPage from '@/components/ContabilidadVendedoresPage';
 import ComparativaGeneral from '@/components/ComparativaGeneral';
+import ExportacionComparacion from '@/components/ExportacionComparacion';
 
 
 interface VentaSemana {
@@ -1889,6 +1890,16 @@ export default function AlmacenPage() {
               >
                 Comparativa general
               </Button>
+              <Button
+                variant="ghost"
+                className={activeSection === 'exportacion-comparacion' ? 'bg-accent' : ''}
+                onClick={() => {
+                  setActiveSection('exportacion-comparacion')
+                  setIsMenuOpen(false)
+                }}
+              >
+                Exportación y Comparación
+              </Button>
             </nav>
           </SheetContent>
         </Sheet>
@@ -2248,6 +2259,15 @@ export default function AlmacenPage() {
       {
         activeSection === 'reajusteUSD' && (
           <ReajusteUSDSection />
+        )
+      }
+
+      {
+        activeSection === 'exportacion-comparacion' && (
+          <ExportacionComparacion 
+            vendedores={vendedores} 
+            almacen={inventario} 
+          />
         )
       }
 
@@ -3276,6 +3296,31 @@ export default function AlmacenPage() {
                           }}
                           className="w-24"
                         />
+                      </div>
+                      <div className="flex space-x-2">
+                        <Input
+                          placeholder="Código de barras"
+                          value={param.codigo_barras || ''}
+                          onChange={(e) => {
+                            const newParametros = [...newProduct.parametros];
+                            newParametros[index].codigo_barras = e.target.value;
+                            setNewProduct(prev => ({ ...prev, parametros: newParametros }));
+                          }}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const random = Math.floor(Math.random() * 900000000000) + 100000000000;
+                            const newParametros = [...newProduct.parametros];
+                            newParametros[index].codigo_barras = random.toString();
+                            setNewProduct(prev => ({ ...prev, parametros: newParametros }));
+                          }}
+                        >
+                          Aleatorio
+                        </Button>
                         {/* Botón para eliminar parámetro */}
                         <Button
                           variant="destructive"

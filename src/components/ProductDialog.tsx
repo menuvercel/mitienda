@@ -493,7 +493,7 @@ export default function ProductDialog({
 
 
   // Manejo de cambios en los parámetros del producto
-  const handleParametroChange = useCallback((index: number, field: 'nombre' | 'cantidad' | 'foto', value: string) => {
+  const handleParametroChange = useCallback((index: number, field: 'nombre' | 'cantidad' | 'foto' | 'codigo_barras', value: string) => {
     setEditedProduct((prev) => {
       const newParametros = [...(prev.parametros || [])];
       newParametros[index] = {
@@ -931,6 +931,24 @@ const EditMode = ({
                   <Minus className="h-4 w-4" />
                 </Button>
               </div>
+              <div className="flex gap-2 items-center mt-2">
+                <Input
+                  value={param.codigo_barras || ''}
+                  onChange={(e) => onParametroChange(index, 'codigo_barras', e.target.value)}
+                  placeholder="Código de barras del parámetro"
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const random = Math.floor(Math.random() * 900000000000) + 100000000000;
+                    onParametroChange(index, 'codigo_barras', random.toString());
+                  }}
+                >
+                  Aleatorio
+                </Button>
+              </div>
               <div>
                 <Label className="text-sm">Foto del parámetro (opcional)</Label>
                 <ImageUpload
@@ -1252,6 +1270,12 @@ const ViewMode = ({
                             height={100}
                             className="object-cover rounded-lg"
                           />
+                        </div>
+                      )}
+                      {param.codigo_barras && (
+                        <div className="mt-3">
+                          <p className="text-xs text-gray-500 mb-1">Código de barras: {param.codigo_barras}</p>
+                          <BarcodeDisplay value={param.codigo_barras} name={`${product.nombre} - ${param.nombre}`} />
                         </div>
                       )}
                     </div>

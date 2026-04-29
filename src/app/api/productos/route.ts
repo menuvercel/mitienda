@@ -13,7 +13,8 @@ const obtenerProductoConParametros = async (productoId: string) => {
                     json_build_object(
                         'nombre', pp.nombre,
                         'cantidad', pp.cantidad,
-                        'foto', pp.foto
+                        'foto', pp.foto,
+                        'codigo_barras', pp.codigo_barras
                     )
                 ) FILTER (WHERE pp.id IS NOT NULL),
                 '[]'::json
@@ -75,8 +76,8 @@ export async function POST(request: NextRequest) {
             if (tieneParametros && parametros.length > 0) {
                 for (const param of parametros) {
                     await query(
-                        'INSERT INTO producto_parametros (producto_id, nombre, cantidad, foto) VALUES ($1, $2, $3, $4)',
-                        [productoId, param.nombre, param.cantidad, param.foto || '']
+                        'INSERT INTO producto_parametros (producto_id, nombre, cantidad, foto, codigo_barras) VALUES ($1, $2, $3, $4, $5)',
+                        [productoId, param.nombre, param.cantidad, param.foto || '', param.codigo_barras || '']
                     );
                 }
             }
@@ -107,7 +108,8 @@ export async function GET(request: NextRequest) {
                         json_build_object(
                             'nombre', pp.nombre,
                             'cantidad', pp.cantidad,
-                            'foto', pp.foto
+                            'foto', pp.foto,
+                            'codigo_barras', pp.codigo_barras
                         )
                     ) FILTER (WHERE pp.id IS NOT NULL),
                     '[]'::json

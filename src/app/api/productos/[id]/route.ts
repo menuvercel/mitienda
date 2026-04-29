@@ -9,6 +9,7 @@ interface Parametro {
     nombre: string;
     cantidad: number;
     foto?: string;
+    codigo_barras?: string;
 }
 
 interface ParametroAntiguo {
@@ -33,7 +34,8 @@ const obtenerProductoConParametros = async (productoId: string) => {
                     json_build_object(
                         'nombre', pp.nombre,
                         'cantidad', pp.cantidad,
-                        'foto', pp.foto
+                        'foto', pp.foto,
+                        'codigo_barras', pp.codigo_barras
                     )
                 ) FILTER (WHERE pp.id IS NOT NULL),
                 '[]'::json
@@ -125,8 +127,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
             if (tieneParametros && parametros.length > 0) {
                 for (const param of parametros) {
                     await query(
-                        'INSERT INTO producto_parametros (producto_id, nombre, cantidad, foto) VALUES ($1, $2, $3, $4)',
-                        [id, param.nombre, param.cantidad, param.foto || '']
+                        'INSERT INTO producto_parametros (producto_id, nombre, cantidad, foto, codigo_barras) VALUES ($1, $2, $3, $4, $5)',
+                        [id, param.nombre, param.cantidad, param.foto || '', param.codigo_barras || '']
                     );
                 }
             }
@@ -362,7 +364,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
                         json_build_object(
                             'nombre', upp.nombre,
                             'cantidad', upp.cantidad,
-                            'foto', pp.foto
+                            'foto', pp.foto,
+                            'codigo_barras', pp.codigo_barras
                         )
                     ) FILTER (WHERE upp.id IS NOT NULL),
                     '[]'::json

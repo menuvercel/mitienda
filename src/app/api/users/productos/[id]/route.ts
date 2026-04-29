@@ -21,6 +21,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         p.valor_compra_usd,
         p.precio_compra_usd,
         p.precio_venta_usd,
+        p.codigo_barras,
         up.cantidad
        FROM productos p
        JOIN usuario_productos up ON p.id = up.producto_id
@@ -37,7 +38,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             `SELECT
               upp.nombre,
               upp.cantidad,
-              pp.foto
+              pp.foto,
+              pp.codigo_barras
              FROM usuario_producto_parametros upp
              LEFT JOIN producto_parametros pp ON upp.producto_id = pp.producto_id AND upp.nombre = pp.nombre
              WHERE upp.usuario_id = $1 AND upp.producto_id = $2`,

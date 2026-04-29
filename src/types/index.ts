@@ -12,6 +12,7 @@ export interface Parametro {
   nombre: string;
   cantidad: number;
   foto?: string;
+  codigo_barras?: string;
 }
 
 export interface ProductoNuevo {
