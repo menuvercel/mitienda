@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "@/hooks/use-toast"
 import Image from 'next/image'
-import { Vendedor, Producto, Venta, Transaccion, TransaccionParametro } from '@/types'
+import { Vendedor, Producto, Venta, Transaccion, TransaccionParametro, Parametro } from '@/types'
 import { Minus, DollarSign, ArrowLeftRight, Search, ChevronDown, ChevronUp, Loader2, ArrowUpDown, FileDown, X, Edit2, Percent } from 'lucide-react'
 import { format, parseISO, startOfWeek, endOfWeek, isValid, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
