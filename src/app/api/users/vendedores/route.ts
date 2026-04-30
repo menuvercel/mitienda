@@ -101,6 +101,20 @@ export async function DELETE(request: NextRequest) {
           WHERE usuario_id = $1
         `, [id]);
 
+        // 5.2.5 Desvincular mermas del usuario (para conservarlas sin el usuario)
+        await query(`
+          UPDATE merma
+          SET usuario_id = NULL
+          WHERE usuario_id = $1
+        `, [id]);
+
+        // 5.2.6 Desvincular notificaciones del usuario
+        await query(`
+          UPDATE notificaciones
+          SET usuario_id = NULL
+          WHERE usuario_id = $1
+        `, [id]);
+
         // 5.3 Finalmente eliminar el usuario
         await query(`
           DELETE FROM usuarios
