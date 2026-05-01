@@ -962,15 +962,21 @@ export default function AlmacenPage() {
   };
 
   const getFilteredProducts = (productos: Producto[]): Producto[] => {
-    const filteredBySearch = productos.filter((producto) =>
-      producto.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const term = searchTerm.toLowerCase();
+    const filteredBySearch = productos.filter((producto: Producto) => {
+      const matchNombre = producto.nombre.toLowerCase().includes(term);
+      const matchCodigo = producto.codigo_barras?.toLowerCase().includes(term);
+      const matchParametroCodigo = producto.parametros?.some((param: Parametro) => 
+        param.codigo_barras?.toLowerCase().includes(term)
+      );
+      return matchNombre || matchCodigo || matchParametroCodigo;
+    });
 
     switch (activeProductTab) {
       case 'agotados':
         return filteredBySearch.filter(isProductoAgotado);
       case 'inventario':
-        return filteredBySearch.filter(producto => !isProductoAgotado(producto));
+        return filteredBySearch.filter((producto: Producto) => !isProductoAgotado(producto));
       default:
         return filteredBySearch;
     }
@@ -1296,18 +1302,24 @@ export default function AlmacenPage() {
   })
 
   const filteredInventarioForMassDelivery = inventario
-    .filter((producto) => {
+    .filter((producto: Producto) => {
       // Primero verifica si el producto tiene cantidad mayor a 0
       if (producto.tiene_parametros && producto.parametros) {
         // Para productos con parámetros, verifica si al menos un parámetro tiene cantidad > 0
-        return producto.parametros.some(param => param.cantidad > 0);
+        return producto.parametros.some((param: Parametro) => param.cantidad > 0);
       }
       // Para productos sin parámetros, verifica si la cantidad es mayor a 0
       return producto.cantidad > 0;
     })
-    .filter((producto) =>
-      producto.nombre.toLowerCase().includes(productSearchTerm.toLowerCase())
-    );
+    .filter((producto: Producto) => {
+      const term = productSearchTerm.toLowerCase();
+      const matchNombre = producto.nombre.toLowerCase().includes(term);
+      const matchCodigo = producto.codigo_barras?.toLowerCase().includes(term);
+      const matchParametroCodigo = producto.parametros?.some((param: Parametro) => 
+        param.codigo_barras?.toLowerCase().includes(term)
+      );
+      return matchNombre || matchCodigo || matchParametroCodigo;
+    });
 
 
 
@@ -1763,9 +1775,15 @@ export default function AlmacenPage() {
     }
   };
 
-  const filteredInventario = sortedInventario.filter((producto) =>
-    producto.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredInventario = sortedInventario.filter((producto: Producto) => {
+    const term = searchTerm.toLowerCase();
+    const matchNombre = producto.nombre.toLowerCase().includes(term);
+    const matchCodigo = producto.codigo_barras?.toLowerCase().includes(term);
+    const matchParametroCodigo = producto.parametros?.some((param: Parametro) => 
+      param.codigo_barras?.toLowerCase().includes(term)
+    );
+    return matchNombre || matchCodigo || matchParametroCodigo;
+  })
 
   const handleUpdateProductQuantity = async (
     vendorId: string,
@@ -2017,9 +2035,15 @@ export default function AlmacenPage() {
                       </div>
                     ) : (
                       Object.values(agruparMermas(mermas))
-                        .filter((merma) =>
-                          merma.producto.nombre.toLowerCase().includes(mermaSearchTerm.toLowerCase())
-                        )
+                        .filter((merma: Merma) => {
+                          const term = mermaSearchTerm.toLowerCase();
+                          const matchNombre = merma.producto.nombre.toLowerCase().includes(term);
+                          const matchCodigo = merma.producto.codigo_barras?.toLowerCase().includes(term);
+                          const matchParametroCodigo = merma.producto.parametros?.some((param: Parametro) => 
+                            param.codigo_barras?.toLowerCase().includes(term)
+                          );
+                          return matchNombre || matchCodigo || matchParametroCodigo;
+                        })
                         .sort((a, b) => {
                           if (mermaSortBy === 'nombre') {
                             return mermaSortOrder === 'asc'

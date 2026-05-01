@@ -238,9 +238,17 @@ export default function VendorDialog({
 
     // Aplicar filtros
     const filteredData = allProducts
-      .filter(item =>
-        item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      .filter(item => {
+        const term = searchTerm.toLowerCase();
+        const matchNombre = item.nombre.toLowerCase().includes(term);
+        // Aquí item.parametrosAlmacen e item.parametrosVendedor son los que tenemos
+        const matchCodigo = item.parametrosAlmacen?.some(p => p.codigo_barras?.toLowerCase().includes(term)) || 
+                           item.parametrosVendedor?.some(p => p.codigo_barras?.toLowerCase().includes(term));
+        
+        // El barcode principal no está en la interfaz ComparativeData, pero podemos intentar obtenerlo de los productos originales si fuera necesario.
+        // Sin embargo, ComparativeData ya tiene el nombre.
+        return matchNombre || matchCodigo;
+      })
       .filter(item => {
         switch (filterType) {
           case 'lessThan5':
@@ -579,7 +587,15 @@ export default function VendorDialog({
     }
 
     return products
-      .filter(p => p.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
+      .filter(p => {
+        const term = searchTerm.toLowerCase();
+        const matchNombre = p.nombre.toLowerCase().includes(term);
+        const matchCodigo = p.codigo_barras?.toLowerCase().includes(term);
+        const matchParametroCodigo = p.parametros?.some(param => 
+          param.codigo_barras?.toLowerCase().includes(term)
+        );
+        return matchNombre || matchCodigo || matchParametroCodigo;
+      })
       .sort((a, b) => {
         if (sortBy === 'nombre') {
           return sortOrder === 'asc'

@@ -50,7 +50,15 @@ export default function ProductSelectionForSubseccionDialog({
 
     // Filtrar productos disponibles para esta subsección
     const filteredProducts = productos
-        .filter(p => p.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
+        .filter(p => {
+            const term = searchTerm.toLowerCase();
+            const matchNombre = p.nombre.toLowerCase().includes(term);
+            const matchCodigo = p.codigo_barras?.toLowerCase().includes(term);
+            const matchParametroCodigo = p.parametros?.some(param => 
+                param.codigo_barras?.toLowerCase().includes(term)
+            );
+            return matchNombre || matchCodigo || matchParametroCodigo;
+        })
         // Mostrar productos que no tienen subsección o que pertenecen a la misma sección que la subsección
         .filter(p => !p.subseccion_id || p.subseccion_id === subseccion?.id || p.seccion_id === subseccion?.seccion_id || !p.seccion_id)
         .sort((a, b) => {

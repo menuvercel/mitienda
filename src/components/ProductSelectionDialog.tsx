@@ -9,6 +9,12 @@ import { Search, X } from "lucide-react"
 import Image from 'next/image'
 import { toast } from "@/hooks/use-toast"
 
+interface Parametro {
+    nombre: string;
+    cantidad: number;
+    codigo_barras?: string;
+}
+
 interface Producto {
     id: string
     nombre: string
@@ -16,6 +22,8 @@ interface Producto {
     foto?: string
     seccion_id?: string | null
     subseccion_id?: string | null
+    codigo_barras?: string
+    parametros?: Parametro[]
     inventarios?: Array<{
         cantidad: number
         sucursal_id: string
@@ -101,7 +109,13 @@ const ProductSelectionDialog: React.FC<ProductSelectionDialogProps> = ({
 
         let availableProducts = allProductos.filter(producto => {
             // Filtro por búsqueda
-            const matchesSearch = producto.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+            const term = searchTerm.toLowerCase();
+            const matchNombre = producto.nombre.toLowerCase().includes(term);
+            const matchCodigo = producto.codigo_barras?.toLowerCase().includes(term);
+            const matchParametroCodigo = producto.parametros?.some(param => 
+                param.codigo_barras?.toLowerCase().includes(term)
+            );
+            const matchesSearch = matchNombre || matchCodigo || matchParametroCodigo;
             if (!matchesSearch) return false
 
             // Si la sección/subsección actual NO tiene productos asignados
