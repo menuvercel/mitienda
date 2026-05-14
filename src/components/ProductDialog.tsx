@@ -1425,7 +1425,7 @@ const ViewMode = ({
             <div className="px-1">
               <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Descripción</h4>
               <p className="text-sm text-gray-600 leading-relaxed bg-white p-3 rounded-xl border border-gray-100 italic">
-                "{product.descripcion}"
+                &quot;{product.descripcion}&quot;
               </p>
             </div>
           )}

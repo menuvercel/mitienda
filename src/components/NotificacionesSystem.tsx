@@ -986,7 +986,7 @@ const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({ mode }) => 
                             <Users className="h-8 w-8 text-orange-400" />
                           </div>
                           <p className="text-gray-600 font-bold text-lg">Selecciona un vendedor</p>
-                          <p className="text-gray-400 text-sm max-w-xs">Elige un vendedor o "Todos" del menú superior para ver sus alertas de stock.</p>
+                          <p className="text-gray-400 text-sm max-w-xs">Elige un vendedor o &quot;Todos&quot; del menú superior para ver sus alertas de stock.</p>
                         </CardContent>
                       </Card>
                     ) : isLoadingVendedoresData ? (
