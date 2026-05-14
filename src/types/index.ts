@@ -28,6 +28,9 @@ export interface ProductoNuevo {
   precioCompraUSD: number | null; // Nuevo campo para precio de compra en USD
   precioVentaUSD: number | null; // Nuevo campo para precio de venta en USD
   codigo_barras?: string; // Nuevo campo para código de barras
+  fecha_vencimiento?: string | null;
+  tiene_vencimiento?: boolean;
+  stock_minimo?: number;
 }
 
 export interface Producto {
@@ -37,16 +40,19 @@ export interface Producto {
   precio_compra?: number;
   cantidad: number;
   foto: string;
-  tiene_parametros: boolean;
+  tiene_parametros?: boolean;
   tieneParametros?: boolean;
   parametros?: Parametro[];
   descripcion?: string;
   seccion_id?: string;
   subseccion_id?: string;
-  valor_compra_usd?: number | null; // ✅ Permitir null
-  precio_compra_usd?: number | null; // Nuevo campo para precio de compra en USD
-  precio_venta_usd?: number | null; // Nuevo campo para precio de venta en USD
-  codigo_barras?: string; // Nuevo campo para código de barras
+  valor_compra_usd?: number | null;
+  precio_compra_usd?: number | null;
+  precio_venta_usd?: number | null;
+  codigo_barras?: string;
+  fecha_vencimiento?: string | null;
+  tiene_vencimiento?: boolean;
+  stock_minimo?: number;
 }
 
 // El resto del archivo se mantiene igual...

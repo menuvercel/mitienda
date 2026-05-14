@@ -18,6 +18,7 @@ import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2
 const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner'), { ssr: false })
 import ProductoDestacadoCard from '@/components/ProductoDestacadoCard'
 import ProductosDestacadosSelectionDialog from '@/components/ProductosDestacadosSelectionDialog'
+import { VencimientoBell } from '@/components/VencimientoBell';
 import { getProductosDestacados, updateProductosDestacados } from '../../services/api'
 import React from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -58,7 +59,7 @@ import { ImageUpload } from '@/components/ImageUpload'
 import { Producto, ProductoNuevo, Vendedor, Venta, Transaccion, Merma, Parametro } from '@/types'
 import { toast } from "@/hooks/use-toast";
 import { useVendorProducts } from '@/hooks/use-vendor-products';
-import NotificacionesSystem from '@/components/NotificacionesSystem';
+import NotificacionesSystem, { NotificacionesBadge } from '@/components/NotificacionesSystem';
 // Agregar estos imports a los existentes
 import { Seccion, Subseccion } from '@/types'
 import {
@@ -217,6 +218,18 @@ const useAlmacenData = () => {
   }
 }
 
+const FormSection = ({ title, children, icon: Icon }: { title: string, children: React.ReactNode, icon?: any }) => (
+  <div className="space-y-4 p-4 bg-gray-50/50 border rounded-xl mb-4">
+    <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+      {Icon && <Icon className="h-4 w-4 text-blue-600" />}
+      <h3 className="font-bold text-sm uppercase tracking-wider text-gray-700">{title}</h3>
+    </div>
+    <div className="space-y-4">
+      {children}
+    </div>
+  </div>
+);
+
 export default function AlmacenPage() {
   // MODIFICAR esta línea
   const {
@@ -260,7 +273,10 @@ export default function AlmacenPage() {
     valorCompraUSD: '',
     precioCompraUSD: '',
     precioVentaUSD: '',
-    codigo_barras: ''
+    codigo_barras: '',
+    fecha_vencimiento: '',
+    tiene_vencimiento: false,
+    stock_minimo: null as number | null
   });
 
   const [searchTerm, setSearchTerm] = useState("")
@@ -1513,6 +1529,17 @@ export default function AlmacenPage() {
       return;
     }
 
+    // Para el checkbox de vencimiento
+    if (name === 'tiene_vencimiento') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setNewProduct(prev => ({
+        ...prev,
+        tiene_vencimiento: checked,
+        fecha_vencimiento: checked ? prev.fecha_vencimiento : ''
+      }));
+      return;
+    }
+
     // Para campos de texto
     setNewProduct(prev => ({
       ...prev,
@@ -1540,6 +1567,9 @@ export default function AlmacenPage() {
       formData.append('precioCompraUSD', newProduct.precioCompraUSD || '');
       formData.append('precioVentaUSD', newProduct.precioVentaUSD || '');
       formData.append('codigo_barras', newProduct.codigo_barras || '');
+      formData.append('fecha_vencimiento', newProduct.fecha_vencimiento || '');
+      formData.append('tiene_vencimiento', (newProduct.tiene_vencimiento ?? false).toString());
+      formData.append('stock_minimo', newProduct.stock_minimo?.toString() || '');
 
       const response = await fetch('/api/productos', {
         method: 'POST',
@@ -1568,7 +1598,10 @@ export default function AlmacenPage() {
         valorCompraUSD: '',
         precioCompraUSD: '', // Resetear nuevo campo
         precioVentaUSD: '',   // Resetear nuevo campo
-        codigo_barras: ''
+        codigo_barras: '',
+        fecha_vencimiento: '',
+        tiene_vencimiento: false,
+        stock_minimo: null
       });
 
       setShowAddProductModal(false);
@@ -1619,7 +1652,7 @@ export default function AlmacenPage() {
       formData.append('nombre', editedProduct.nombre);
       formData.append('precio', editedProduct.precio.toString());
       formData.append('cantidad', editedProduct.cantidad.toString());
-      formData.append('tiene_parametros', editedProduct.tiene_parametros.toString());
+      formData.append('tiene_parametros', (editedProduct.tiene_parametros ?? false).toString());
       formData.append('precio_compra', (editedProduct.precio_compra || 0).toString());
       formData.append('descripcion', editedProduct.descripcion || '');
 
@@ -1645,6 +1678,16 @@ export default function AlmacenPage() {
 
       if (editedProduct.parametros) {
         formData.append('parametros', JSON.stringify(editedProduct.parametros));
+      }
+      
+      if (editedProduct.stock_minimo !== null && editedProduct.stock_minimo !== undefined) {
+        formData.append('stock_minimo', editedProduct.stock_minimo.toString());
+      }
+
+      formData.append('tiene_vencimiento', editedProduct.tiene_vencimiento?.toString() || 'false');
+      
+      if (editedProduct.fecha_vencimiento) {
+        formData.append('fecha_vencimiento', editedProduct.fecha_vencimiento);
       }
 
       if (imageUrl) {
@@ -1811,9 +1854,17 @@ export default function AlmacenPage() {
     <div className="container mx-auto p-4 relative">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Panel de Almacén</h1>
+        <div className="fixed top-4 right-16 z-50 flex items-center gap-2">
+          <NotificacionesBadge 
+            onClick={() => {
+              setActiveSection('notificaciones');
+              setIsMenuOpen(false);
+            }} 
+          />
+        </div>
         <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="fixed top-4 right-4 z-50">
+            <Button variant="outline" size="icon" className="fixed top-4 right-4 z-50 bg-white">
               <Menu className="h-6 w-6" />
               <span className="sr-only">Abrir menú</span>
             </Button>
@@ -1928,6 +1979,7 @@ export default function AlmacenPage() {
       {activeSection === 'productos' && (
         <div>
           <div className="flex flex-wrap justify-end gap-2 mb-4">
+            <VencimientoBell inventario={inventario} />
             <Button
               onClick={() => setShowAddProductModal(true)}
               className="flex-grow sm:flex-grow-0 bg-green-500 hover:bg-green-600 text-white"
@@ -3070,363 +3122,393 @@ export default function AlmacenPage() {
 
 
       <Dialog open={showRegisterModal} onOpenChange={setShowRegisterModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Registrar Nuevo Usuario</DialogTitle>
+        <DialogContent className="sm:max-w-[400px] p-0 border-none rounded-2xl shadow-2xl overflow-hidden">
+          <DialogHeader className="p-6 bg-white border-b">
+            <DialogTitle className="text-xl font-black text-gray-800 uppercase tracking-tight">Nuevo Usuario</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="nombre" className="block text-sm font-medium text-gray-700">Nombre</label>
-              <Input
-                id="nombre"
-                name="nombre"
-                value={newUser.nombre}
-                onChange={handleInputChange}
-                placeholder="Nombre completo"
-              />
+          <div className="p-6 space-y-6">
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black mb-1.5 block text-gray-500 uppercase tracking-widest">Nombre Completo</label>
+                <Input
+                  name="nombre"
+                  value={newUser.nombre}
+                  onChange={handleInputChange}
+                  placeholder="Ej: Juan Pérez"
+                  className="h-12 bg-gray-50 border-gray-100 rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black mb-1.5 block text-gray-500 uppercase tracking-widest">Contraseña</label>
+                <Input
+                  name="password"
+                  type="password"
+                  value={newUser.password}
+                  onChange={handleInputChange}
+                  placeholder="••••••••"
+                  className="h-12 bg-gray-50 border-gray-100 rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black mb-1.5 block text-gray-500 uppercase tracking-widest">Teléfono</label>
+                <Input
+                  name="telefono"
+                  value={newUser.telefono}
+                  onChange={handleInputChange}
+                  placeholder="+53 5..."
+                  className="h-12 bg-gray-50 border-gray-100 rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black mb-1.5 block text-gray-500 uppercase tracking-widest">Rol del Sistema</label>
+                <Select onValueChange={handleRoleChange} value={newUser.rol}>
+                  <SelectTrigger className="h-12 bg-gray-50 border-gray-100 rounded-xl font-bold">
+                    <SelectValue placeholder="Seleccionar rol" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-gray-100">
+                    <SelectItem value="Almacen" className="font-bold py-3">Administrador Almacén</SelectItem>
+                    <SelectItem value="Vendedor" className="font-bold py-3">Vendedor / Punto Venta</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Contraseña</label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                value={newUser.password}
-                onChange={handleInputChange}
-                placeholder="Contraseña"
-              />
-            </div>
-            <div>
-              <label htmlFor="telefono" className="block text-sm font-medium text-gray-700">Teléfono</label>
-              <Input
-                id="telefono"
-                name="telefono"
-                value={newUser.telefono}
-                onChange={handleInputChange}
-                placeholder="Número de teléfono"
-              />
-            </div>
-            <div>
-              <label htmlFor="rol" className="block text-sm font-medium text-gray-700">Rol</label>
-              <Select onValueChange={handleRoleChange} value={newUser.rol}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Almacen">Almacén</SelectItem>
-                  <SelectItem value="Vendedor">Vendedor</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button onClick={handleRegisterUser}>Registrar</Button>
+
+            <Button 
+              onClick={handleRegisterUser}
+              className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-blue-100 transition-all active:scale-95"
+            >
+              Registrar Usuario
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showAddProductModal} onOpenChange={setShowAddProductModal}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Agregar Nuevo Producto</DialogTitle>
+        <DialogContent className="sm:max-w-[450px] max-h-[90vh] overflow-y-auto p-0 border-none rounded-2xl shadow-2xl">
+          <DialogHeader className="p-6 bg-white sticky top-0 z-10 border-b">
+            <DialogTitle className="text-xl font-black text-gray-800 uppercase tracking-tight">Agregar Nuevo Producto</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pb-4">
-            <div>
-              <label htmlFor="nombre" className="block text-sm font-medium text-gray-700">Nombre</label>
-              <Input
-                id="nombre"
-                name="nombre"
-                value={newProduct.nombre}
-                onChange={handleProductInputChange}
-                placeholder="Nombre del producto"
-              />
-              {verificandoNombre && (
-                <p className="text-sm text-gray-500 mt-1">Verificando nombre...</p>
-              )}
-              {!verificandoNombre && nombreExiste && (
-                <p className="text-sm text-red-500 mt-1">Este nombre de producto ya existe</p>
-              )}
-            </div>
-
-            {/* Campo de descripción */}
-            <div>
-              <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700">Descripción</label>
-              <Textarea
-                id="descripcion"
-                name="descripcion"
-                value={newProduct.descripcion || ''}
-                onChange={handleProductInputChange}
-                placeholder="Descripción del producto"
-                className="min-h-[100px] resize-none"
-              />
-            </div>
-
-            {/* Valor de compra del USD */}
-            <div>
-              <label htmlFor="valorCompraUSD" className="block text-sm font-medium text-gray-700">Valor de compra del USD</label>
-              <Input
-                id="valorCompraUSD"
-                name="valorCompraUSD"
-                type="number"
-                value={newProduct.valorCompraUSD || ''}
-                onChange={handleProductInputChange}
-                placeholder="Valor de compra del USD"
-              />
-            </div>
-
-            {/* Precio de venta */}
-            <div>
-              <label htmlFor="precio" className="block text-sm font-medium text-gray-700">Precio de venta</label>
-              <Input
-                id="precio"
-                name="precio"
-                type="number"
-                value={newProduct.precio}
-                onChange={handleProductInputChange}
-                placeholder="Precio de venta"
-              />
-            </div>
-
-            {/* Precio de compra */}
-            <div>
-              <label htmlFor="precioCompra" className="block text-sm font-medium text-gray-700">Precio de compra</label>
-              <Input
-                id="precioCompra"
-                name="precioCompra"
-                type="number"
-                value={newProduct.precioCompra}
-                onChange={handleProductInputChange}
-                placeholder="Precio de compra"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="codigo_barras" className="block text-sm font-medium text-gray-700">Código de barras</label>
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
-                    <Input
-                    id="codigo_barras"
-                    name="codigo_barras"
-                    value={newProduct.codigo_barras}
-                    onChange={handleProductInputChange}
-                    placeholder="Código de barras"
-                    className={barcodeExiste ? 'border-red-500' : ''}
-                    readOnly
-                    />
-                    <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={generarBarcodeAleatorio}
-                    className="whitespace-nowrap"
-                    >
-                    Aleatorio
-                    </Button>
-                </div>
-                <Button 
-                  type="button" 
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                  onClick={() => setShowBarcodeScannerAdd(true)}
-                >
-                  <Scan className="mr-2 h-4 w-4" />
-                  Escanear Código
-                </Button>
+          
+          <div className="p-6 space-y-6 pb-24">
+            {/* SECCIÓN 1: INFORMACIÓN BÁSICA */}
+            <FormSection title="Información Básica" icon={Plus}>
+              <div>
+                <label className="text-[10px] font-black mb-1.5 block text-gray-500 uppercase">Nombre del Producto</label>
+                <Input
+                  name="nombre"
+                  value={newProduct.nombre}
+                  onChange={handleProductInputChange}
+                  placeholder="Ej: Camiseta Oversize"
+                  className="bg-white border-gray-200"
+                />
+                {verificandoNombre && <p className="text-[10px] text-blue-500 mt-1 font-bold">Verificando nombre...</p>}
+                {!verificandoNombre && nombreExiste && <p className="text-[10px] text-red-500 mt-1 font-bold">Este nombre ya existe</p>}
               </div>
-              {verificandoBarcode && (
-                <p className="text-xs text-gray-500">Verificando disponibilidad...</p>
-              )}
-              {barcodeExiste && (
-                <p className="text-xs text-red-500">Este código de barras ya está en uso</p>
-              )}
-            </div>
 
-            <BarcodeScanner 
-                open={showBarcodeScannerAdd}
-                onClose={() => setShowBarcodeScannerAdd(false)}
-                onScan={(barcode) => {
-                    setNewProduct(prev => ({ ...prev, codigo_barras: barcode }));
-                    setShowBarcodeScannerAdd(false);
-                    toast({
-                        title: "Escaneado",
-                        description: `Código detectado: ${barcode}`,
-                    });
-                }}
-            />
+              <div>
+                <label className="text-[10px] font-black mb-1.5 block text-gray-500 uppercase">Descripción</label>
+                <Textarea
+                  name="descripcion"
+                  value={newProduct.descripcion || ''}
+                  onChange={handleProductInputChange}
+                  placeholder="Detalles del producto..."
+                  className="min-h-[80px] bg-white text-sm"
+                />
+              </div>
 
+              <div>
+                <label className="text-[10px] font-black mb-1.5 block text-gray-500 uppercase">Foto Principal</label>
+                <div className="bg-white p-2 border rounded-xl border-dashed">
+                  <ImageUpload
+                    id="producto-foto-principal"
+                    value={newProduct.foto}
+                    onChange={(url) => setNewProduct(prev => ({ ...prev, foto: url }))}
+                    disabled={false}
+                  />
+                </div>
+              </div>
+            </FormSection>
 
-            {/* NUEVOS CAMPOS */}
-            {/* Precio de compra en USD */}
-            <div>
-              <label htmlFor="precioCompraUSD" className="block text-sm font-medium text-gray-700">Precio de compra en USD</label>
-              <Input
-                id="precioCompraUSD"
-                name="precioCompraUSD"
-                type="number"
-                value={newProduct.precioCompraUSD || ''}
-                onChange={handleProductInputChange}
-                placeholder="Precio de compra en USD"
-              />
-            </div>
+            {/* SECCIÓN 2: PRECIOS Y COSTOS */}
+            <FormSection title="Precios y Costos" icon={Percent}>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-black mb-1.5 block text-green-700 uppercase">Precio Venta ($)</label>
+                  <Input
+                    name="precio"
+                    type="number"
+                    value={newProduct.precio}
+                    onChange={handleProductInputChange}
+                    className="bg-white border-green-100 font-bold text-green-700"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black mb-1.5 block text-red-700 uppercase">Precio Compra ($)</label>
+                  <Input
+                    name="precioCompra"
+                    type="number"
+                    value={newProduct.precioCompra}
+                    onChange={handleProductInputChange}
+                    className="bg-white border-red-100"
+                  />
+                </div>
+              </div>
 
-            {/* Precio de venta en USD */}
-            <div>
-              <label htmlFor="precioVentaUSD" className="block text-sm font-medium text-gray-700">Precio de venta en USD</label>
-              <Input
-                id="precioVentaUSD"
-                name="precioVentaUSD"
-                type="number"
-                value={newProduct.precioVentaUSD || ''}
-                onChange={handleProductInputChange}
-                placeholder="Precio de venta en USD"
-              />
-            </div>
+              <div className="pt-3 border-t border-gray-200 space-y-3">
+                <p className="text-[10px] font-black text-blue-600 uppercase">Opciones en USD (Opcional)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className="text-[10px] uppercase text-gray-400 font-bold">Tasa USD Hoy</label>
+                    <Input
+                      name="valorCompraUSD"
+                      type="number"
+                      value={newProduct.valorCompraUSD || ''}
+                      onChange={handleProductInputChange}
+                      className="bg-white h-9"
+                      placeholder="Precio del USD"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase text-gray-400 font-bold">Costo USD</label>
+                    <Input
+                      name="precioCompraUSD"
+                      type="number"
+                      value={newProduct.precioCompraUSD || ''}
+                      onChange={handleProductInputChange}
+                      className="bg-white h-8 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase text-gray-400 font-bold">Venta USD</label>
+                    <Input
+                      name="precioVentaUSD"
+                      type="number"
+                      value={newProduct.precioVentaUSD || ''}
+                      onChange={handleProductInputChange}
+                      className="bg-white h-8 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            </FormSection>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="tieneParametros"
-                checked={newProduct.tieneParametros}
-                onCheckedChange={(checked) => {
-                  setNewProduct(prev => ({
-                    ...prev,
-                    tieneParametros: checked as boolean,
-                    parametros: checked ? [{ nombre: '', cantidad: 0 }] : []
-                  }));
-                }}
-              />
-              <label htmlFor="tieneParametros">Tiene parámetros</label>
-            </div>
-            {newProduct.tieneParametros ? (
-              <div className="space-y-4">
-                {/* Contenedor scrolleable para los parámetros */}
-                <div className="max-h-[300px] overflow-y-auto pr-2 space-y-4 border rounded-lg p-4">
-                  {newProduct.parametros.map((param, index) => (
-                    <div key={index} className="space-y-3 p-3 border rounded-lg">
-                      <div className="flex space-x-2">
-                        <Input
-                          placeholder="Nombre del parámetro"
-                          value={param.nombre}
-                          onChange={(e) => {
-                            const newParametros = [...newProduct.parametros];
-                            newParametros[index].nombre = e.target.value;
-                            setNewProduct(prev => ({ ...prev, parametros: newParametros }));
-                          }}
-                          className="flex-1"
-                        />
-                        <Input
-                          type="number"
-                          placeholder="Cantidad"
-                          value={param.cantidad}
-                          onChange={(e) => {
-                            const newParametros = [...newProduct.parametros];
-                            newParametros[index].cantidad = parseInt(e.target.value);
-                            setNewProduct(prev => ({ ...prev, parametros: newParametros }));
-                          }}
-                          className="w-24"
-                        />
-                      </div>
-                      <div className="flex space-x-2">
-                        <Input
-                          placeholder="Código de barras"
-                          value={param.codigo_barras || ''}
-                          onChange={(e) => {
-                            const newParametros = [...newProduct.parametros];
-                            newParametros[index].codigo_barras = e.target.value;
-                            setNewProduct(prev => ({ ...prev, parametros: newParametros }));
-                          }}
-                          className="flex-1"
-                        />
+            {/* SECCIÓN 3: INVENTARIO Y VARIANTES */}
+            <FormSection title="Inventario" icon={ChevronDown}>
+              <div className="flex items-center justify-between bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                <label htmlFor="tieneParametros" className="text-sm font-black text-blue-900 cursor-pointer uppercase tracking-tighter">¿Tiene Variantes?</label>
+                <Checkbox
+                  id="tieneParametros"
+                  checked={newProduct.tieneParametros}
+                  onCheckedChange={(checked) => {
+                    setNewProduct(prev => ({
+                      ...prev,
+                      tieneParametros: checked as boolean,
+                      parametros: checked ? [{ nombre: '', cantidad: 0 }] : []
+                    }));
+                  }}
+                  className="h-6 w-6 border-blue-300 data-[state=checked]:bg-blue-600"
+                />
+              </div>
+
+              {!newProduct.tieneParametros ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black mb-1.5 block text-gray-500 uppercase">Stock Inicial</label>
+                    <Input
+                      name="cantidad"
+                      type="number"
+                      value={newProduct.cantidad}
+                      onChange={handleProductInputChange}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black mb-1.5 block text-orange-600 uppercase">Alerta Mínimo</label>
+                    <Input
+                      name="stock_minimo"
+                      type="number"
+                      value={newProduct.stock_minimo || ''}
+                      onChange={handleProductInputChange}
+                      className="bg-white border-orange-100"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="max-h-[350px] overflow-y-auto pr-2 space-y-4">
+                    {newProduct.parametros.map((param, index) => (
+                      <div key={index} className="relative p-4 bg-white border rounded-2xl shadow-sm space-y-3">
                         <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const random = Math.floor(Math.random() * 900000000000) + 100000000000;
-                            const newParametros = [...newProduct.parametros];
-                            newParametros[index].codigo_barras = random.toString();
-                            setNewProduct(prev => ({ ...prev, parametros: newParametros }));
-                          }}
-                        >
-                          Aleatorio
-                        </Button>
-                        {/* Botón para eliminar parámetro */}
-                        <Button
-                          variant="destructive"
+                          variant="ghost"
                           size="icon"
+                          className="absolute -top-2 -right-2 h-7 w-7 bg-red-50 text-red-500 rounded-full border shadow-sm"
                           onClick={() => {
                             const newParametros = newProduct.parametros.filter((_, i) => i !== index);
                             setNewProduct(prev => ({ ...prev, parametros: newParametros }));
                           }}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3.5 w-3.5" />
                         </Button>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Foto del parámetro (opcional)
-                        </label>
-                        <ImageUpload
-                          id={`param-foto-${index}`}
-                          value={param.foto || ''}
-                          onChange={(url) => {
-                            const newParametros = [...newProduct.parametros];
-                            newParametros[index].foto = url;
-                            setNewProduct(prev => ({ ...prev, parametros: newParametros }));
-                          }}
-                          disabled={false}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {/* Botón para agregar parámetro fuera del área scrolleable */}
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setNewProduct(prev => ({
-                      ...prev,
-                      parametros: [...prev.parametros, { nombre: '', cantidad: 0, foto: '' }]
-                    }));
-                  }}
-                  className="w-full"
-                >
-                  + Agregar parámetro
-                </Button>
-              </div>
-            ) : (
-              <div>
-                <label htmlFor="cantidad" className="block text-sm font-medium text-gray-700">Cantidad</label>
-                <Input
-                  id="cantidad"
-                  name="cantidad"
-                  type="number"
-                  value={newProduct.cantidad}
-                  onChange={handleProductInputChange}
-                  placeholder="Cantidad del producto"
-                />
-              </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Foto del producto
-              </label>
-              <ImageUpload
-                id="producto-foto-principal"
-                value={newProduct.foto}
-                onChange={(url) => setNewProduct(prev => ({ ...prev, foto: url }))}
-                disabled={false}
-              />
-            </div>
+                        
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="col-span-2">
+                            <label className="text-[10px] text-gray-400 font-black uppercase mb-1 block">Variante</label>
+                            <Input
+                              value={param.nombre}
+                              onChange={(e) => {
+                                const newParametros = [...newProduct.parametros];
+                                newParametros[index].nombre = e.target.value;
+                                setNewProduct(prev => ({ ...prev, parametros: newParametros }));
+                              }}
+                              placeholder="Ej: M / Azul"
+                              className="h-10"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-gray-400 font-black uppercase mb-1 block">Cant.</label>
+                            <Input
+                              type="number"
+                              value={param.cantidad}
+                              onChange={(e) => {
+                                const newParametros = [...newProduct.parametros];
+                                newParametros[index].cantidad = parseInt(e.target.value) || 0;
+                                setNewProduct(prev => ({ ...prev, parametros: newParametros }));
+                              }}
+                              className="h-10"
+                            />
+                          </div>
+                        </div>
 
-            {/* Botón sticky al final del scroll */}
-            <div className="sticky bottom-0 pt-4 pb-2 bg-white border-t mt-4">
-              <Button
-                onClick={handleAddProduct}
-                className="w-full"
-                disabled={nombreExiste || verificandoNombre}
-              >
-                {verificandoNombre ? 'Verificando...' : 'Agregar'}
-              </Button>
-            </div>
+                        <div className="pt-2 border-t border-gray-50 flex gap-2 items-end">
+                          <div className="flex-1">
+                            <label className="text-[10px] text-gray-400 font-black uppercase mb-1 block">Código</label>
+                            <Input
+                              value={param.codigo_barras || ''}
+                              onChange={(e) => {
+                                const newParametros = [...newProduct.parametros];
+                                newParametros[index].codigo_barras = e.target.value;
+                                setNewProduct(prev => ({ ...prev, parametros: newParametros }));
+                              }}
+                              className="h-8 text-xs font-mono"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="h-8 text-[10px] font-bold"
+                            onClick={() => {
+                              const random = Math.floor(Math.random() * 900000000000) + 100000000000;
+                              const newParametros = [...newProduct.parametros];
+                              newParametros[index].codigo_barras = random.toString();
+                              setNewProduct(prev => ({ ...prev, parametros: newParametros }));
+                            }}
+                          >
+                            GEN
+                          </Button>
+                        </div>
+
+                        <div className="pt-2">
+                          <label className="text-[10px] text-gray-400 font-black uppercase mb-2 block text-center">Foto Opcional</label>
+                          <ImageUpload
+                            id={`param-foto-${index}`}
+                            value={param.foto || ''}
+                            onChange={(url) => {
+                              const newParametros = [...newProduct.parametros];
+                              newParametros[index].foto = url;
+                              setNewProduct(prev => ({ ...prev, parametros: newParametros }));
+                            }}
+                            disabled={false}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setNewProduct(prev => ({
+                        ...prev,
+                        parametros: [...prev.parametros, { nombre: '', cantidad: 0, foto: '' }]
+                      }));
+                    }}
+                    className="w-full border-dashed border-2 py-6 text-blue-600 hover:bg-blue-50 rounded-xl"
+                  >
+                    + Añadir Variante
+                  </Button>
+                </div>
+              )}
+            </FormSection>
+
+            {/* SECCIÓN 4: AVANZADO */}
+            <FormSection title="Avanzado" icon={Scan}>
+              <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                <div>
+                  <label className="text-[10px] font-black mb-3 block text-gray-600 uppercase tracking-widest">Código Maestro</label>
+                  <div className="flex gap-2">
+                    <Input
+                      name="codigo_barras"
+                      value={newProduct.codigo_barras}
+                      onChange={handleProductInputChange}
+                      placeholder="Escanea o genera"
+                      className="font-mono bg-gray-50"
+                    />
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={generarBarcodeAleatorio}
+                    >
+                      GEN
+                    </Button>
+                  </div>
+                  <Button 
+                    type="button" 
+                    className="w-full mt-3 bg-blue-600 hover:bg-blue-700 h-12 rounded-xl"
+                    onClick={() => setShowBarcodeScannerAdd(true)}
+                  >
+                    <Scan className="mr-2 h-5 w-5" />
+                    Escanear Cámara
+                  </Button>
+                </div>
+
+                <div className="pt-4 border-t border-gray-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <label htmlFor="tiene_vencimiento" className="text-sm font-black text-gray-700 cursor-pointer uppercase tracking-tighter">Control de Vencimiento</label>
+                    <Checkbox
+                      id="tiene_vencimiento"
+                      checked={newProduct.tiene_vencimiento}
+                      onCheckedChange={(checked) => {
+                        handleProductInputChange({ target: { name: 'tiene_vencimiento', checked: checked as boolean } } as any);
+                      }}
+                    />
+                  </div>
+                  {newProduct.tiene_vencimiento && (
+                    <Input
+                      name="fecha_vencimiento"
+                      type="date"
+                      value={newProduct.fecha_vencimiento}
+                      onChange={handleProductInputChange}
+                      className="bg-white"
+                    />
+                  )}
+                </div>
+              </div>
+            </FormSection>
+          </div>
+
+          <div className="fixed bottom-6 left-6 right-6 z-[60] sm:relative sm:bottom-0 sm:left-0 sm:right-0 sm:p-6 sm:bg-white sm:border-t">
+            <Button
+              onClick={handleAddProduct}
+              disabled={nombreExiste || verificandoNombre}
+              className="w-full h-14 bg-black text-white rounded-2xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all"
+            >
+              {verificandoNombre ? 'Verificando...' : 'Crear Producto'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
+
 
 
 

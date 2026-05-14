@@ -169,7 +169,13 @@ export async function GET(request: NextRequest) {
         [vendedorId]
       );
     } else {
-      return NextResponse.json({ error: 'Se requiere vendedorId, productoId o id' }, { status: 400 });
+      // Si no hay filtros, obtener todas las ventas (útil para reportes de administrador)
+      result = await query(
+        `${baseQuery}
+         GROUP BY v.id, p.nombre, p.foto
+         ORDER BY v.fecha DESC`,
+        []
+      );
     }
 
     return NextResponse.json(result.rows);

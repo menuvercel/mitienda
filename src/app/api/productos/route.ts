@@ -44,6 +44,9 @@ export async function POST(request: NextRequest) {
         const precioCompraUSD = formData.get('precioCompraUSD') as string || null;
         const precioVentaUSD = formData.get('precioVentaUSD') as string || null;
         const codigo_barras = formData.get('codigo_barras') as string || null;
+        const fecha_vencimiento = formData.get('fecha_vencimiento') as string || null;
+        const tiene_vencimiento = formData.get('tiene_vencimiento') === 'true';
+        const stock_minimo = formData.get('stock_minimo') as string || null;
 
         let fotoUrl = '';
 
@@ -55,7 +58,7 @@ export async function POST(request: NextRequest) {
 
         try {
             const result = await query(
-                'INSERT INTO productos (nombre, precio, precio_compra, cantidad, foto, tiene_parametros, descripcion, valor_compra_usd, precio_compra_usd, precio_venta_usd, codigo_barras) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
+                'INSERT INTO productos (nombre, precio, precio_compra, cantidad, foto, tiene_parametros, descripcion, valor_compra_usd, precio_compra_usd, precio_venta_usd, codigo_barras, fecha_vencimiento, tiene_vencimiento, stock_minimo) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *',
                 [
                     nombre,
                     Number(precio),
@@ -67,7 +70,10 @@ export async function POST(request: NextRequest) {
                     valorCompraUSD ? Number(valorCompraUSD) : null,
                     precioCompraUSD ? Number(precioCompraUSD) : null,
                     precioVentaUSD ? Number(precioVentaUSD) : null,
-                    codigo_barras
+                    codigo_barras,
+                    fecha_vencimiento,
+                    tiene_vencimiento,
+                    stock_minimo ? Number(stock_minimo) : null
                 ]
             );
 

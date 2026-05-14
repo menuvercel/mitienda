@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea"; // Nuevo import para el cam
 import Image from 'next/image';
 import { toast } from "@/hooks/use-toast";
 import { Producto, Vendedor, Parametro } from '@/types';
-import { ChevronDown, Download, Barcode, Scan, Plus, Minus } from 'lucide-react';
+import { ChevronDown, Download, Barcode, Scan, Plus, Minus, Calendar as CalendarIcon } from 'lucide-react';
+import { format, isBefore, startOfDay, differenceInDays } from 'date-fns';
 import JsBarcode from 'jsbarcode';
 import { useRef } from 'react';
 const BarcodeScanner = dynamic(() => import('./BarcodeScanner'), { ssr: false });
@@ -284,6 +285,8 @@ export default function ProductDialog({
     precio_compra_usd: product.precio_compra_usd ?? null, // ✅ Usar ?? en lugar de ||
     precio_venta_usd: product.precio_venta_usd ?? null, // ✅ Usar ?? en lugar de ||
     codigo_barras: product.codigo_barras || '',
+    fecha_vencimiento: product.fecha_vencimiento || null,
+    tiene_vencimiento: product.tiene_vencimiento || false,
   });
 
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
@@ -303,6 +306,8 @@ export default function ProductDialog({
       precio_compra_usd: product.precio_compra_usd ?? null, // ✅ Cambiar || por ??
       precio_venta_usd: product.precio_venta_usd ?? null, // ✅ Cambiar || por ??
       codigo_barras: product.codigo_barras || '',
+      fecha_vencimiento: product.fecha_vencimiento || null,
+      tiene_vencimiento: product.tiene_vencimiento || false,
     });
     setImageUrl(product.foto || '');
   }, [product]);
@@ -423,6 +428,8 @@ export default function ProductDialog({
       descripcion: product.descripcion || '', // Aseguramos que descripcion tenga un valor
       valor_compra_usd: product.valor_compra_usd || null, // Aseguramos que valor_compra_usd tenga un valor
       codigo_barras: product.codigo_barras || '',
+      fecha_vencimiento: product.fecha_vencimiento || null,
+      tiene_vencimiento: product.tiene_vencimiento || false,
     });
     setImageUrl(product.foto || '');
   }, [product]);
@@ -458,10 +465,20 @@ export default function ProductDialog({
       }
 
       // Para campos numéricos obligatorios
-      if (name === 'precio' || name === 'precio_compra' || name === 'cantidad') {
+      if (name === 'precio' || name === 'precio_compra' || name === 'cantidad' || name === 'stock_minimo') {
         return {
           ...prev,
-          [name]: value === '' ? 0 : parseFloat(value) || 0
+          [name]: value === '' ? (name === 'stock_minimo' ? null : 0) : parseFloat(value) || 0
+        };
+      }
+
+      // Para el checkbox de vencimiento
+      if (name === 'tiene_vencimiento') {
+        const checked = (e.target as HTMLInputElement).checked;
+        return {
+          ...prev,
+          tiene_vencimiento: checked,
+          fecha_vencimiento: checked ? prev.fecha_vencimiento : null
         };
       }
 
@@ -559,6 +576,8 @@ export default function ProductDialog({
         precio_compra_usd: editedProduct.precio_compra_usd || null, // Incluir el nuevo campo
         precio_venta_usd: editedProduct.precio_venta_usd || null, // Incluir el nuevo campo
         codigo_barras: editedProduct.codigo_barras || '',
+        fecha_vencimiento: editedProduct.fecha_vencimiento || null,
+        tiene_vencimiento: editedProduct.tiene_vencimiento || false,
       };
 
       console.log('Producto a guardar:', updatedProduct);
@@ -759,7 +778,20 @@ export default function ProductDialog({
   );
 }
 
-// Actualizo el componente EditMode para agregar los nuevos campos
+// Estilo para las secciones del formulario
+const FormSection = ({ title, children, icon: Icon }: { title: string, children: React.ReactNode, icon?: any }) => (
+  <div className="space-y-4 p-4 bg-gray-50/50 border rounded-xl mb-4">
+    <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+      {Icon && <Icon className="h-4 w-4 text-blue-600" />}
+      <h3 className="font-bold text-sm uppercase tracking-wider text-gray-700">{title}</h3>
+    </div>
+    <div className="space-y-4">
+      {children}
+    </div>
+  </div>
+);
+
+// Actualizo el componente EditMode para agregar los nuevos campos y organizar mejor la UI
 const EditMode = ({
   editedProduct,
   imageUrl,
@@ -785,222 +817,348 @@ const EditMode = ({
   onCancel: () => void;
   onShowBarcodeScanner: () => void;
 }) => (
-  <>
-    <div className="space-y-4">
+  <div className="space-y-6 pb-20 sm:pb-0">
+    {/* SECCIÓN 1: INFORMACIÓN BÁSICA */}
+    <FormSection title="Información Básica" icon={Plus}>
       <div>
-        <Label>Nombre</Label>
+        <Label className="text-xs font-bold mb-1.5 block text-gray-600 uppercase">Nombre del Producto</Label>
         <Input
           name="nombre"
           value={editedProduct.nombre}
           onChange={onInputChange}
-          placeholder="Nombre del producto"
+          placeholder="Ej: Camiseta Oversize"
+          className="bg-white border-gray-200 focus:border-blue-400"
         />
       </div>
 
       <div>
-        <Label>Descripción</Label>
+        <Label className="text-xs font-bold mb-1.5 block text-gray-600 uppercase">Descripción</Label>
         <Textarea
           name="descripcion"
           value={editedProduct.descripcion || ''}
           onChange={onInputChange}
-          placeholder="Descripción del producto"
-          className="min-h-[100px]"
+          placeholder="Detalles, materiales, etc."
+          className="min-h-[80px] bg-white text-sm border-gray-200 focus:border-blue-400"
         />
       </div>
 
       <div>
-        <Label>Precio de venta</Label>
-        <Input
-          name="precio"
-          type="number"
-          value={editedProduct.precio}
-          onChange={onInputChange}
-          placeholder="Precio de venta"
-        />
+        <Label className="text-xs font-bold mb-1.5 block text-gray-600 uppercase">Imagen Principal</Label>
+        <div className="bg-white p-2 border rounded-lg border-gray-100">
+          <ImageUpload
+            id="producto-foto-dialog"
+            value={imageUrl}
+            onChange={onImageChange}
+            disabled={false}
+          />
+        </div>
+      </div>
+    </FormSection>
+
+    {/* SECCIÓN 2: PRECIOS Y COSTOS */}
+    <FormSection title="Precios y Costos" icon={Download}>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label className="text-[10px] font-black mb-1.5 block text-green-700 uppercase">Precio Venta ($)</Label>
+          <Input
+            name="precio"
+            type="number"
+            value={editedProduct.precio}
+            onChange={onInputChange}
+            className="bg-white border-green-200 focus:border-green-500 font-bold text-green-700"
+          />
+        </div>
+        <div>
+          <Label className="text-[10px] font-black mb-1.5 block text-red-700 uppercase">Precio Compra ($)</Label>
+          <Input
+            name="precio_compra"
+            type="number"
+            value={editedProduct.precio_compra || 0}
+            onChange={onInputChange}
+            className="bg-white border-red-100 focus:border-red-400 text-red-600"
+          />
+        </div>
       </div>
 
-      <div>
-        <Label>Precio de compra</Label>
-        <Input
-          name="precio_compra"
-          type="number"
-          value={editedProduct.precio_compra || 0}
-          onChange={onInputChange}
-          placeholder="Precio de compra"
-        />
-      </div>
-
-      <div>
-        <Label>Valor de compra del USD</Label>
-        <Input
-          name="valor_compra_usd"
-          type="number"
-          value={editedProduct.valor_compra_usd || ''}
-          onChange={onInputChange}
-          placeholder="Valor de compra del USD"
-        />
-      </div>
-
-      <div>
-        <Label>Precio de compra en USD</Label>
-        <Input
-          name="precio_compra_usd"
-          type="number"
-          value={editedProduct.precio_compra_usd || ''}
-          onChange={onInputChange}
-          placeholder="Precio de compra en USD"
-        />
-      </div>
-
-      <div>
-        <Label>Precio de venta en USD</Label>
-        <Input
-          name="precio_venta_usd"
-          type="number"
-          value={editedProduct.precio_venta_usd || ''}
-          onChange={onInputChange}
-          placeholder="Precio de venta en USD"
-        />
-      </div>
-      
-      <div>
-        <Label>Código de Barras</Label>
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
+      <div className="pt-3 border-t border-gray-200">
+        <p className="text-[10px] font-black text-blue-600 uppercase mb-3 flex items-center gap-1">
+          <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></span>
+          Valores en USD (Opcional)
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <Label className="text-[10px] uppercase text-gray-500 font-bold">Tasa de Cambio (USD)</Label>
             <Input
-              name="codigo_barras"
-              value={editedProduct.codigo_barras || ''}
+              name="valor_compra_usd"
+              type="number"
+              value={editedProduct.valor_compra_usd ?? ''}
               onChange={onInputChange}
-              placeholder="Código de barras"
+              className="bg-white h-9 text-sm border-blue-50 border-gray-200"
+              placeholder="Precio del USD hoy"
             />
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase text-gray-500 font-bold">Costo en USD</Label>
+            <Input
+              name="precio_compra_usd"
+              type="number"
+              value={editedProduct.precio_compra_usd ?? ''}
+              onChange={onInputChange}
+              className="bg-white h-9 text-sm border-gray-200"
+            />
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase text-gray-500 font-bold">Venta en USD</Label>
+            <Input
+              name="precio_venta_usd"
+              type="number"
+              value={editedProduct.precio_venta_usd ?? ''}
+              onChange={onInputChange}
+              className="bg-white h-9 text-sm border-gray-200"
+            />
+          </div>
+        </div>
+      </div>
+    </FormSection>
+
+    {/* SECCIÓN 3: INVENTARIO Y VARIANTES */}
+    <FormSection title="Inventario" icon={ChevronDown}>
+      <div className="flex items-center justify-between bg-blue-50/50 p-4 rounded-xl border border-blue-100/50 shadow-sm">
+        <div className="space-y-0.5">
+          <Label htmlFor="tieneParametros" className="text-sm font-black text-blue-900 cursor-pointer">¿Tiene Variantes?</Label>
+          <p className="text-[10px] text-blue-600 font-bold uppercase tracking-tight">Tallas, colores, modelos...</p>
+        </div>
+        <Checkbox
+          id="tieneParametros"
+          checked={editedProduct.tieneParametros}
+          onCheckedChange={(checked) => onTieneParametrosChange(checked as boolean)}
+          className="h-6 w-6 border-blue-300 data-[state=checked]:bg-blue-600"
+        />
+      </div>
+
+      {!editedProduct.tieneParametros ? (
+        <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div>
+            <Label className="text-[10px] font-black mb-1.5 block text-gray-600 uppercase">Stock Disponible</Label>
+            <Input
+              name="cantidad"
+              type="number"
+              value={editedProduct.cantidad}
+              onChange={onInputChange}
+              className="bg-white border-gray-200 focus:border-blue-400"
+            />
+          </div>
+          <div>
+            <Label className="text-[10px] font-black mb-1.5 block text-orange-600 uppercase">Stock Alerta</Label>
+            <Input
+              name="stock_minimo"
+              type="number"
+              value={editedProduct.stock_minimo ?? ''}
+              onChange={onInputChange}
+              placeholder="Ej: 5"
+              className="bg-white border-orange-100 focus:border-orange-400 text-orange-700"
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex justify-between items-center bg-orange-50/50 p-2 rounded-lg border border-orange-100/50">
+            <Label className="text-[10px] font-black text-orange-600 uppercase">Alerta de Stock Global</Label>
+            <div className="flex items-center gap-2">
+               <Input 
+                name="stock_minimo"
+                type="number" 
+                value={editedProduct.stock_minimo ?? ''}
+                onChange={onInputChange}
+                className="w-16 h-8 text-xs bg-white border-orange-200"
+                placeholder="Cant."
+               />
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            {(editedProduct.parametros || []).map((param, index) => (
+              <div key={index} className="relative p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 space-y-4">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute -top-2 -right-2 h-7 w-7 bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white border border-red-100 shadow-sm transition-all"
+                  onClick={() => onRemoveParametro(index)}
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </Button>
+                
+                <div className="grid grid-cols-12 gap-3">
+                  <div className="col-span-8">
+                    <Label className="text-[10px] text-gray-400 font-black uppercase mb-1 block">Variante (Talla/Color)</Label>
+                    <Input
+                      value={param.nombre}
+                      onChange={(e) => onParametroChange(index, 'nombre', e.target.value)}
+                      placeholder="Ej: XL / Rojo"
+                      className="h-10 border-gray-100 focus:border-blue-400"
+                    />
+                  </div>
+                  <div className="col-span-4">
+                    <Label className="text-[10px] text-gray-400 font-black uppercase mb-1 block">Cantidad</Label>
+                    <Input
+                      type="number"
+                      value={param.cantidad}
+                      onChange={(e) => onParametroChange(index, 'cantidad', e.target.value)}
+                      className="h-10 border-gray-100 focus:border-blue-400 font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-gray-50">
+                  <Label className="text-[10px] text-gray-400 font-black uppercase mb-1 block">Código de Barras Específico</Label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                      <Input
+                        value={param.codigo_barras || ''}
+                        onChange={(e) => onParametroChange(index, 'codigo_barras', e.target.value)}
+                        placeholder="Escanea o escribe"
+                        className="h-9 pl-9 text-xs font-mono bg-gray-50/50 border-gray-100"
+                      />
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="h-9 text-[10px] px-3 font-bold bg-gray-100 hover:bg-gray-200"
+                      onClick={() => {
+                        const random = Math.floor(Math.random() * 900000000000) + 100000000000;
+                        onParametroChange(index, 'codigo_barras', random.toString());
+                      }}
+                    >
+                      GENERAR
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <Label className="text-[10px] text-gray-400 font-black uppercase mb-2 block text-center">Foto de Variante (Opcional)</Label>
+                  <div className="bg-gray-50/30 p-2 border border-dashed rounded-xl">
+                    <ImageUpload
+                      id={`param-foto-${index}`}
+                      value={param.foto || ''}
+                      onChange={(url) => onParametroChange(index, 'foto', url)}
+                      disabled={false}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={onAddParametro}
+            className="w-full border-dashed border-2 py-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200 rounded-2xl transition-all duration-300 group"
+          >
+            <div className="flex flex-col items-center gap-1">
+              <Plus className="h-6 w-6 mb-1 group-hover:scale-110 transition-transform" />
+              <span className="font-black text-xs uppercase tracking-widest">Añadir Nueva Variante</span>
+            </div>
+          </Button>
+        </div>
+      )}
+    </FormSection>
+
+    {/* SECCIÓN 4: AVANZADO (CÓDIGOS Y VENCIMIENTO) */}
+    <FormSection title="Avanzado" icon={Barcode}>
+      <div className="space-y-4">
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+          <Label className="text-[10px] font-black mb-3 block text-gray-600 uppercase">Código de Barras Maestro</Label>
+          <div className="flex gap-2 mb-3">
+            <div className="relative flex-1">
+              <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                name="codigo_barras"
+                value={editedProduct.codigo_barras || ''}
+                onChange={onInputChange}
+                className="bg-gray-50/50 pl-10 font-mono text-sm tracking-wider border-gray-100"
+              />
+            </div>
             <Button
               variant="outline"
-              size="sm"
+              className="border-gray-200 hover:bg-gray-100"
               onClick={() => {
                 const random = Math.floor(Math.random() * 900000000000) + 100000000000;
                 onInputChange({ target: { name: 'codigo_barras', value: random.toString() } } as any);
               }}
             >
-              Aleatorio
+              <Plus className="h-4 w-4" />
             </Button>
           </div>
           <Button
             type="button"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-100 rounded-xl transition-all active:scale-[0.98]"
             onClick={onShowBarcodeScanner}
           >
-            <Scan className="mr-2 h-4 w-4" />
-            Escanear Código
+            <Scan className="mr-2 h-5 w-5" />
+            <span className="font-black text-xs uppercase tracking-widest">Escanear Cámara</span>
           </Button>
         </div>
-      </div>
 
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id="tieneParametros"
-          checked={editedProduct.tieneParametros}
-          onCheckedChange={(checked) => onTieneParametrosChange(checked as boolean)}
-        />
-        <Label htmlFor="tieneParametros">Tiene parámetros</Label>
-      </div>
-
-      {editedProduct.tieneParametros ? (
-        <div className="space-y-4">
-          <Label>Parámetros</Label>
-          {(editedProduct.parametros || []).map((param, index) => (
-            <div key={index} className="space-y-3 p-3 border rounded-lg">
-              <div className="flex gap-2 items-center">
-                <Input
-                  value={param.nombre}
-                  onChange={(e) => onParametroChange(index, 'nombre', e.target.value)}
-                  placeholder="Nombre del parámetro"
-                  className="flex-1"
-                />
-                <Input
-                  type="number"
-                  value={param.cantidad}
-                  onChange={(e) => onParametroChange(index, 'cantidad', e.target.value)}
-                  placeholder="Cantidad"
-                  className="w-24"
-                />
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  onClick={() => onRemoveParametro(index)}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex gap-2 items-center mt-2">
-                <Input
-                  value={param.codigo_barras || ''}
-                  onChange={(e) => onParametroChange(index, 'codigo_barras', e.target.value)}
-                  placeholder="Código de barras del parámetro"
-                  className="flex-1"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const random = Math.floor(Math.random() * 900000000000) + 100000000000;
-                    onParametroChange(index, 'codigo_barras', random.toString());
-                  }}
-                >
-                  Aleatorio
-                </Button>
+        <div className="pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between bg-purple-50/30 p-4 rounded-2xl border border-purple-100/50">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
+                <CalendarIcon className="h-5 w-5" />
               </div>
               <div>
-                <Label className="text-sm">Foto del parámetro (opcional)</Label>
-                <ImageUpload
-                  id={`param-foto-${index}`}
-                  value={param.foto || ''}
-                  onChange={(url) => onParametroChange(index, 'foto', url)}
-                  disabled={false}
-                />
+                <Label htmlFor="tiene_vencimiento" className="text-sm font-black text-purple-900 cursor-pointer">Control de Vencimiento</Label>
+                <p className="text-[10px] text-purple-500 font-bold uppercase">Alertas automáticas</p>
               </div>
             </div>
-          ))}
-          <Button
-            variant="outline"
-            onClick={onAddParametro}
-            className="w-full"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Agregar parámetro
-          </Button>
-        </div>
-      ) : (
-        <div>
-          <Label>Cantidad</Label>
-          <Input
-            name="cantidad"
-            type="number"
-            value={editedProduct.cantidad}
-            onChange={onInputChange}
-            placeholder="Cantidad"
-          />
-        </div>
-      )}
+            <Checkbox
+              id="tiene_vencimiento"
+              checked={editedProduct.tiene_vencimiento}
+              onCheckedChange={(checked) => onInputChange({ target: { name: 'tiene_vencimiento', checked: checked as boolean } } as any)}
+              className="h-6 w-6 border-purple-200 data-[state=checked]:bg-purple-600"
+            />
+          </div>
 
-      <div>
-        <Label>Imagen del producto</Label>
-        <ImageUpload
-          id="producto-foto-dialog"
-          value={imageUrl}
-          onChange={onImageChange}
-          disabled={false}
-        />
+          {editedProduct.tiene_vencimiento && (
+            <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
+              <Input
+                name="fecha_vencimiento"
+                type="date"
+                value={editedProduct.fecha_vencimiento ? new Date(editedProduct.fecha_vencimiento).toISOString().split('T')[0] : ''}
+                onChange={onInputChange}
+                className="bg-white border-purple-100 focus:border-purple-400 h-11"
+              />
+              <div className="flex items-start gap-2 mt-2 px-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1"></div>
+                <p className="text-[10px] text-gray-500 font-medium italic leading-tight">
+                  El sistema generará una alerta amarilla 7 días antes y roja al vencer.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+    </FormSection>
 
-      <div className="flex justify-between gap-2">
-        <Button onClick={onSave} className="flex-1">Guardar cambios</Button>
-        <Button variant="outline" onClick={onCancel} className="flex-1">
-          Cancelar
-        </Button>
-      </div>
+    {/* BOTONES DE ACCIÓN FLOTANTES (PARA MÓVIL) */}
+    <div className="fixed bottom-6 left-4 right-4 sm:relative sm:bottom-0 sm:left-0 sm:right-0 grid grid-cols-2 gap-3 z-[60] sm:z-auto">
+      <Button 
+        variant="outline" 
+        onClick={onCancel} 
+        className="h-14 font-black uppercase tracking-widest bg-white/90 backdrop-blur-md shadow-xl border-gray-200 text-gray-600 order-2 sm:order-1 rounded-2xl"
+      >
+        Cancelar
+      </Button>
+      <Button 
+        onClick={onSave} 
+        className="h-14 font-black uppercase tracking-widest bg-green-600 hover:bg-green-700 shadow-xl shadow-green-200 text-white order-1 sm:order-2 rounded-2xl transition-all active:scale-95"
+      >
+        Guardar
+      </Button>
     </div>
-  </>
+  </div>
 );
+
 
 // Subcomponente para el modo de entrega
 const DeliverMode = ({
@@ -1176,22 +1334,22 @@ const ViewMode = ({
   onRefreshVendors: () => void;
 }) => {
   return (
-    <>
-      {/* Pestañas */}
-      <div className="flex border-b border-gray-200 mb-4">
+    <div className="space-y-4">
+      {/* PESTAÑAS REDISEÑADAS */}
+      <div className="flex p-1 bg-gray-100 rounded-xl mb-6">
         <button
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${!showVendorsTab
-            ? 'border-blue-500 text-blue-600'
-            : 'border-transparent text-gray-500 hover:text-gray-700'
+          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${!showVendorsTab
+            ? 'bg-white text-blue-600 shadow-sm'
+            : 'text-gray-500 hover:text-gray-700'
             }`}
           onClick={() => setShowVendorsTab(false)}
         >
-          Información General
+          General
         </button>
         <button
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${showVendorsTab
-            ? 'border-blue-500 text-blue-600'
-            : 'border-transparent text-gray-500 hover:text-gray-700'
+          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${showVendorsTab
+            ? 'bg-white text-blue-600 shadow-sm'
+            : 'text-gray-500 hover:text-gray-700'
             }`}
           onClick={() => setShowVendorsTab(true)}
         >
@@ -1199,7 +1357,6 @@ const ViewMode = ({
         </button>
       </div>
 
-      {/* Contenido de las pestañas */}
       {showVendorsTab ? (
         <VendorsTab
           vendorsData={vendorsData}
@@ -1208,107 +1365,130 @@ const ViewMode = ({
           productName={product.nombre}
         />
       ) : (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            {/* Precio de venta SIN USD */}
-            <p className="text-lg font-medium">
-              Precio de venta: ${product.precio}
-            </p>
-
-            {/* Precio de compra SIN USD */}
-            <p className="text-md text-gray-700">
-              Precio de compra: ${product.precio_compra || 0}
-            </p>
-
-            {/* Mostrar el valor de compra del USD si existe */}
-            {product.valor_compra_usd !== null && product.valor_compra_usd !== undefined && (
-              <p className="text-md text-gray-700">
-                Valor de compra del USD: ${product.valor_compra_usd}
-              </p>
-            )}
-
-            {/* Nuevos campos para precios en USD */}
-            {product.precio_compra_usd !== null && product.precio_compra_usd !== undefined && (
-              <p className="text-md text-gray-700">
-                Precio de compra en USD: ${product.precio_compra_usd}
-              </p>
-            )}
-
-            {product.precio_venta_usd !== null && product.precio_venta_usd !== undefined && (
-              <p className="text-md text-gray-700">
-                Precio de venta en USD: ${product.precio_venta_usd}
-              </p>
-            )}
-
-            {/* Mostrar la descripción si existe */}
-            {product.descripcion && (
-              <div className="mt-2">
-                <h4 className="font-medium text-sm text-gray-700">Descripción:</h4>
-                <p className="text-gray-600 mt-1 whitespace-pre-wrap">{product.descripcion}</p>
-              </div>
-            )}
-
-            {(product.tiene_parametros || product.tieneParametros) && product.parametros && product.parametros.length > 0 ? (
-              <div className="space-y-2 mt-4">
-                <h4 className="font-medium text-sm text-gray-700">Parámetros:</h4>
-                <div className="grid grid-cols-1 gap-3">
-                  {product.parametros.map((param, index) => (
-                    <div
-                      key={index}
-                      className="p-3 bg-gray-50 rounded-md"
-                    >
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium">{param.nombre}:</span>
-                        <span className="text-gray-600">{param.cantidad}</span>
-                      </div>
-                      {param.foto && (
-                        <div className="mt-2">
-                          <Image
-                            src={param.foto}
-                            alt={`Foto de ${param.nombre}`}
-                            width={100}
-                            height={100}
-                            className="object-cover rounded-lg"
-                          />
-                        </div>
-                      )}
-                      {param.codigo_barras && (
-                        <div className="mt-3">
-                          <p className="text-xs text-gray-500 mb-1">Código de barras: {param.codigo_barras}</p>
-                          <BarcodeDisplay value={param.codigo_barras} name={`${product.nombre} - ${param.nombre}`} />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <p className="text-sm text-gray-500">
-                  Cantidad total: {getTotalCantidad()}
-                </p>
-              </div>
-            ) : (
-              <p className="text-gray-700 mt-4">Cantidad disponible: {product.cantidad}</p>
-            )}
-
-            {/* Mostrar código de barras */}
-            <div className="mt-6 border-t pt-4">
-              <h4 className="font-medium text-sm text-gray-700 mb-3">Código de Barras:</h4>
-              {product.codigo_barras ? (
-                <BarcodeDisplay value={product.codigo_barras} name={product.nombre} />
-              ) : (
-                <p className="text-sm text-gray-500 italic">No tiene código de barras asignado</p>
+        <div className="space-y-6">
+          {/* BLOQUE DE PRECIOS */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 bg-green-50 border border-green-100 rounded-2xl">
+              <p className="text-[10px] font-black text-green-600 uppercase mb-1">Precio Venta</p>
+              <p className="text-xl font-black text-green-700">${product.precio}</p>
+              {product.precio_venta_usd && (
+                <p className="text-[10px] font-bold text-green-600/70 italic mt-1">${product.precio_venta_usd} USD</p>
+              )}
+            </div>
+            <div className="p-3 bg-red-50 border border-red-100 rounded-2xl">
+              <p className="text-[10px] font-black text-red-600 uppercase mb-1">Precio Compra</p>
+              <p className="text-xl font-black text-red-700">${product.precio_compra || 0}</p>
+              {product.precio_compra_usd && (
+                <p className="text-[10px] font-bold text-red-600/70 italic mt-1">${product.precio_compra_usd} USD</p>
               )}
             </div>
           </div>
 
-          <div className="flex justify-between gap-2">
-            <Button onClick={onEdit} className="w-full">Editar</Button>
-            <Button onClick={onDeliver} className="w-full">Entregar</Button>
-            <Button onClick={onDelete} variant="destructive" className="w-full">
+          {/* ESTADO DE STOCK Y VENCIMIENTO */}
+          <div className="space-y-3">
+             {/* ALERTA DE VENCIMIENTO */}
+             {product.tiene_vencimiento && product.fecha_vencimiento && (
+                <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
+                  isBefore(startOfDay(new Date(product.fecha_vencimiento)), startOfDay(new Date()))
+                  ? 'bg-red-600 text-white border-red-700'
+                  : differenceInDays(startOfDay(new Date(product.fecha_vencimiento)), startOfDay(new Date())) <= 7
+                  ? 'bg-yellow-400 text-yellow-900 border-yellow-500'
+                  : 'bg-blue-50 text-blue-700 border-blue-100'
+                }`}>
+                  <CalendarIcon className="h-5 w-5 flex-shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-black uppercase leading-tight opacity-80">Vencimiento</p>
+                    <p className="text-sm font-black">
+                      {format(new Date(product.fecha_vencimiento), 'dd/MM/yyyy')}
+                      {isBefore(startOfDay(new Date(product.fecha_vencimiento)), startOfDay(new Date())) && ' (VENCIDO)'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* STOCK TOTAL */}
+              <div className="p-4 bg-gray-50 border rounded-2xl flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] font-black text-gray-500 uppercase">Stock en Almacén</p>
+                  <p className="text-2xl font-black text-gray-800">{getTotalCantidad()}</p>
+                </div>
+                {product.stock_minimo && getTotalCantidad() <= product.stock_minimo && (
+                  <div className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-[10px] font-black uppercase animate-pulse">
+                    Stock Bajo
+                  </div>
+                )}
+              </div>
+          </div>
+
+          {/* DESCRIPCIÓN */}
+          {product.descripcion && (
+            <div className="px-1">
+              <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Descripción</h4>
+              <p className="text-sm text-gray-600 leading-relaxed bg-white p-3 rounded-xl border border-gray-100 italic">
+                "{product.descripcion}"
+              </p>
+            </div>
+          )}
+
+          {/* VARIANTES / PARÁMETROS */}
+          {(product.tiene_parametros || product.tieneParametros) && product.parametros && product.parametros.length > 0 && (
+            <div className="space-y-3">
+               <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest px-1">Desglose de Variantes</h4>
+               <div className="grid grid-cols-1 gap-2">
+                 {product.parametros.map((param, idx) => (
+                   <div key={idx} className="flex flex-col p-3 bg-white border border-gray-100 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {param.foto ? (
+                            <div className="w-10 h-10 relative">
+                              <Image src={param.foto} alt={param.nombre} fill className="rounded-lg object-cover" />
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                              <Plus className="h-4 w-4" />
+                            </div>
+                          )}
+                          <span className="text-sm font-bold text-gray-700">{param.nombre}</span>
+                        </div>
+                        <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg font-black text-sm">{param.cantidad}</span>
+                      </div>
+                      
+                      {param.codigo_barras && (
+                        <div className="pt-2 border-t border-gray-50">
+                          <p className="text-[8px] font-black text-gray-400 uppercase mb-2 text-center">Código Variante</p>
+                          <BarcodeDisplay value={param.codigo_barras} name={`${product.nombre} - ${param.nombre}`} />
+                        </div>
+                      )}
+                   </div>
+                 ))}
+               </div>
+            </div>
+          )}
+
+          {/* CÓDIGO DE BARRAS PRINCIPAL */}
+          <div className="pt-4 border-t border-gray-100">
+            <h4 className="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest text-center">Identificación Escaneable</h4>
+            {product.codigo_barras ? (
+              <BarcodeDisplay value={product.codigo_barras} name={product.nombre} />
+            ) : (
+              <p className="text-xs text-gray-400 text-center italic">Sin código de barras asignado</p>
+            )}
+          </div>
+
+          {/* ACCIONES PRINCIPALES */}
+          <div className="grid grid-cols-3 gap-3 pt-6">
+            <Button onClick={onDeliver} className="h-12 bg-blue-600 font-black uppercase text-[10px] rounded-xl shadow-lg shadow-blue-100">
+              Entregar
+            </Button>
+            <Button onClick={onEdit} variant="outline" className="h-12 font-black uppercase text-[10px] rounded-xl border-gray-200">
+              Editar
+            </Button>
+            <Button onClick={onDelete} variant="destructive" className="h-12 font-black uppercase text-[10px] rounded-xl shadow-lg shadow-red-100">
               Eliminar
             </Button>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };

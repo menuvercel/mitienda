@@ -67,6 +67,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         const precioCompraUSD = formData.get('precio_compra_usd') as string || null;
         const precioVentaUSD = formData.get('precio_venta_usd') as string || null;
         const codigo_barras = formData.get('codigo_barras') as string || null;
+        const fecha_vencimiento = formData.get('fecha_vencimiento') as string || null;
+        const tiene_vencimiento = formData.get('tiene_vencimiento') === 'true';
+        const stock_minimo = formData.get('stock_minimo') as string || null;
 
         const currentProduct = await query('SELECT * FROM productos WHERE id = $1', [id]);
 
@@ -81,7 +84,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
         try {
             const result = await query(
-                'UPDATE productos SET nombre = $1, precio = $2, cantidad = $3, foto = $4, tiene_parametros = $5, precio_compra = $6, descripcion = $7, valor_compra_usd = $8, precio_compra_usd = $9, precio_venta_usd = $10, codigo_barras = $11 WHERE id = $12 RETURNING *',
+                'UPDATE productos SET nombre = $1, precio = $2, cantidad = $3, foto = $4, tiene_parametros = $5, precio_compra = $6, descripcion = $7, valor_compra_usd = $8, precio_compra_usd = $9, precio_venta_usd = $10, codigo_barras = $11, fecha_vencimiento = $12, tiene_vencimiento = $13, stock_minimo = $14 WHERE id = $15 RETURNING *',
                 [
                     nombre,
                     Number(precio),
@@ -94,6 +97,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                     precioCompraUSD ? Number(precioCompraUSD) : currentProduct.rows[0].precio_compra_usd || null,
                     precioVentaUSD ? Number(precioVentaUSD) : currentProduct.rows[0].precio_venta_usd || null,
                     codigo_barras,
+                    fecha_vencimiento,
+                    tiene_vencimiento,
+                    stock_minimo ? Number(stock_minimo) : currentProduct.rows[0].stock_minimo,
                     id
                 ]
             );

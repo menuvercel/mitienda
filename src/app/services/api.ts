@@ -1,7 +1,7 @@
 //services/api.ts
 
 import axios from 'axios';
-import { Venta, Notificacion, Vendedor, Transaccion, VentaParametro, TransferProductParams, Seccion, Promocion, Parametro } from '@/types';
+import { Venta, Notificacion, Vendedor, Transaccion, VentaParametro, TransferProductParams, Seccion, Promocion, Parametro, Producto } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -22,18 +22,7 @@ interface User {
   nombre: string;
   rol: string;
   telefono?: string;
-  password: string;
-}
-
-interface Producto {
-  id: string;
-  nombre: string;
-  precio: number;
-  cantidad: number;
-  foto?: string;
-  tieneParametros: boolean;
-  parametros?: Parametro[];
-  codigo_barras?: string;
+  password?: string;
 }
 
 
@@ -325,6 +314,11 @@ export const realizarVenta = async (
 
 export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
   const response = await api.get(`/ventas?vendedorId=${vendedorId}`);
+  return response.data;
+};
+
+export const getAllVentas = async (): Promise<Venta[]> => {
+  const response = await api.get('/ventas');
   return response.data;
 };
 
