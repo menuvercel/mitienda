@@ -43,6 +43,7 @@
     "init": "^0.1.2",
     "jsbarcode": "^3.12.3",
     "jsonwebtoken": "^9.0.2",
+    "jspdf": "^4.2.1",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.441.0",
     "mongoose": "^8.7.0",

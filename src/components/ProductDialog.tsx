@@ -204,7 +204,7 @@ const BarcodeDisplay = ({ value, name }: { value: string, name: string }) => {
     }
   }, [value]);
 
-  const downloadBarcode = () => {
+  const downloadBarcode = (format: 'png' | 'pdf') => {
     const svg = barcodeRef.current;
     if (!svg) return;
     
@@ -213,29 +213,56 @@ const BarcodeDisplay = ({ value, name }: { value: string, name: string }) => {
       const canvas = document.createElement("canvas");
       const svgSize = svg.getBBox();
       
-      // Aumentar un poco el tamaño para el padding
-      canvas.width = svgSize.width + 40;
-      canvas.height = svgSize.height + 40;
+      const sidePadding = 20;
+      const topPadding = 40;
+      const bottomPadding = 40;
+      
+      canvas.width = svgSize.width + sidePadding * 2;
+      canvas.height = svgSize.height + topPadding + bottomPadding;
       
       const ctx = canvas.getContext("2d");
       const img = document.createElement('img');
       
-      img.onload = () => {
+      img.onload = async () => {
         if (ctx) {
           ctx.fillStyle = "white";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 20, 20);
-          const pngUrl = canvas.toDataURL("image/png");
-          const downloadLink = document.createElement("a");
-          downloadLink.href = pngUrl;
-          downloadLink.download = `barcode-${name}-${value}.png`;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
+          
+          ctx.fillStyle = "black";
+          ctx.font = "bold 14px Arial, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(name, canvas.width / 2, 25);
+          
+          ctx.drawImage(img, sidePadding, topPadding);
+          
+          ctx.fillStyle = "#4B5563";
+          ctx.font = "bold 12px Arial, sans-serif";
+          ctx.fillText("Multimarcas S.U.R.L", canvas.width / 2, canvas.height - 15);
+          
+          if (format === 'png') {
+            const pngUrl = canvas.toDataURL("image/png");
+            const downloadLink = document.createElement("a");
+            downloadLink.href = pngUrl;
+            downloadLink.download = `barcode-${name}-${value}.png`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+          } else if (format === 'pdf') {
+            const pngUrl = canvas.toDataURL("image/png");
+            const { jsPDF } = await import('jspdf');
+            
+            const doc = new jsPDF({
+              orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+              unit: 'px',
+              format: [canvas.width, canvas.height]
+            });
+            
+            doc.addImage(pngUrl, 'PNG', 0, 0, canvas.width, canvas.height);
+            doc.save(`barcode-${name}-${value}.pdf`);
+          }
         }
       };
       
-      // Convertir SVG a data URL compatible con btoa (UTF-8)
       const encodedData = btoa(unescape(encodeURIComponent(svgData)));
       img.src = "data:image/svg+xml;base64," + encodedData;
     } catch (err) {
@@ -253,10 +280,23 @@ const BarcodeDisplay = ({ value, name }: { value: string, name: string }) => {
       <div className="bg-white p-2 rounded shadow-sm overflow-x-auto max-w-full">
         <svg ref={barcodeRef}></svg>
       </div>
-      <Button variant="outline" size="sm" onClick={downloadBarcode} className="w-full">
-        <Download className="mr-2 h-4 w-4" />
-        Exportar Código de Barras
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="w-full">
+            <Download className="mr-2 h-4 w-4" />
+            Exportar Código de Barras
+            <ChevronDown className="ml-2 h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56">
+          <DropdownMenuItem onClick={() => downloadBarcode('png')}>
+            Exportar como Imagen (PNG)
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => downloadBarcode('pdf')}>
+            Exportar como PDF
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 };
