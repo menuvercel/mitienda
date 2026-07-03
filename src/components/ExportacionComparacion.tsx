@@ -197,9 +197,10 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
       
       // Regex más preciso:
       // - Permite códigos con dos puntos intermedios (ej: 189.010.01205, 100.405.H, 850.000.4360268)
-      // - O códigos alfanuméricos continuos sin puntos de entre 8 y 18 caracteres (ej: 5000449957, 8500004360268)
-      // Esto evita que coincidan números decimales simples de precios o mermas (ej: 228.05800, 360.0000000)
-      const productRegex = /(\d{3}\.\d{3}\.[A-Za-z0-9]+|[A-Za-z0-9]{8,18})\s+(.*?)\s+U\s+(\d+(?:\.\d+)?)/g;
+      // - O códigos alfanuméricos continuos sin puntos de entre 8 y 18 caracteres que empiezan obligatoriamente por un dígito (ej: 5000449957, 8500004360268)
+      // - El grupo intermedio ((?:(?!\bcode_pattern\b).)*?) evita que la descripción consuma otros códigos de barra o cabeceras (como "Empresa: 5000449957") cruzando la página hasta el primer " U "
+      const barcodePattern = /\d{3}\.\d{3}\.[A-Za-z0-9]+|\d[A-Za-z0-9]{7,17}/.source;
+      const productRegex = new RegExp(`(${barcodePattern})\\s+((?:(?!${barcodePattern}).)*?)\\s+U\\s+(\\d+(?:\\.\\d+)?)`, 'g');
       
       let match;
       while ((match = productRegex.exec(fullText)) !== null) {
@@ -214,7 +215,7 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
       if (rows.length === 0) {
         const lines = fullText.split('\n');
         lines.forEach(line => {
-           const lineMatch = line.match(/(\d{3}\.\d{3}\.[A-Za-z0-9]+|[A-Za-z0-9]{8,18})\s+.*?\s+U\s+(\d+(?:\.\d+)?)/);
+           const lineMatch = line.match(new RegExp(`(${barcodePattern})\\s+(?:(?!${barcodePattern}).)*?\\s+U\\s+(\\d+(?:\\.\\d+)?)`));
            if (lineMatch) {
              rows.push({ codigo: lineMatch[1], cantidad: parseFloat(lineMatch[2]) });
            }
