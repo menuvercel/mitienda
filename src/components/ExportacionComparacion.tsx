@@ -195,8 +195,11 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
       // Regex para detectar líneas de productos: Código Descripción ... U Cantidad ...
       const rows: PDFRow[] = [];
       
-      // Regex más flexible para v5 y posibles variaciones de espacios
-      const productRegex = /(\d{3}\.\d{3}\.\d{5})\s+(.*?)\s+U\s+(\d+(?:\.\d+)?)/g;
+      // Regex más preciso:
+      // - Permite códigos con dos puntos intermedios (ej: 189.010.01205, 100.405.H, 850.000.4360268)
+      // - O códigos alfanuméricos continuos sin puntos de entre 8 y 18 caracteres (ej: 5000449957, 8500004360268)
+      // Esto evita que coincidan números decimales simples de precios o mermas (ej: 228.05800, 360.0000000)
+      const productRegex = /(\d{3}\.\d{3}\.[A-Za-z0-9]+|[A-Za-z0-9]{8,18})\s+(.*?)\s+U\s+(\d+(?:\.\d+)?)/g;
       
       let match;
       while ((match = productRegex.exec(fullText)) !== null) {
@@ -211,7 +214,7 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
       if (rows.length === 0) {
         const lines = fullText.split('\n');
         lines.forEach(line => {
-           const lineMatch = line.match(/(\d{3}\.\d{3}\.\d{5})\s+.*?\s+U\s+(\d+(?:\.\d+)?)/);
+           const lineMatch = line.match(/(\d{3}\.\d{3}\.[A-Za-z0-9]+|[A-Za-z0-9]{8,18})\s+.*?\s+U\s+(\d+(?:\.\d+)?)/);
            if (lineMatch) {
              rows.push({ codigo: lineMatch[1], cantidad: parseFloat(lineMatch[2]) });
            }
@@ -249,6 +252,7 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
     setIsExporting(true);
     try {
       const webInventory: Record<string, { nombre: string, cantidad: number }> = {};
+      const normalizeCode = (code: string) => code.replace(/\./g, '').trim().toLowerCase();
 
       // 1. Almacén
       if (compareIncludeAlmacen) {
@@ -257,14 +261,16 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
             prod.parametros.forEach(param => {
               const code = param.codigo_barras || '';
               if (!code) return;
-              if (!webInventory[code]) webInventory[code] = { nombre: `${prod.nombre} (${param.nombre})`, cantidad: 0 };
-              webInventory[code].cantidad += param.cantidad;
+              const normCode = normalizeCode(code);
+              if (!webInventory[normCode]) webInventory[normCode] = { nombre: `${prod.nombre} (${param.nombre})`, cantidad: 0 };
+              webInventory[normCode].cantidad += param.cantidad;
             });
           } else {
             const code = prod.codigo_barras || '';
             if (!code) return;
-            if (!webInventory[code]) webInventory[code] = { nombre: prod.nombre, cantidad: 0 };
-            webInventory[code].cantidad += prod.cantidad;
+            const normCode = normalizeCode(code);
+            if (!webInventory[normCode]) webInventory[normCode] = { nombre: prod.nombre, cantidad: 0 };
+            webInventory[normCode].cantidad += prod.cantidad;
           }
         });
       }
@@ -277,14 +283,16 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
             prod.parametros.forEach(param => {
               const code = param.codigo_barras || '';
               if (!code) return;
-              if (!webInventory[code]) webInventory[code] = { nombre: `${prod.nombre} (${param.nombre})`, cantidad: 0 };
-              webInventory[code].cantidad += param.cantidad;
+              const normCode = normalizeCode(code);
+              if (!webInventory[normCode]) webInventory[normCode] = { nombre: `${prod.nombre} (${param.nombre})`, cantidad: 0 };
+              webInventory[normCode].cantidad += param.cantidad;
             });
           } else {
             const code = prod.codigo_barras || '';
             if (!code) return;
-            if (!webInventory[code]) webInventory[code] = { nombre: prod.nombre, cantidad: 0 };
-            webInventory[code].cantidad += prod.cantidad;
+            const normCode = normalizeCode(code);
+            if (!webInventory[normCode]) webInventory[normCode] = { nombre: prod.nombre, cantidad: 0 };
+            webInventory[normCode].cantidad += prod.cantidad;
           }
         });
       }
@@ -294,7 +302,8 @@ export default function ExportacionComparacion({ vendedores, almacen }: Exportac
       const codesInResults = new Set<string>();
 
       pdfData.forEach(pdfRow => {
-        const webItem = webInventory[pdfRow.codigo];
+        const normCode = normalizeCode(pdfRow.codigo);
+        const webItem = webInventory[normCode];
         const cantWeb = webItem ? webItem.cantidad : 0;
         const nombre = webItem ? webItem.nombre : "No encontrado en web";
         
