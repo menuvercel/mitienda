@@ -3562,6 +3562,19 @@ export default function AlmacenPage() {
         onSave={handleSaveProductosDestacados}
       />
 
+      <BarcodeScanner
+        open={showBarcodeScannerAdd}
+        onClose={() => setShowBarcodeScannerAdd(false)}
+        onScan={(barcode) => {
+          setNewProduct(prev => ({ ...prev, codigo_barras: barcode }));
+          setShowBarcodeScannerAdd(false);
+          toast({
+            title: "Escaneado",
+            description: `Código detectado: ${barcode}`,
+          });
+        }}
+      />
+
 
       {
         selectedProduct && (
