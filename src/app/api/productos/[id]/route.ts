@@ -230,8 +230,14 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
             console.error('Error en la transacción:', error);
             throw error;
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error updating product:', error);
+        if (error?.code === '23505') {
+            return NextResponse.json({
+                error: 'El código de barras ya pertenece a otro producto.',
+                details: error.message
+            }, { status: 400 });
+        }
         return NextResponse.json({
             error: 'Error interno del servidor',
             details: (error as Error).message

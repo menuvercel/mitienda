@@ -6,17 +6,26 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
     try {
         const barcode = request.nextUrl.searchParams.get('barcode');
+        const excludeId = request.nextUrl.searchParams.get('excludeId');
         
         if (!barcode) {
             return NextResponse.json({ error: 'Código de barras no proporcionado' }, { status: 400 });
         }
 
-        const result = await query(
-            'SELECT COUNT(*) as count FROM productos WHERE codigo_barras = $1',
-            [barcode]
-        );
+        let result;
+        if (excludeId) {
+            result = await query(
+                'SELECT COUNT(*) as count FROM productos WHERE codigo_barras = $1 AND id::text != $2::text',
+                [barcode, excludeId]
+            );
+        } else {
+            result = await query(
+                'SELECT COUNT(*) as count FROM productos WHERE codigo_barras = $1',
+                [barcode]
+            );
+        }
 
-        const exists = result.rows[0].count > 0;
+        const exists = parseInt(result.rows[0].count, 10) > 0;
 
         return NextResponse.json({ exists });
     } catch (error) {

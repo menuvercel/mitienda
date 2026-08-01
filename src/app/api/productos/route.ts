@@ -96,8 +96,13 @@ export async function POST(request: NextRequest) {
             await query('ROLLBACK');
             throw error;
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error creating product:', error);
+        if (error?.code === '23505') {
+            return NextResponse.json({
+                error: 'El código de barras ya pertenece a otro producto.'
+            }, { status: 400 });
+        }
         return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
     }
 }

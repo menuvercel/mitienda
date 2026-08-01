@@ -213,10 +213,10 @@ export const editarProducto = async (id: string, formData: FormData) => {
         'Content-Type': 'multipart/form-data',
       },
     });
-    return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error al editar producto:', error);
-    throw new Error('Error al editar el producto');
+    const mensaje = error.response?.data?.error || 'Error al editar el producto';
+    throw new Error(mensaje);
   }
 };
 

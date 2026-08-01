@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"; // Nuevo import para el cam
 import Image from 'next/image';
 import { toast } from "@/hooks/use-toast";
 import { Producto, Vendedor, Parametro } from '@/types';
-import { ChevronDown, Download, Barcode, Scan, Plus, Minus, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronDown, Download, Barcode, Scan, Plus, Minus, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { format, isBefore, startOfDay, differenceInDays } from 'date-fns';
 import JsBarcode from 'jsbarcode';
 import { useRef } from 'react';
@@ -330,6 +330,7 @@ export default function ProductDialog({
   });
 
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
 
   // También actualizar el useEffect que sincroniza el estado con el producto recibido
@@ -593,7 +594,9 @@ export default function ProductDialog({
   // Guardar cambios en el producto
   // Actualizar handleEdit para incluir los nuevos campos
   const handleEdit = async () => {
+    if (isSaving) return;
     try {
+      setIsSaving(true);
       // Solo verificamos la imagen si se está intentando subir una nueva
       if (imageUrl !== product.foto && !imageUrl) {
         toast({
@@ -601,7 +604,27 @@ export default function ProductDialog({
           description: "Espera a que la imagen se suba completamente.",
           variant: "default",
         });
+        setIsSaving(false);
         return;
+      }
+
+      // Verificación previa de código de barras duplicado si fue modificado
+      if (editedProduct.codigo_barras && editedProduct.codigo_barras.trim() !== '' && editedProduct.codigo_barras.trim() !== product.codigo_barras) {
+        try {
+          const res = await fetch(`/api/productos/verificar-barcode?barcode=${encodeURIComponent(editedProduct.codigo_barras.trim())}&excludeId=${product.id}`);
+          const checkData = await res.json();
+          if (checkData.exists) {
+            toast({
+              title: "Código de barras existente",
+              description: "El código de barras ya existe.",
+              variant: "destructive",
+            });
+            setIsSaving(false);
+            return;
+          }
+        } catch (e) {
+          console.error("Error al verificar código de barras:", e);
+        }
       }
 
       const updatedProduct: Producto = {
@@ -628,13 +651,16 @@ export default function ProductDialog({
         description: "Producto actualizado correctamente.",
         variant: "default",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error en handleEdit:', error);
+      const isDuplicate = error?.message?.toLowerCase().includes('código de barras') || error?.message?.toLowerCase().includes('duplicate') || error?.message?.toLowerCase().includes('existe');
       toast({
-        title: "Error",
-        description: "Error al actualizar el producto.",
+        title: isDuplicate ? "Código de barras existente" : "Error",
+        description: isDuplicate ? "El código de barras ya existe." : (error?.message || "Error al actualizar el producto."),
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -759,6 +785,7 @@ export default function ProductDialog({
               onSave={handleEdit}
               onCancel={() => setMode('view')}
               onShowBarcodeScanner={() => setShowBarcodeScanner(true)}
+              isSaving={isSaving}
             />
           ) : mode === 'deliver' ? (
             <DeliverMode
@@ -844,6 +871,7 @@ const EditMode = ({
   onSave,
   onCancel,
   onShowBarcodeScanner,
+  isSaving = false,
 }: {
   editedProduct: Producto;
   imageUrl: string;
@@ -856,6 +884,7 @@ const EditMode = ({
   onSave: () => void;
   onCancel: () => void;
   onShowBarcodeScanner: () => void;
+  isSaving?: boolean;
 }) => (
   <div className="space-y-6 pb-20 sm:pb-0">
     {/* SECCIÓN 1: INFORMACIÓN BÁSICA */}
@@ -1191,9 +1220,17 @@ const EditMode = ({
       </Button>
       <Button 
         onClick={onSave} 
-        className="h-14 font-black uppercase tracking-widest bg-green-600 hover:bg-green-700 shadow-xl shadow-green-200 text-white order-1 sm:order-2 rounded-2xl transition-all active:scale-95"
+        disabled={isSaving}
+        className="h-14 font-black uppercase tracking-widest bg-green-600 hover:bg-green-700 shadow-xl shadow-green-200 text-white order-1 sm:order-2 rounded-2xl transition-all active:scale-95 disabled:opacity-70 flex items-center justify-center gap-2"
       >
-        Guardar
+        {isSaving ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span>Guardando...</span>
+          </>
+        ) : (
+          'Guardar'
+        )}
       </Button>
     </div>
   </div>

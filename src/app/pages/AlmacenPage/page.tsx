@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X, Percent, ArrowLeft, ChevronDown, ImageIcon, Calendar, CalendarDays, Star, Scan } from "lucide-react"
+import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X, Percent, ArrowLeft, ChevronDown, ImageIcon, Calendar, CalendarDays, Star, Scan, Loader2 } from "lucide-react"
 const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner'), { ssr: false })
 import ProductoDestacadoCard from '@/components/ProductoDestacadoCard'
 import ProductosDestacadosSelectionDialog from '@/components/ProductosDestacadosSelectionDialog'
@@ -214,6 +214,7 @@ const useAlmacenData = () => {
     setSecciones,
     setInventario,
     setProductosDestacados,
+    isLoading,
     setIsLoading // AGREGAR
   }
 }
@@ -245,6 +246,7 @@ export default function AlmacenPage() {
     setSecciones,
     setInventario,
     setProductosDestacados,
+    isLoading,
     setIsLoading      // AGREGAR
   } = useAlmacenData()
   const [showRegisterModal, setShowRegisterModal] = useState(false)
@@ -1552,6 +1554,25 @@ export default function AlmacenPage() {
     try {
       setIsLoading(true);
 
+      // Verificación previa de código de barras
+      if (newProduct.codigo_barras && newProduct.codigo_barras.trim() !== '') {
+        try {
+          const res = await fetch(`/api/productos/verificar-barcode?barcode=${encodeURIComponent(newProduct.codigo_barras.trim())}`);
+          const checkData = await res.json();
+          if (checkData.exists) {
+            toast({
+              title: "Código de barras existente",
+              description: "El código de barras ya existe.",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error("Error al verificar código de barras:", e);
+        }
+      }
+
       const formData = new FormData();
       formData.append('nombre', newProduct.nombre);
       formData.append('precio', newProduct.precio.toString());
@@ -1577,7 +1598,8 @@ export default function AlmacenPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Error al crear el producto');
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Error al crear el producto');
       }
 
       const data = await response.json();
@@ -1610,11 +1632,12 @@ export default function AlmacenPage() {
         description: "Producto creado correctamente",
         variant: "default",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al crear producto:', error);
+      const isDuplicate = error?.message?.toLowerCase().includes('código de barras') || error?.message?.toLowerCase().includes('duplicate') || error?.message?.toLowerCase().includes('existe');
       toast({
-        title: "Error",
-        description: "Error al crear el producto",
+        title: isDuplicate ? "Código de barras existente" : "Error",
+        description: isDuplicate ? "El código de barras ya existe." : (error?.message || "Error al crear el producto"),
         variant: "destructive",
       });
     } finally {
@@ -1702,13 +1725,14 @@ export default function AlmacenPage() {
         title: "Éxito",
         description: "Producto actualizado correctamente",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al editar producto:', error);
       toast({
         title: "Error",
-        description: "Error al actualizar el producto",
+        description: error?.message || "Error al actualizar el producto",
         variant: "destructive",
       });
+      throw error;
     }
   };
 
@@ -3462,6 +3486,11 @@ export default function AlmacenPage() {
                       GEN
                     </Button>
                   </div>
+                  {barcodeExiste && (
+                    <p className="text-xs text-red-500 font-bold mt-1.5 flex items-center gap-1">
+                      ⚠️ Este código de barras ya está registrado en otro producto.
+                    </p>
+                  )}
                   <Button 
                     type="button" 
                     className="w-full mt-3 bg-blue-600 hover:bg-blue-700 h-12 rounded-xl"
@@ -3500,14 +3529,38 @@ export default function AlmacenPage() {
           <div className="fixed bottom-6 left-6 right-6 z-[60] sm:relative sm:bottom-0 sm:left-0 sm:right-0 sm:p-6 sm:bg-white sm:border-t">
             <Button
               onClick={handleAddProduct}
-              disabled={nombreExiste || verificandoNombre}
-              className="w-full h-14 bg-black text-white rounded-2xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all"
+              disabled={isLoading || nombreExiste || verificandoNombre || barcodeExiste || verificandoBarcode}
+              className="w-full h-14 bg-black text-white rounded-2xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {verificandoNombre ? 'Verificando...' : 'Crear Producto'}
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Guardando...</span>
+                </>
+              ) : verificandoNombre || verificandoBarcode ? (
+                'Verificando...'
+              ) : barcodeExiste ? (
+                'Código Duplicado'
+              ) : (
+                'Crear Producto'
+              )}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      <BarcodeScanner 
+        open={showBarcodeScannerAdd}
+        onClose={() => setShowBarcodeScannerAdd(false)}
+        onScan={(barcode) => {
+          setNewProduct(prev => ({ ...prev, codigo_barras: barcode }));
+          setShowBarcodeScannerAdd(false);
+          toast({
+            title: "Escaneado",
+            description: `Código detectado: ${barcode}`,
+          });
+        }}
+      />
 
 
 
@@ -3560,19 +3613,6 @@ export default function AlmacenPage() {
         productos={inventario}
         productosDestacados={productosDestacados}
         onSave={handleSaveProductosDestacados}
-      />
-
-      <BarcodeScanner
-        open={showBarcodeScannerAdd}
-        onClose={() => setShowBarcodeScannerAdd(false)}
-        onScan={(barcode) => {
-          setNewProduct(prev => ({ ...prev, codigo_barras: barcode }));
-          setShowBarcodeScannerAdd(false);
-          toast({
-            title: "Escaneado",
-            description: `Código detectado: ${barcode}`,
-          });
-        }}
       />
 
 
