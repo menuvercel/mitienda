@@ -471,6 +471,7 @@ export default function ProductDialog({
       codigo_barras: product.codigo_barras || '',
       fecha_vencimiento: product.fecha_vencimiento || null,
       tiene_vencimiento: product.tiene_vencimiento || false,
+      stock_minimo: product.stock_minimo || 0,
     });
     setImageUrl(product.foto || '');
   }, [product]);
@@ -641,6 +642,7 @@ export default function ProductDialog({
         codigo_barras: editedProduct.codigo_barras || '',
         fecha_vencimiento: editedProduct.fecha_vencimiento || null,
         tiene_vencimiento: editedProduct.tiene_vencimiento || false,
+        stock_minimo: editedProduct.stock_minimo || 0,
       };
 
       console.log('Producto a guardar:', updatedProduct);
@@ -1205,6 +1207,25 @@ const EditMode = ({
               </div>
             </div>
           )}
+        </div>
+
+        <div className="pt-4 border-t border-gray-200">
+          <Label htmlFor="stock_minimo" className="text-xs font-black text-gray-700 uppercase tracking-wider mb-2 block">
+            Stock Mínimo para Alerta
+          </Label>
+          <Input
+            id="stock_minimo"
+            name="stock_minimo"
+            type="number"
+            min="0"
+            value={editedProduct.stock_minimo !== undefined && editedProduct.stock_minimo !== null ? editedProduct.stock_minimo : ''}
+            onChange={onInputChange}
+            placeholder="Ej: 5 (Alerta cuando quede esta cantidad o menos)"
+            className="bg-white border-gray-200 focus:border-purple-400 h-11"
+          />
+          <p className="text-[10px] text-gray-500 font-medium italic mt-1">
+            Si el stock en almacén o puntos de venta baja de este valor, se generará una alerta en el panel.
+          </p>
         </div>
       </div>
     </FormSection>

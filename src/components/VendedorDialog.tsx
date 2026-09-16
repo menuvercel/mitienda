@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -162,6 +163,7 @@ export default function VendorDialog({
   const [isUpdatingQuantity, setIsUpdatingQuantity] = useState(false);
   const [showSalaryDialog, setShowSalaryDialog] = useState(false);
   const [salaryPercentage, setSalaryPercentage] = useState<number>(0);
+  const [salaryType, setSalaryType] = useState<'porcentaje' | 'fijo_mensual'>('porcentaje');
 
 
 
@@ -356,20 +358,32 @@ export default function VendorDialog({
         const data = await response.json()
         const salary = parseFloat(data.salario) || 0
         setSalaryPercentage(salary)
+        setSalaryType(data.tipo_salario === 'fijo_mensual' ? 'fijo_mensual' : 'porcentaje')
       } else {
-        setSalaryPercentage(8) // Default to 8% if no salary is set
+        setSalaryPercentage(8)
+        setSalaryType('porcentaje')
       }
     } catch (error) {
       console.error('Error loading salary:', error)
-      setSalaryPercentage(8) // Default to 8% on error
+      setSalaryPercentage(8)
+      setSalaryType('porcentaje')
     }
   }
 
   const handleUpdateSalary = async () => {
-    if (salaryPercentage < 0 || salaryPercentage > 100) {
+    if (salaryType === 'porcentaje' && (salaryPercentage < 0 || salaryPercentage > 100)) {
       toast({
         title: "Error",
         description: "El porcentaje debe estar entre 0 y 100",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (salaryType === 'fijo_mensual' && salaryPercentage < 0) {
+      toast({
+        title: "Error",
+        description: "El monto del salario fijo debe ser mayor o igual a 0",
         variant: "destructive",
       })
       return
@@ -381,7 +395,8 @@ export default function VendorDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           vendedorId: vendor.id,
-          salario: salaryPercentage
+          salario: salaryPercentage,
+          tipo_salario: salaryType
         })
       })
 
@@ -402,6 +417,7 @@ export default function VendorDialog({
       })
     }
   }
+
 
   const handleOpenSalaryDialog = () => {
     setShowSalaryDialog(true)
@@ -2586,12 +2602,28 @@ export default function VendorDialog({
           </DialogHeader>
           <div className="space-y-4">
             <div>
+              <Label className="text-sm font-medium mb-1 block">Tipo de Salario</Label>
+              <Select
+                value={salaryType}
+                onValueChange={(val: 'porcentaje' | 'fijo_mensual') => setSalaryType(val)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="porcentaje">Porcentaje sobre ventas (%)</SelectItem>
+                  <SelectItem value="fijo_mensual">Salario Fijo Mensual ($)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
               <div className="flex items-center justify-between mb-2">
                 <Label htmlFor="salary-percentage">
-                  Porcentaje de Salario sobre Ventas (%)
+                  {salaryType === 'porcentaje' ? 'Porcentaje de Salario sobre Ventas (%)' : 'Monto Salario Fijo Mensual ($)'}
                 </Label>
                 <div className="text-sm text-gray-600 bg-blue-50 px-2 py-1 rounded">
-                  Actual: {salaryPercentage}%
+                  Actual: {salaryType === 'porcentaje' ? `${salaryPercentage}%` : formatCurrency(salaryPercentage)}
                 </div>
               </div>
               <Input
@@ -2599,27 +2631,42 @@ export default function VendorDialog({
                 type="number"
                 step="0.01"
                 min="0"
-                max="100"
+                max={salaryType === 'porcentaje' ? 100 : undefined}
                 value={salaryPercentage}
                 onChange={(e) => setSalaryPercentage(parseFloat(e.target.value) || 0)}
-                placeholder="Ej: 10.5"
+                placeholder={salaryType === 'porcentaje' ? "Ej: 10.5" : "Ej: 15000"}
               />
               <p className="text-sm text-gray-500 mt-1">
-                Este porcentaje se aplicará al total de ventas del período seleccionado
+                {salaryType === 'porcentaje'
+                  ? 'Este porcentaje se aplicará al total de ventas del período seleccionado.'
+                  : 'Este salario fijo mensual se prorrateará según los días del período seleccionado.'}
               </p>
             </div>
 
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-medium mb-2">Ejemplo de cálculo:</h4>
-              <div className="text-sm text-gray-600">
-                <p>Si las ventas del período son: {formatCurrency(10000)}</p>
-                <p>Con salario del {salaryPercentage}%:</p>
-                <p className="font-medium">
-                  Salario = {formatCurrency(10000)} × {salaryPercentage}% = {formatCurrency((10000 * salaryPercentage) / 100)}
-                </p>
+            {salaryType === 'porcentaje' ? (
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-medium mb-2">Ejemplo de cálculo (%):</h4>
+                <div className="text-sm text-gray-600">
+                  <p>Si las ventas del período son: {formatCurrency(10000)}</p>
+                  <p>Con salario del {salaryPercentage}%:</p>
+                  <p className="font-medium">
+                    Salario = {formatCurrency(10000)} × {salaryPercentage}% = {formatCurrency((10000 * salaryPercentage) / 100)}
+                  </p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-medium mb-2">Ejemplo de cálculo (Fijo Mensual):</h4>
+                <div className="text-sm text-gray-600">
+                  <p>Salario Mensual Base: {formatCurrency(salaryPercentage)}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Nota: También puedes definir montos específicos para cada mes del año desde la sección &quot;Contabilidad de Vendedores&quot; &gt; &quot;Salarios/Mes&quot;.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
+
           <DialogFooter>
             <Button
               variant="outline"

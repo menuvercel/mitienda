@@ -3,10 +3,10 @@ import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// PATCH: Update seller salary percentage
+// PATCH: Update seller salary percentage and type
 export async function PATCH(request: NextRequest) {
   try {
-    const { vendedorId, salario } = await request.json();
+    const { vendedorId, salario, tipo_salario } = await request.json();
 
     if (!vendedorId || salario === undefined) {
       return NextResponse.json(
@@ -15,8 +15,10 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Validate salary percentage (0-100)
-    if (salario < 0 || salario > 100) {
+    const tipoSalario = tipo_salario === 'fijo_mensual' ? 'fijo_mensual' : 'porcentaje';
+
+    // Validate salary percentage if it is porcentaje
+    if (tipoSalario === 'porcentaje' && (salario < 0 || salario > 100)) {
       return NextResponse.json(
         { error: 'Salary percentage must be between 0 and 100' },
         { status: 400 }
@@ -24,8 +26,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     const result = await query(
-      'UPDATE usuarios SET salario = $1 WHERE id = $2 AND rol = $3 RETURNING id, nombre, salario',
-      [salario, parseInt(vendedorId), 'Vendedor']
+      'UPDATE usuarios SET salario = $1, tipo_salario = $2 WHERE id = $3 AND rol = $4 RETURNING id, nombre, salario, tipo_salario',
+      [salario, tipoSalario, parseInt(vendedorId), 'Vendedor']
     );
 
     if (result.rows.length === 0) {
@@ -59,7 +61,7 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await query(
-      'SELECT id, nombre, salario FROM usuarios WHERE id = $1 AND rol = $2',
+      'SELECT id, nombre, salario, COALESCE(tipo_salario, \'porcentaje\') as tipo_salario FROM usuarios WHERE id = $1 AND rol = $2',
       [parseInt(vendedorId), 'Vendedor']
     );
 
@@ -78,4 +80,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+}

@@ -1,7 +1,5 @@
-//services/api.ts
-
 import axios from 'axios';
-import { Venta, Notificacion, Vendedor, Transaccion, VentaParametro, TransferProductParams, Seccion, Promocion, Parametro, Producto } from '@/types';
+import { Venta, Notificacion, Vendedor, Transaccion, VentaParametro, TransferProductParams, Seccion, Promocion, Parametro, Producto, CalculoContabilidadVendedor, GastoVendedor } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -860,3 +858,84 @@ export const togglePromocionStatus = async (id: string, activa: boolean): Promis
     throw new Error('No se pudo cambiar el estado de la promoción');
   }
 };
+
+// ==========================================
+// Contabilidad y Gastos de Vendedores
+// ==========================================
+
+export const getContabilidadVendedores = async (fechaInicio: string, fechaFin: string): Promise<CalculoContabilidadVendedor[]> => {
+  try {
+    const response = await api.get('/contabilidad-vendedores', {
+      params: { fechaInicio, fechaFin }
+    });
+    // Si responde { vendedores: [...], totalMermas }, retornar vendedores
+    if (response.data && Array.isArray(response.data.vendedores)) {
+      return response.data.vendedores;
+    }
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    return [];
+  } catch (error) {
+    console.error('Error al obtener contabilidad de vendedores:', error);
+    throw new Error('No se pudo obtener la contabilidad de vendedores');
+  }
+};
+
+export const getGastosVendedor = async (vendedorId: string, mes: number, anio: number): Promise<GastoVendedor[]> => {
+  try {
+    const response = await api.get('/gastos-vendedores', {
+      params: { vendedorId, mes, anio }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener gastos del vendedor:', error);
+    throw new Error('No se pudieron obtener los gastos del vendedor');
+  }
+};
+
+export const crearGastoVendedor = async (data: {
+  vendedorId: string;
+  nombre: string;
+  valor: number;
+  mes: number;
+  anio: number;
+  tipo_gasto?: 'fijo' | 'variable';
+}): Promise<any> => {
+  try {
+    const response = await api.post('/gastos-vendedores', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error al crear gasto del vendedor:', error);
+    throw new Error('No se pudo crear el gasto del vendedor');
+  }
+};
+
+export const editarGastoVendedor = async (data: {
+  id: string;
+  vendedorId?: string;
+  nombre?: string;
+  valor?: number;
+  mes?: number;
+  anio?: number;
+  tipo_gasto?: 'fijo' | 'variable';
+}): Promise<any> => {
+  try {
+    const response = await api.put('/gastos-vendedores', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error al editar gasto del vendedor:', error);
+    throw new Error('No se pudo editar el gasto del vendedor');
+  }
+};
+
+export const eliminarGastoVendedor = async (vendedorId: string, nombre: string, mes: number, anio: number, id?: string): Promise<void> => {
+  try {
+    await api.delete('/gastos-vendedores', {
+      params: { vendedorId, nombre, mes, anio, id }
+    });
+  } catch (error) {
+    console.error('Error al eliminar gasto del vendedor:', error);
+    throw new Error('No se pudo eliminar el gasto del vendedor');
+  }
+};

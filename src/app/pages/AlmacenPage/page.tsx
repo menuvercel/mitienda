@@ -18,7 +18,8 @@ import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2
 const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner'), { ssr: false })
 import ProductoDestacadoCard from '@/components/ProductoDestacadoCard'
 import ProductosDestacadosSelectionDialog from '@/components/ProductosDestacadosSelectionDialog'
-import { VencimientoBell } from '@/components/VencimientoBell';
+import VencimientoBell from '@/components/VencimientoBell';
+import NotificacionesSystem from '@/components/NotificacionesSystem';
 import { getProductosDestacados, updateProductosDestacados } from '../../services/api'
 import React from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -59,7 +60,6 @@ import { ImageUpload } from '@/components/ImageUpload'
 import { Producto, ProductoNuevo, Vendedor, Venta, Transaccion, Merma, Parametro } from '@/types'
 import { toast } from "@/hooks/use-toast";
 import { useVendorProducts } from '@/hooks/use-vendor-products';
-import NotificacionesSystem, { NotificacionesBadge } from '@/components/NotificacionesSystem';
 // Agregar estos imports a los existentes
 import { Seccion, Subseccion } from '@/types'
 import {
@@ -285,6 +285,8 @@ export default function AlmacenPage() {
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [activeSection, setActiveSection] = useState('productos')
+  const [initialNotifTab, setInitialNotifTab] = useState<'vencimientos' | 'almacen' | 'vendedores'>('vencimientos')
+  const [showNotificacionesModal, setShowNotificacionesModal] = useState(false)
   const [showMassDeliveryDialog, setShowMassDeliveryDialog] = useState(false)
   const [massDeliveryStep, setMassDeliveryStep] = useState(1)
   const [selectedProducts, setSelectedProducts] = useState<{
@@ -1877,12 +1879,18 @@ export default function AlmacenPage() {
   return (
     <div className="container mx-auto p-4 relative">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Panel de Almacén</h1>
-        <div className="fixed top-4 right-16 z-50 flex items-center gap-2">
-          <NotificacionesBadge 
-            onClick={() => {
-              setActiveSection('notificaciones');
-              setIsMenuOpen(false);
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">Panel de Almacén</h1>
+          <VencimientoBell 
+            onNavigateToNotificaciones={(tab) => {
+              if (tab === 'recordatorios') {
+                setActiveSection('notificaciones');
+              } else {
+                if (tab === 'vencimientos' || tab === 'almacen' || tab === 'vendedores') {
+                  setInitialNotifTab(tab);
+                }
+                setActiveSection('notificaciones');
+              }
             }} 
           />
         </div>
@@ -2003,7 +2011,6 @@ export default function AlmacenPage() {
       {activeSection === 'productos' && (
         <div>
           <div className="flex flex-wrap justify-end gap-2 mb-4">
-            <VencimientoBell inventario={inventario} />
             <Button
               onClick={() => setShowAddProductModal(true)}
               className="flex-grow sm:flex-grow-0 bg-green-500 hover:bg-green-600 text-white"
@@ -2737,7 +2744,11 @@ export default function AlmacenPage() {
 
       {
         activeSection === 'notificaciones' && (
-          <NotificacionesSystem mode="admin" />
+          <NotificacionesSystem 
+            isFullPage={true} 
+            vendedores={vendedores} 
+            initialTab={initialNotifTab} 
+          />
         )
       }
 
