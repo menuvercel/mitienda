@@ -10,7 +10,28 @@ export async function POST(request: NextRequest) {
 
 
 
-  if (!user || user.password !== password) {
+  if (!user) {
+    return NextResponse.json({ error: 'Credenciales inválidas' }, { status: 401 });
+  }
+
+  // Verificar si la cuenta está inactiva
+  if (user.activo === false) {
+    return NextResponse.json({ error: 'Acceso denegado. La cuenta está inactiva.' }, { status: 403 });
+  }
+
+  let isValidPassword = false;
+  if (user.password === password) {
+    isValidPassword = true;
+  } else {
+    try {
+      const bcrypt = await import('bcrypt');
+      isValidPassword = await bcrypt.default.compare(password, user.password);
+    } catch {
+      isValidPassword = false;
+    }
+  }
+
+  if (!isValidPassword) {
     return NextResponse.json({ error: 'Credenciales inválidas' }, { status: 401 });
   }
 
@@ -19,8 +40,8 @@ export async function POST(request: NextRequest) {
 
   const token = jwt.sign(
     { id: user.id, nombre: user.nombre, rol: user.rol }, // Payload
-    process.env.JWT_SECRET || 'secret',
-    { expiresIn: '1h' }
+    secret,
+    { expiresIn: '24h' }
   );
 
   return NextResponse.json({

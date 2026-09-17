@@ -69,40 +69,30 @@ export async function GET(request: NextRequest) {
       console.warn('DB notification columns warning (vencimientos):', err);
     }
 
-    // 2. ALMACÉN Y PUNTOS DE VENTA (Agotados y Bajo Stock)
+    // 2. ALMACÉN (Inventario Central: Agotados y Bajo Stock)
     let alertasAlmacen: any[] = [];
     try {
       const resAlmacen = await query(`
         SELECT 
-          up.id as usuario_producto_id,
           p.id as producto_id,
+          p.id,
           p.nombre,
           p.foto,
-          u.id as usuario_id,
-          u.nombre as usuario_nombre,
+          'Almacén General' as ubicacion,
           COALESCE(
             CASE 
               WHEN p.tiene_parametros = true THEN (
-                SELECT SUM(upp.cantidad) 
-                FROM usuario_producto_parametros upp 
-                WHERE upp.producto_id = p.id AND upp.usuario_id = u.id
+                SELECT SUM(pp.cantidad) 
+                FROM producto_parametros pp 
+                WHERE pp.producto_id = p.id
               )
-              ELSE up.cantidad
+              ELSE p.cantidad
             END, 
             0
           ) as cantidad,
           COALESCE(p.stock_minimo, 0) as stock_minimo
-        FROM usuarios u
-        JOIN productos p ON true
-        LEFT JOIN usuario_productos up ON up.producto_id = p.id AND up.usuario_id = u.id
-        WHERE u.rol = 'Vendedor' AND u.activo = true
-          AND (
-            up.id IS NOT NULL 
-            OR EXISTS (
-              SELECT 1 FROM usuario_producto_parametros upp 
-              WHERE upp.producto_id = p.id AND upp.usuario_id = u.id
-            )
-          )
+        FROM productos p
+        ORDER BY p.nombre ASC
       `);
 
       alertasAlmacen = resAlmacen.rows.map((row) => {
@@ -122,12 +112,18 @@ export async function GET(request: NextRequest) {
           stock_minimo: stMin,
           estado
         };
-      }).filter((item) => item.estado !== 'normal');
+      })
+      .filter((item) => item.estado !== 'normal')
+      .sort((a, b) => {
+        if (a.estado === 'agotado' && b.estado !== 'agotado') return -1;
+        if (a.estado !== 'agotado' && b.estado === 'agotado') return 1;
+        return a.nombre.localeCompare(b.nombre);
+      });
     } catch (err) {
       console.warn('DB notification query warning (almacen):', err);
     }
 
-    // 3. VENDEDORES (Stock Crítico e Inteligencia de Ventas)
+    // 3. VENDEDORES (Puntos de Venta: Stock Crítico e Inteligencia de Ventas)
     let vendedoresAlertas: any[] = [];
     let rotacionProductos: any[] = [];
     let productosEstrella: any[] = [];
@@ -135,28 +131,81 @@ export async function GET(request: NextRequest) {
     let rankingVendedores: any[] = [];
 
     try {
-      // Vendedores activos
-      const resVendedores = await query(`SELECT id, nombre, telefono FROM usuarios WHERE rol = 'Vendedor' AND activo = true ORDER BY nombre`);
-      
-      for (const vend of resVendedores.rows) {
-        const itemsVend = alertasAlmacen.filter((a) => String(a.usuario_id) === String(vend.id));
-        if (itemsVend.length > 0) {
-          vendedoresAlertas.push({
-            vendedor_id: String(vend.id),
-            vendedor_nombre: vend.nombre,
-            vendedor_telefono: vend.telefono,
-            total_agotados: itemsVend.filter((i) => i.estado === 'agotado').length,
-            total_bajo_stock: itemsVend.filter((i) => i.estado === 'bajo_stock').length,
-            productos_criticos: itemsVend.map((i) => ({
-              id: i.producto_id,
-              nombre: i.nombre,
-              cantidad: i.cantidad,
-              stock_minimo: i.stock_minimo,
-              estado: i.estado
-            }))
+      // Query productos asignados a vendedores activos
+      const resVendedorItems = await query(`
+        SELECT 
+          u.id as usuario_id,
+          u.nombre as usuario_nombre,
+          u.telefono as usuario_telefono,
+          p.id as producto_id,
+          p.nombre as producto_nombre,
+          p.foto as producto_foto,
+          COALESCE(
+            CASE 
+              WHEN p.tiene_parametros = true THEN (
+                SELECT SUM(upp.cantidad) 
+                FROM usuario_producto_parametros upp 
+                WHERE upp.producto_id = p.id AND upp.usuario_id = u.id
+              )
+              ELSE up.cantidad
+            END, 
+            0
+          ) as cantidad,
+          COALESCE(p.stock_minimo, 0) as stock_minimo
+        FROM usuarios u
+        JOIN (
+          SELECT DISTINCT usuario_id, producto_id FROM (
+            SELECT usuario_id, producto_id FROM usuario_productos
+            UNION
+            SELECT usuario_id, producto_id FROM usuario_producto_parametros
+          ) sub_asig
+        ) asig ON asig.usuario_id = u.id
+        JOIN productos p ON p.id = asig.producto_id
+        LEFT JOIN usuario_productos up ON up.usuario_id = asig.usuario_id AND up.producto_id = asig.producto_id
+        WHERE u.rol = 'Vendedor' AND u.activo = true
+        ORDER BY u.nombre ASC, p.nombre ASC
+      `);
+
+      const vendorMap = new Map<string, any>();
+
+      for (const row of resVendedorItems.rows) {
+        const cant = Number(row.cantidad);
+        const stMin = Number(row.stock_minimo);
+        let estado: 'agotado' | 'bajo_stock' | 'normal' = 'normal';
+
+        if (cant === 0) {
+          estado = 'agotado';
+        } else if (stMin > 0 && cant <= stMin) {
+          estado = 'bajo_stock';
+        }
+
+        if (estado === 'normal') continue;
+
+        const vId = String(row.usuario_id);
+        if (!vendorMap.has(vId)) {
+          vendorMap.set(vId, {
+            vendedor_id: vId,
+            vendedor_nombre: row.usuario_nombre,
+            vendedor_telefono: row.usuario_telefono,
+            total_agotados: 0,
+            total_bajo_stock: 0,
+            productos_criticos: []
           });
         }
+
+        const vObj = vendorMap.get(vId);
+        if (estado === 'agotado') vObj.total_agotados++;
+        if (estado === 'bajo_stock') vObj.total_bajo_stock++;
+        vObj.productos_criticos.push({
+          id: row.producto_id,
+          nombre: row.producto_nombre,
+          cantidad: cant,
+          stock_minimo: stMin,
+          estado
+        });
       }
+
+      vendedoresAlertas = Array.from(vendorMap.values());
 
       // NUEVA LÓGICA: Sistema de valoración por Índice de Rotación (Ventas vs Tiempo de Vigencia)
       // Aplica únicamente a Vendedores / Puntos de venta (excluye Almacenes)

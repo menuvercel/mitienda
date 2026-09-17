@@ -31,6 +31,9 @@ export default function LoginPage() {
       } else if (userData.rol === 'Almacen') {
         console.log('Redirigiendo a la página de almacén');
         router.push('/pages/AlmacenPage');
+      } else if (userData.rol === 'Moderador') {
+        console.log('Redirigiendo a la página de moderador');
+        router.push('/pages/ModeradorPage');
       } else {
         console.error('Rol de usuario no reconocido:', userData.rol);
         setError('Error: Rol de usuario no reconocido');

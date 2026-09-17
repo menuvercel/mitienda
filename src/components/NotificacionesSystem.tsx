@@ -116,12 +116,20 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
         });
       }
 
+      if (tab === 'vendedores' || tab === 'all') {
+        vendedoresAlertas.forEach(vend => {
+          (vend.productos_criticos || []).forEach(prod => {
+            readKeysSet.add(`vend_${vend.vendedor_id}_${prod.id}_${prod.estado}`);
+          });
+        });
+      }
+
       localStorage.setItem('read_notif_keys', JSON.stringify(Array.from(readKeysSet)));
       window.dispatchEvent(new Event('notificaciones_updated'));
     } catch (e) {
       console.error('Error marking notifications as read:', e);
     }
-  }, [vencimientos, alertasAlmacen]);
+  }, [vencimientos, alertasAlmacen, vendedoresAlertas]);
 
   useEffect(() => {
     if (isOpen) {
@@ -158,13 +166,12 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
 
   // Filtered Vencimientos
   const vencimientosFiltrados = vencimientos.filter(p => 
-    p.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    p.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Filtered Almacen Alertas
   const almacenFiltrado = alertasAlmacen.filter(item => {
-    const matchSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        item.usuario_nombre.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchSearch = item.nombre?.toLowerCase().includes(searchTerm.toLowerCase());
     if (!matchSearch) return false;
     if (filtroAlmacen === 'agotados') return item.estado === 'agotado';
     if (filtroAlmacen === 'bajo_stock') return item.estado === 'bajo_stock';
@@ -235,6 +242,11 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
           <TabsTrigger value="vendedores" className="flex items-center justify-center gap-1 sm:gap-2 py-2 text-[11px] sm:text-sm font-medium">
             <Users className="h-3.5 w-3.5 text-blue-500 shrink-0" />
             <span className="truncate">Vendedores</span>
+            {vendedoresAlertas.length > 0 && (
+              <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold">
+                {vendedoresAlertas.reduce((acc, v) => acc + (v.productos_criticos?.length || 0), 0)}
+              </span>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -312,7 +324,7 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
         <TabsContent value="almacen" className="mt-3 sm:mt-4 space-y-3 sm:space-y-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border">
             <span className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">
-              Filtros en Puntos de Venta:
+              Filtros de Stock en Almacén:
             </span>
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
               <Button
@@ -350,8 +362,8 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
           ) : almacenFiltrado.length === 0 ? (
             <div className="text-center py-8 sm:py-10 border rounded-xl bg-slate-50 dark:bg-slate-900">
               <CheckCircle2 className="h-10 w-10 sm:h-12 sm:w-12 text-emerald-500 mx-auto mb-2" />
-              <p className="font-semibold text-xs sm:text-sm text-slate-700 dark:text-slate-300">Sin alertas de stock en Puntos de Venta</p>
-              <p className="text-xs text-slate-500">Todos los puntos de venta cuentan con existencias adecuadas.</p>
+              <p className="font-semibold text-xs sm:text-sm text-slate-700 dark:text-slate-300">Sin alertas de stock en Almacén</p>
+              <p className="text-xs text-slate-500">Todos los productos en almacén cuentan con existencias adecuadas.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -360,7 +372,7 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
                   <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <div>
                       <h4 className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">{item.nombre}</h4>
-                      <p className="text-xs text-blue-600 font-semibold">Punto de Venta: {item.usuario_nombre}</p>
+                      <p className="text-xs text-slate-500">Ubicación: {item.ubicacion || 'Almacén General'}</p>
                       <p className="text-xs text-slate-500 mt-1">
                         Cantidad Actual: <span className="font-bold text-slate-900 dark:text-slate-100">{item.cantidad}</span> | Stock Mínimo: {item.stock_minimo}
                       </p>

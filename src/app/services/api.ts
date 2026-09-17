@@ -575,6 +575,16 @@ export const transferProduct = async ({
   }
 };
 
+export const transferirProductoEntreVendedores = async (
+  productId: string,
+  fromVendorId: string,
+  toVendorId: string,
+  cantidad: number,
+  parametros?: Parametro[]
+) => {
+  return transferProduct({ productId, fromVendorId, toVendorId, cantidad, parametros });
+};
+
 export const verificarNombreProducto = async (nombre: string): Promise<boolean> => {
   try {
     const response = await api.get(`/productos/verificar-nombre?nombre=${encodeURIComponent(nombre)}`);
@@ -937,5 +947,121 @@ export const eliminarGastoVendedor = async (vendedorId: string, nombre: string, 
   } catch (error) {
     console.error('Error al eliminar gasto del vendedor:', error);
     throw new Error('No se pudo eliminar el gasto del vendedor');
+  }
+};
+
+// ==========================================
+// Funciones para Moderadores y Bitácora
+// ==========================================
+
+export const loginModerador = async (nombre: string, password: string): Promise<any> => {
+  try {
+    const response = await api.post('/auth/login-moderador', { nombre, password });
+    if (response.data.success && response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      return response.data;
+    } else {
+      throw new Error('No se recibió el token de autenticación');
+    }
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error('Error en la solicitud de login de moderador:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.error || 'Error de autenticación');
+    }
+    throw new Error('Error al iniciar sesión como moderador');
+  }
+};
+
+export const getModeradores = async (): Promise<any[]> => {
+  try {
+    const response = await api.get('/moderadores');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener moderadores:', error);
+    throw new Error('No se pudieron obtener los moderadores');
+  }
+};
+
+export const crearModerador = async (data: any): Promise<any> => {
+  try {
+    const response = await api.post('/moderadores', data);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw new Error(error.response?.data?.error || 'Error al crear moderador');
+    }
+    throw new Error('Error al crear moderador');
+  }
+};
+
+export const editarModerador = async (id: string, data: any): Promise<any> => {
+  try {
+    const response = await api.put(`/moderadores?id=${id}`, data);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw new Error(error.response?.data?.error || 'Error al actualizar moderador');
+    }
+    throw new Error('Error al actualizar moderador');
+  }
+};
+
+export const eliminarModerador = async (id: string): Promise<void> => {
+  try {
+    await api.delete(`/moderadores?id=${id}`);
+  } catch (error) {
+    console.error('Error al eliminar moderador:', error);
+    throw new Error('No se pudo eliminar el moderador');
+  }
+};
+
+export const getBitacoraModerador = async (moderadorId: string): Promise<any[]> => {
+  try {
+    const response = await api.get(`/moderadores/bitacora?moderadorId=${moderadorId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener bitácora:', error);
+    throw new Error('No se pudo obtener la bitácora del moderador');
+  }
+};
+
+export const logModeradorAccion = async (moderadorId: string, accion: string, detalles: string): Promise<any> => {
+  try {
+    const response = await api.post('/moderador/log', { moderadorId, accion, detalles });
+    return response.data;
+  } catch (error) {
+    console.error('Error al guardar log de moderador:', error);
+    return null; // Silent catch to prevent UI interruption
+  }
+};
+
+export const getInventariosModerador = async (moderadorId?: string): Promise<any[]> => {
+  try {
+    const url = moderadorId ? `/inventarios?moderadorId=${moderadorId}` : '/inventarios';
+    const response = await api.get(url);
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener inventarios:', error);
+    throw new Error('No se pudieron obtener los inventarios auditados');
+  }
+};
+
+export const getInventarioDetalle = async (id: string | number): Promise<any> => {
+  try {
+    const response = await api.get(`/inventarios/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener detalle de inventario:', error);
+    throw new Error('No se pudo obtener el detalle del inventario');
+  }
+};
+
+export const eliminarInventario = async (id: string | number): Promise<void> => {
+  try {
+    await api.delete(`/inventarios/${id}`);
+  } catch (error) {
+    console.error('Error al eliminar inventario:', error);
+    throw new Error('No se pudo eliminar el inventario');
   }
 };

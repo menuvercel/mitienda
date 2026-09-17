@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X, Percent, ArrowLeft, ChevronDown, ImageIcon, Calendar, CalendarDays, Star, Scan, Loader2 } from "lucide-react"
+import { Menu, Bell, ArrowUpDown, Plus, Truck, UserPlus, FileSpreadsheet, Trash2, X, Percent, ArrowLeft, ChevronDown, ImageIcon, Calendar, CalendarDays, Star, Scan, Loader2, Shield } from "lucide-react"
 const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner'), { ssr: false })
 import ProductoDestacadoCard from '@/components/ProductoDestacadoCard'
 import ProductosDestacadosSelectionDialog from '@/components/ProductosDestacadosSelectionDialog'
@@ -79,6 +79,7 @@ import ReajusteUSDSection from '@/components/ReajusteUSDSection';
 import ContabilidadVendedoresPage from '@/components/ContabilidadVendedoresPage';
 import ComparativaGeneral from '@/components/ComparativaGeneral';
 import ExportacionComparacion from '@/components/ExportacionComparacion';
+import ModeradoresSection from '@/components/ModeradoresSection';
 
 
 interface VentaSemana {
@@ -1925,6 +1926,16 @@ export default function AlmacenPage() {
               </Button>
               <Button
                 variant="ghost"
+                className={activeSection === 'moderadores' ? 'bg-accent' : ''}
+                onClick={() => {
+                  setActiveSection('moderadores')
+                  setIsMenuOpen(false)
+                }}
+              >
+                Moderadores
+              </Button>
+              <Button
+                variant="ghost"
                 className={activeSection === 'ventas' ? 'bg-accent' : ''}
                 onClick={() => {
                   setActiveSection('ventas')
@@ -2375,6 +2386,12 @@ export default function AlmacenPage() {
             vendedores={vendedores} 
             almacen={inventario} 
           />
+        )
+      }
+
+      {
+        activeSection === 'moderadores' && (
+          <ModeradoresSection />
         )
       }
 

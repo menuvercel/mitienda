@@ -20,7 +20,7 @@ export const getNotificationKey = (type: 'vencimiento' | 'almacen' | 'recordator
   if (type === 'recordatorio') {
     return `rec_${item.id}_${item.fecha}`;
   }
-  return `s_${item.usuario_id}_${item.producto_id}_${item.estado}_${item.cantidad}`;
+  return `alm_${item.producto_id || item.id}_${item.estado}_${item.cantidad}`;
 };
 
 export interface NotificationItemText {
@@ -123,7 +123,7 @@ export const VencimientoBell: React.FC<VencimientoBellProps> = ({
         });
       });
 
-      // 2. Notificaciones de Almacén / Puntos de venta
+      // 2. Notificaciones de Almacén (Inventario Central)
       almacen.forEach((a: any) => {
         if (a.estado === 'normal') return;
         const key = getNotificationKey('almacen', a);
@@ -135,9 +135,9 @@ export const VencimientoBell: React.FC<VencimientoBellProps> = ({
 
         let text = '';
         if (a.estado === 'agotado') {
-          text = `"${a.nombre}" se agotó en ${a.usuario_nombre}`;
+          text = `"${a.nombre}" se agotó en Almacén`;
         } else if (a.estado === 'bajo_stock') {
-          text = `"${a.nombre}" bajó del stock límite en ${a.usuario_nombre}`;
+          text = `"${a.nombre}" bajo stock mínimo en Almacén`;
         }
 
         list.push({
@@ -148,12 +148,44 @@ export const VencimientoBell: React.FC<VencimientoBellProps> = ({
           estado: a.estado,
           read: isRead,
           dateStr: hoyStr,
-          dateLabel: `Fecha: ${formatFecha(hoyStr)}`,
+          dateLabel: `Almacén General`,
           tabTarget: 'almacen'
         });
       });
 
-      // 3. Recordatorios
+      // 3. Notificaciones de Vendedores (Puntos de Venta)
+      const vendedoresAlertas = data.vendedores?.alertas || [];
+      vendedoresAlertas.forEach((vend: any) => {
+        (vend.productos_criticos || []).forEach((prod: any) => {
+          const key = `vend_${vend.vendedor_id}_${prod.id}_${prod.estado}`;
+          const isRead = readKeysSet.has(key);
+          if (!isRead) {
+            count++;
+            if (prod.estado === 'agotado') urgent = true;
+          }
+
+          let text = '';
+          if (prod.estado === 'agotado') {
+            text = `"${prod.nombre}" se agotó en ${vend.vendedor_nombre}`;
+          } else if (prod.estado === 'bajo_stock') {
+            text = `"${prod.nombre}" bajo stock límite en ${vend.vendedor_nombre}`;
+          }
+
+          list.push({
+            id: key,
+            type: 'almacen',
+            text,
+            subtext: `Stock actual: ${prod.cantidad} | Mín: ${prod.stock_minimo}`,
+            estado: prod.estado,
+            read: isRead,
+            dateStr: hoyStr,
+            dateLabel: `Punto de Venta: ${vend.vendedor_nombre}`,
+            tabTarget: 'vendedores'
+          });
+        });
+      });
+
+      // 4. Recordatorios
       recordatorios.forEach((r: any) => {
         const key = getNotificationKey('recordatorio', r);
         const isRead = readKeysSet.has(key);

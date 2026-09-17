@@ -1,0 +1,90 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { query } from '@/lib/db';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+
+export async function POST(request: NextRequest) {
+  try {
+    const { nombre, password } = await request.json();
+
+    if (!nombre || !password) {
+      return NextResponse.json(
+        { error: 'Nombre y contraseña son requeridos' },
+        { status: 400 }
+      );
+    }
+
+    // Buscar usuario con rol 'Moderador'
+    const result = await query(
+      'SELECT * FROM usuarios WHERE nombre = $1 AND rol = $2',
+      [nombre, 'Moderador']
+    );
+    const usuarios = result.rows;
+
+    if (usuarios.length === 0) {
+      return NextResponse.json(
+        { error: 'Moderador no encontrado' },
+        { status: 401 }
+      );
+    }
+
+    const usuario = usuarios[0];
+
+    // Verificar si está activo
+    if (usuario.activo === false) {
+      return NextResponse.json(
+        { error: 'Acceso denegado. La cuenta está inactiva.' },
+        { status: 403 }
+      );
+    }
+
+    // Verificar contraseña (soporta bcrypt y fallback de texto plano)
+    let isValidPassword = false;
+    try {
+      isValidPassword = await bcrypt.compare(password, usuario.password);
+    } catch {
+      isValidPassword = false;
+    }
+
+    if (!isValidPassword && usuario.password === password) {
+      isValidPassword = true;
+    }
+    
+    if (!isValidPassword) {
+      return NextResponse.json(
+        { error: 'Credenciales inválidas' },
+        { status: 401 }
+      );
+    }
+
+    // Generar token JWT
+    const token = jwt.sign(
+      {
+        id: usuario.id,
+        nombre: usuario.nombre,
+        rol: usuario.rol
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    return NextResponse.json({
+      success: true,
+      token,
+      user: {
+        id: usuario.id.toString(),
+        nombre: usuario.nombre,
+        rol: usuario.rol
+      }
+    });
+
+  } catch (error) {
+    console.error('Error en login de moderador:', error);
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    );
+  }
+}
