@@ -35,8 +35,11 @@ export function ReajusteUSDSection({}: ReajusteUSDSectionProps) {
         const valorResponse = await fetch('/api/valor-usd/current');
         const valorData = await valorResponse.json();
         
-        if (valorData.valor) {
-          setCurrentValorUSD(valorData.valor);
+        if (valorData.valor !== null && valorData.valor !== undefined) {
+          const num = Number(valorData.valor);
+          setCurrentValorUSD(isNaN(num) ? null : num);
+        } else {
+          setCurrentValorUSD(null);
         }
         
         // Contar productos
@@ -193,8 +196,8 @@ export function ReajusteUSDSection({}: ReajusteUSDSectionProps) {
                       <p className="text-xl font-bold">
                         {isLoading ? (
                           <span className="text-gray-400">Cargando...</span>
-                        ) : currentValorUSD ? (
-                          `$${currentValorUSD.toFixed(2)}`
+                        ) : currentValorUSD !== null && !isNaN(Number(currentValorUSD)) ? (
+                          `$${Number(currentValorUSD).toFixed(2)}`
                         ) : (
                           <span className="text-gray-400">No definido</span>
                         )}

@@ -14,8 +14,9 @@ export async function GET(request: NextRequest) {
       LIMIT 1
     `);
     
-    if (result.rows.length > 0) {
-      return NextResponse.json({ valor: result.rows[0].valor_compra_usd });
+    if (result.rows.length > 0 && result.rows[0].valor_compra_usd !== null) {
+      const parsed = parseFloat(result.rows[0].valor_compra_usd);
+      return NextResponse.json({ valor: isNaN(parsed) ? null : parsed });
     } else {
       return NextResponse.json({ valor: null });
     }
