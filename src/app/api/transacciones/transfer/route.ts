@@ -91,16 +91,29 @@ export async function POST(request: NextRequest) {
 
       // 5. Actualizar stock del vendedor origen
       await query(
-        'UPDATE usuario_productos SET cantidad = cantidad - $1 WHERE usuario_id = $2 AND producto_id = $3',
+        `UPDATE usuario_productos 
+         SET cantidad = cantidad - $1,
+             vigencia_fin = CASE WHEN (cantidad - $1) <= 0 AND vigencia_fin IS NULL THEN NOW() ELSE vigencia_fin END,
+             vigencia = CASE 
+               WHEN (cantidad - $1) <= 0 THEN ROUND(GREATEST(EXTRACT(EPOCH FROM (NOW() - COALESCE(vigencia_inicio, NOW()))) / 86400.0, 0.1)::numeric, 1) 
+               ELSE vigencia 
+             END
+         WHERE usuario_id = $2 AND producto_id = $3`,
         [cantidad, fromVendorId, productId]
       );
 
       // 6. Actualizar o crear stock del vendedor destino
       await query(
-        `INSERT INTO usuario_productos (usuario_id, producto_id, cantidad, precio) 
-         VALUES ($1, $2, $3, $4) 
+        `INSERT INTO usuario_productos (usuario_id, producto_id, cantidad, precio, vigencia_inicio, vigencia_fin) 
+         VALUES ($1, $2, $3, $4, NOW(), NULL) 
          ON CONFLICT (usuario_id, producto_id) 
-         DO UPDATE SET cantidad = usuario_productos.cantidad + $3`,
+         DO UPDATE SET 
+           cantidad = usuario_productos.cantidad + $3,
+           vigencia_inicio = CASE 
+             WHEN usuario_productos.cantidad <= 0 THEN NOW() 
+             ELSE COALESCE(usuario_productos.vigencia_inicio, NOW()) 
+           END,
+           vigencia_fin = NULL`,
         [toVendorId, productId, cantidad, precio]
       );
 

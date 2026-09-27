@@ -4,7 +4,11 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeftRight, Calendar } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { ArrowLeftRight, Calendar, Users, ChevronDown, X, Filter } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from '@/hooks/use-toast'
 import { getContabilidadVendedores } from '@/app/services/api'
@@ -35,6 +39,10 @@ export default function ComparativaPage() {
   const [dataA, setDataA] = useState<CalculoContabilidadVendedor[]>([])
   const [dataB, setDataB] = useState<CalculoContabilidadVendedor[]>([])
   const [hasCompared, setHasCompared] = useState(false)
+
+  // Filtro de selección múltiple de vendedores
+  const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([])
+  const [vendorSearchTerm, setVendorSearchTerm] = useState('')
 
   const handleComparar = async () => {
     setIsLoading(true)
@@ -70,36 +78,64 @@ export default function ComparativaPage() {
     return new Intl.NumberFormat('es-CU', { style: 'currency', currency: 'CUP', minimumFractionDigits: 2 }).format(val)
   }
 
+  // Lista de vendedores únicos presentes en los datos
+  const allVendorsMap = new Map<string, string>()
+  dataA.forEach(d => allVendorsMap.set(String(d.vendedorId), d.vendedorNombre))
+  dataB.forEach(d => allVendorsMap.set(String(d.vendedorId), d.vendedorNombre))
+  const availableVendors = Array.from(allVendorsMap.entries()).map(([id, nombre]) => ({ id, nombre }))
+
+  const toggleVendor = (id: string) => {
+    setSelectedVendorIds(prev =>
+      prev.includes(id) ? prev.filter(vId => vId !== id) : [...prev, id]
+    )
+  }
+
+  const selectAllVendors = () => {
+    setSelectedVendorIds(availableVendors.map(v => v.id))
+  }
+
+  const clearVendors = () => {
+    setSelectedVendorIds([])
+  }
+
+  // Filtrar datasets de acuerdo a los vendedores elegidos
+  const activeDataA = selectedVendorIds.length > 0
+    ? dataA.filter(d => selectedVendorIds.includes(String(d.vendedorId)))
+    : dataA
+  const activeDataB = selectedVendorIds.length > 0
+    ? dataB.filter(d => selectedVendorIds.includes(String(d.vendedorId)))
+    : dataB
+
   const calcSum = (arr: CalculoContabilidadVendedor[], key: keyof CalculoContabilidadVendedor) => {
     return arr.reduce((sum, item) => sum + (typeof item[key] === 'number' ? (item[key] as number) : 0), 0)
   }
 
-  const totalVentaA = calcSum(dataA, 'ventaTotal')
-  const totalVentaB = calcSum(dataB, 'ventaTotal')
+  const totalVentaA = calcSum(activeDataA, 'ventaTotal')
+  const totalVentaB = calcSum(activeDataB, 'ventaTotal')
 
-  const totalEfectivoA = calcSum(dataA, 'ventaEfectivo')
-  const totalEfectivoB = calcSum(dataB, 'ventaEfectivo')
+  const totalEfectivoA = calcSum(activeDataA, 'ventaEfectivo')
+  const totalEfectivoB = calcSum(activeDataB, 'ventaEfectivo')
 
-  const totalTransferenciaA = calcSum(dataA, 'ventaTransferencia')
-  const totalTransferenciaB = calcSum(dataB, 'ventaTransferencia')
+  const totalTransferenciaA = calcSum(activeDataA, 'ventaTransferencia')
+  const totalTransferenciaB = calcSum(activeDataB, 'ventaTransferencia')
 
-  const gananciaBrutaA = calcSum(dataA, 'gananciaBruta')
-  const gananciaBrutaB = calcSum(dataB, 'gananciaBruta')
+  const gananciaBrutaA = calcSum(activeDataA, 'gananciaBruta')
+  const gananciaBrutaB = calcSum(activeDataB, 'gananciaBruta')
 
-  const gastosFijosA = calcSum(dataA, 'gastosFijos')
-  const gastosFijosB = calcSum(dataB, 'gastosFijos')
+  const gastosFijosA = calcSum(activeDataA, 'gastosFijos')
+  const gastosFijosB = calcSum(activeDataB, 'gastosFijos')
 
-  const gastosVariablesA = calcSum(dataA, 'gastosVariables')
-  const gastosVariablesB = calcSum(dataB, 'gastosVariables')
+  const gastosVariablesA = calcSum(activeDataA, 'gastosVariables')
+  const gastosVariablesB = calcSum(activeDataB, 'gastosVariables')
 
-  const gastosMermaA = dataA.length > 0 ? dataA[0].gastosMerma : 0
-  const gastosMermaB = dataB.length > 0 ? dataB[0].gastosMerma : 0
+  const gastosMermaA = activeDataA.length > 0 ? calcSum(activeDataA, 'gastosMerma') : 0
+  const gastosMermaB = activeDataB.length > 0 ? calcSum(activeDataB, 'gastosMerma') : 0
 
-  const salariosA = calcSum(dataA, 'salario')
-  const salariosB = calcSum(dataB, 'salario')
+  const salariosA = calcSum(activeDataA, 'salario')
+  const salariosB = calcSum(activeDataB, 'salario')
 
-  const gastosTotalesA = calcSum(dataA, 'gastos') + gastosMermaA + salariosA
-  const gastosTotalesB = calcSum(dataB, 'gastos') + gastosMermaB + salariosB
+  const gastosTotalesA = calcSum(activeDataA, 'gastos') + gastosMermaA + salariosA
+  const gastosTotalesB = calcSum(activeDataB, 'gastos') + gastosMermaB + salariosB
 
   const utilidadA = gananciaBrutaA - gastosTotalesA
   const utilidadB = gananciaBrutaB - gastosTotalesB
@@ -197,12 +233,112 @@ export default function ComparativaPage() {
       {hasCompared && (
         <Card className="border-slate-200 shadow-xs overflow-hidden">
           <CardHeader className="p-3.5 sm:p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-              <CardTitle className="text-base sm:text-lg font-bold">Resultados de la Comparativa</CardTitle>
-              <span className="text-xs font-medium text-slate-500">
-                {MONTHS.find(m => m.value === mesA)?.label} {anioA} vs {MONTHS.find(m => m.value === mesB)?.label} {anioB}
-              </span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-base sm:text-lg font-bold">Resultados de la Comparativa</CardTitle>
+                <span className="text-xs font-medium text-slate-500">
+                  {MONTHS.find(m => m.value === mesA)?.label} {anioA} vs {MONTHS.find(m => m.value === mesB)?.label} {anioB}
+                </span>
+              </div>
+
+              {/* Filtro Multi-Selección de Vendedores a Comparar */}
+              {availableVendors.length > 0 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9 text-xs bg-white border-slate-300">
+                      <Users className="h-3.5 w-3.5 mr-1.5 text-blue-600" />
+                      <span>
+                        {selectedVendorIds.length === 0
+                          ? `Todos los vendedores (${availableVendors.length})`
+                          : `${selectedVendorIds.length} seleccionados`}
+                      </span>
+                      <ChevronDown className="h-3.5 w-3.5 ml-1.5 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-3 bg-white shadow-lg border border-slate-200 z-50" align="end">
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between border-b pb-2">
+                        <span className="text-xs font-bold text-slate-800">Filtrar Vendedores</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={selectAllVendors}
+                            className="text-[11px] text-blue-600 hover:underline font-semibold"
+                          >
+                            Todos
+                          </button>
+                          <span className="text-slate-300 text-xs">|</span>
+                          <button
+                            type="button"
+                            onClick={clearVendors}
+                            className="text-[11px] text-slate-500 hover:underline font-semibold"
+                          >
+                            Limpiar
+                          </button>
+                        </div>
+                      </div>
+                      <Input
+                        placeholder="Buscar vendedor..."
+                        value={vendorSearchTerm}
+                        onChange={(e) => setVendorSearchTerm(e.target.value)}
+                        className="h-8 text-xs bg-slate-50"
+                      />
+                      <div className="max-h-52 overflow-y-auto space-y-1 pr-1">
+                        {availableVendors
+                          .filter(v => v.nombre.toLowerCase().includes(vendorSearchTerm.toLowerCase()))
+                          .map((v) => {
+                            const isChecked = selectedVendorIds.includes(v.id);
+                            return (
+                              <label
+                                key={v.id}
+                                className="flex items-center space-x-2 p-1.5 hover:bg-slate-50 rounded-md cursor-pointer text-xs"
+                              >
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={() => toggleVendor(v.id)}
+                                />
+                                <span className="flex-1 truncate font-medium text-slate-700">
+                                  {v.nombre}
+                                </span>
+                              </label>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
+
+            {/* Badges de vendedores seleccionados */}
+            {selectedVendorIds.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t mt-2">
+                <span className="text-[11px] font-semibold text-slate-500">Filtrando por:</span>
+                {availableVendors.filter(v => selectedVendorIds.includes(v.id)).map(v => (
+                  <Badge
+                    key={v.id}
+                    variant="secondary"
+                    className="text-[11px] py-0.5 px-2 bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1"
+                  >
+                    <span>{v.nombre}</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleVendor(v.id)}
+                      className="hover:text-blue-900 ml-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+                <button
+                  type="button"
+                  onClick={clearVendors}
+                  className="text-[11px] text-slate-500 hover:text-rose-600 underline ml-1"
+                >
+                  Comparar todos
+                </button>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="p-3 sm:p-5 pt-0 sm:pt-0">
             <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
@@ -243,6 +379,58 @@ export default function ComparativaPage() {
                 })}
               </div>
             </div>
+
+            {/* Desglose individual si hay vendedores seleccionados */}
+            {selectedVendorIds.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-slate-200">
+                <h4 className="font-bold text-xs sm:text-sm text-slate-800 mb-3 flex items-center gap-1.5">
+                  <Users className="h-4 w-4 text-indigo-600" />
+                  Desglose por Vendedor Seleccionado
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {availableVendors
+                    .filter(v => selectedVendorIds.includes(v.id))
+                    .map(v => {
+                      const selA = dataA.find(d => d.vendedorId === v.id);
+                      const selB = dataB.find(d => d.vendedorId === v.id);
+                      const vA = selA ? selA.ventaTotal : 0;
+                      const vB = selB ? selB.ventaTotal : 0;
+                      const uA = selA ? selA.utilidadFinal : 0;
+                      const uB = selB ? selB.utilidadFinal : 0;
+                      const vDiff = getDiffPct(vA, vB);
+
+                      return (
+                        <div key={v.id} className="p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-xs text-slate-800 truncate">{v.nombre}</span>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${vB >= vA ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                              {vDiff}
+                            </span>
+                          </div>
+                          <div className="text-[11px] grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-200">
+                            <div>
+                              <span className="text-slate-400 block text-[10px]">Ventas Per. A:</span>
+                              <span className="font-semibold text-slate-700">{formatCurrency(vA)}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[10px]">Ventas Per. B:</span>
+                              <span className="font-semibold text-slate-700">{formatCurrency(vB)}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[10px]">Utilidad A:</span>
+                              <span className={`font-semibold ${uA >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(uA)}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[10px]">Utilidad B:</span>
+                              <span className={`font-semibold ${uB >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(uB)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

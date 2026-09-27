@@ -87,10 +87,17 @@ export async function POST(request: NextRequest) {
       }
 
       await query(
-        `INSERT INTO usuario_productos (usuario_id, producto_id, cantidad, precio) 
-         VALUES ($1, $2, $3, $4) 
+        `INSERT INTO usuario_productos (usuario_id, producto_id, cantidad, precio, vigencia_inicio, vigencia_fin) 
+         VALUES ($1, $2, $3, $4, NOW(), NULL) 
          ON CONFLICT (usuario_id, producto_id) 
-         DO UPDATE SET cantidad = usuario_productos.cantidad + $3, precio = $4`,
+         DO UPDATE SET 
+           cantidad = usuario_productos.cantidad + $3, 
+           precio = $4,
+           vigencia_inicio = CASE 
+             WHEN usuario_productos.cantidad <= 0 THEN NOW() 
+             ELSE COALESCE(usuario_productos.vigencia_inicio, NOW()) 
+           END,
+           vigencia_fin = NULL`,
         [vendedorId, productoId, cantidad, productPrice]
       );
 

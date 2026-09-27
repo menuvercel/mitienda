@@ -103,6 +103,14 @@ export async function POST(request: NextRequest) {
 
       if (checkStockFinal.rows.length === 0 || Number(checkStockFinal.rows[0].cantidad) <= 0) {
         await query(
+          `UPDATE usuario_productos 
+           SET vigencia_fin = NOW(),
+               vigencia = ROUND(GREATEST(EXTRACT(EPOCH FROM (NOW() - COALESCE(vigencia_inicio, NOW()))) / 86400.0, 0.1)::numeric, 1)
+           WHERE usuario_id = $1 AND producto_id = $2`,
+          [vendedorId, productoId]
+        );
+
+        await query(
           `UPDATE vigencias_productos 
            SET fecha_fin = NOW(), estado = 'agotada' 
            WHERE usuario_id = $1 AND producto_id = $2 AND estado = 'activa'`,

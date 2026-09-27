@@ -1672,6 +1672,31 @@ export default function AlmacenPage() {
     }
   }
 
+  const handleAlmacenProductMerma = async (
+    productId: string,
+    cantidad: number,
+    parametros?: Parametro[]
+  ) => {
+    try {
+      await createMerma(productId, '1', cantidad, parametros);
+      await fetchInventario();
+      await fetchMermas();
+      setSelectedProduct(null);
+      toast({
+        title: "Éxito",
+        description: "Merma registrada correctamente desde el almacén",
+      });
+    } catch (error: any) {
+      console.error('Error al registrar merma desde almacén:', error);
+      toast({
+        title: "Error",
+        description: error?.message || "Error al registrar merma desde el almacén",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   const handleEditProduct = async (editedProduct: Producto, imageUrl: string | undefined) => {
     try {
       const formData = new FormData();
@@ -3653,6 +3678,7 @@ export default function AlmacenPage() {
             onEdit={handleEditProduct}
             onDelete={handleDeleteProduct}
             onDeliver={handleProductDelivery}
+            onMerma={handleAlmacenProductMerma}
             getVendorProducts={getVendorProducts} // NUEVA PROP AGREGADA
           />
         )

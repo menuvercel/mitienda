@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"; // Nuevo import para el cam
 import Image from 'next/image';
 import { toast } from "@/hooks/use-toast";
 import { Producto, Vendedor, Parametro } from '@/types';
-import { ChevronDown, Download, Barcode, Scan, Plus, Minus, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
+import { ChevronDown, Download, Barcode, Scan, Plus, Minus, Calendar as CalendarIcon, Loader2, AlertTriangle, Truck, Users, PackageX } from 'lucide-react';
 import { format, isBefore, startOfDay, differenceInDays } from 'date-fns';
 import JsBarcode from 'jsbarcode';
 import { useRef } from 'react';
@@ -35,12 +35,17 @@ interface ProductDialogProps {
     cantidadTotal: number,
     parametros: Parametro[]
   ) => Promise<void>;
+  onMerma?: (
+    productId: string,
+    cantidadTotal: number,
+    parametros?: Parametro[]
+  ) => Promise<void>;
   // NUEVA PROP AGREGADA
   getVendorProducts?: (vendorId: string) => Promise<Producto[]>;
 }
 
 
-type ModeType = 'view' | 'edit' | 'deliver';
+type ModeType = 'view' | 'edit' | 'deliver' | 'merma';
 
 const VendorsTab = ({
   vendorsData,
@@ -308,6 +313,7 @@ export default function ProductDialog({
   onEdit,
   onDelete,
   onDeliver,
+  onMerma,
   getVendorProducts, // ← LÍNEA AGREGADA
 }: ProductDialogProps) {
   const [mode, setMode] = useState<ModeType>('view');
@@ -331,6 +337,11 @@ export default function ProductDialog({
 
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showActionChoiceDialog, setShowActionChoiceDialog] = useState(false);
+  const [simpleMermaQuantity, setSimpleMermaQuantity] = useState<number>(0);
+  const [parameterMermaQuantities, setParameterMermaQuantities] = useState<{ [key: string]: number }>({});
+  const [totalMermaQuantity, setTotalMermaQuantity] = useState(0);
+  const [isReportingMerma, setIsReportingMerma] = useState(false);
 
 
   // También actualizar el useEffect que sincroniza el estado con el producto recibido
@@ -734,6 +745,65 @@ export default function ProductDialog({
     }
   };
 
+  const handleMermaParameterChange = (paramName: string, value: number) => {
+    const newQuantities = {
+      ...parameterMermaQuantities,
+      [paramName]: Math.max(0, value),
+    };
+    setParameterMermaQuantities(newQuantities);
+    setTotalMermaQuantity(Object.values(newQuantities).reduce((sum, qty) => sum + qty, 0));
+  };
+
+  const handleConfirmMerma = async () => {
+    const cantidadAEnviar = product.tiene_parametros ? totalMermaQuantity : simpleMermaQuantity;
+    if (cantidadAEnviar <= 0) {
+      toast({
+        title: "Advertencia",
+        description: "Por favor ingrese una cantidad mayor a 0 a reportar como merma.",
+        variant: "default",
+      });
+      return;
+    }
+
+    if (cantidadAEnviar > getTotalCantidad()) {
+      toast({
+        title: "Error",
+        description: "La cantidad total excede el stock disponible en almacén.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsReportingMerma(true);
+    try {
+      const parametrosMerma = product.tiene_parametros && product.parametros
+        ? product.parametros
+            .map((param) => ({
+              nombre: param.nombre,
+              cantidad: parameterMermaQuantities[param.nombre] || 0,
+            }))
+            .filter((p) => p.cantidad > 0)
+        : [];
+
+      if (onMerma) {
+        await onMerma(product.id, cantidadAEnviar, parametrosMerma);
+      }
+      setParameterMermaQuantities({});
+      setTotalMermaQuantity(0);
+      setSimpleMermaQuantity(0);
+      setMode('view');
+    } catch (error) {
+      console.error('Error al registrar merma:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al registrar merma.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReportingMerma(false);
+    }
+  };
+
   // Eliminar el producto
   const handleDelete = async () => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
@@ -758,6 +828,7 @@ export default function ProductDialog({
 
   // Renderizado del componente
   return (
+    <>
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -813,12 +884,29 @@ export default function ProductDialog({
               onDeliver={handleDeliver}
               getTotalCantidad={getTotalCantidad}
             />
-            // En la parte del renderizado principal, reemplaza la llamada a ViewMode:
+          ) : mode === 'merma' ? (
+            <MermaMode
+              product={product}
+              parameterMermaQuantities={parameterMermaQuantities}
+              simpleMermaQuantity={simpleMermaQuantity}
+              totalMermaQuantity={totalMermaQuantity}
+              onParameterQuantityChange={handleMermaParameterChange}
+              onSimpleQuantityChange={(value) => setSimpleMermaQuantity(value)}
+              onBack={() => {
+                setParameterMermaQuantities({});
+                setTotalMermaQuantity(0);
+                setSimpleMermaQuantity(0);
+                setMode('view');
+              }}
+              onConfirmMerma={handleConfirmMerma}
+              getTotalCantidad={getTotalCantidad}
+              isReportingMerma={isReportingMerma}
+            />
           ) : (
             <ViewMode
               product={product}
               onEdit={() => setMode('edit')}
-              onDeliver={() => setMode('deliver')}
+              onDeliver={() => setShowActionChoiceDialog(true)}
               onDelete={handleDelete}
               getTotalCantidad={getTotalCantidad}
               showVendorsTab={showVendorsTab}
@@ -844,6 +932,67 @@ export default function ProductDialog({
         />
       </DialogContent>
     </Dialog>
+
+    {/* Diálogo adicional para elegir entre Entrega a Usuario o Reporte de Merma */}
+    <Dialog open={showActionChoiceDialog} onOpenChange={setShowActionChoiceDialog}>
+      <DialogContent className="sm:max-w-md bg-white border border-slate-200">
+        <DialogHeader>
+          <DialogTitle className="text-base sm:text-lg font-bold text-slate-800">
+            ¿Qué acción deseas realizar?
+          </DialogTitle>
+          <p className="text-xs text-slate-500">
+            Selecciona si deseas realizar una entrega a un punto de venta o reportar merma de <strong>{product.nombre}</strong>.
+          </p>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 gap-3 py-3">
+          <button
+            type="button"
+            onClick={() => {
+              setShowActionChoiceDialog(false);
+              setMode('deliver');
+              setDeliveryStep(1);
+            }}
+            className="flex items-start gap-3 p-4 rounded-xl border-2 border-blue-200 hover:border-blue-500 hover:bg-blue-50/60 transition-all text-left group"
+          >
+            <div className="p-2.5 bg-blue-100 rounded-lg text-blue-600 group-hover:scale-105 transition-transform shrink-0">
+              <Truck className="h-6 w-6" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-slate-800 group-hover:text-blue-700">Entregar a un Usuario / Vendedor</h4>
+              <p className="text-xs text-slate-500 mt-0.5">Transferir unidades del almacén hacia un punto de venta o vendedor asignado.</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowActionChoiceDialog(false);
+              setMode('merma');
+              setParameterMermaQuantities({});
+              setTotalMermaQuantity(0);
+              setSimpleMermaQuantity(0);
+            }}
+            className="flex items-start gap-3 p-4 rounded-xl border-2 border-rose-200 hover:border-rose-500 hover:bg-rose-50/60 transition-all text-left group"
+          >
+            <div className="p-2.5 bg-rose-100 rounded-lg text-rose-600 group-hover:scale-105 transition-transform shrink-0">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-slate-800 group-hover:text-rose-700">Reportar a Merma</h4>
+              <p className="text-xs text-slate-500 mt-0.5">Dar de baja unidades dañadas, defectuosas o vencidas directamente del almacén.</p>
+            </div>
+          </button>
+        </div>
+
+        <div className="flex justify-end pt-1">
+          <Button variant="outline" size="sm" onClick={() => setShowActionChoiceDialog(false)}>
+            Cancelar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
@@ -1401,6 +1550,122 @@ const DeliverMode = ({
     )}
   </>
 );
+
+// Subcomponente para el modo de merma desde almacén
+const MermaMode = ({
+  product,
+  parameterMermaQuantities,
+  simpleMermaQuantity,
+  totalMermaQuantity,
+  onParameterQuantityChange,
+  onSimpleQuantityChange,
+  onBack,
+  onConfirmMerma,
+  getTotalCantidad,
+  isReportingMerma,
+}: {
+  product: Producto;
+  parameterMermaQuantities: { [key: string]: number };
+  simpleMermaQuantity: number;
+  totalMermaQuantity: number;
+  onParameterQuantityChange: (paramName: string, value: number) => void;
+  onSimpleQuantityChange: (value: number) => void;
+  onBack: () => void;
+  onConfirmMerma: () => void;
+  getTotalCantidad: () => number;
+  isReportingMerma: boolean;
+}) => {
+  const cantidadTotal = product.tiene_parametros ? totalMermaQuantity : simpleMermaQuantity;
+  const stockDisponible = getTotalCantidad();
+
+  return (
+    <div className="space-y-4">
+      <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-3">
+        <div className="p-2.5 bg-rose-100 rounded-lg text-rose-600 shrink-0">
+          <AlertTriangle className="h-5 w-5" />
+        </div>
+        <div>
+          <h3 className="font-bold text-sm text-rose-900">Reportar Merma desde Almacén</h3>
+          <p className="text-xs text-rose-700">
+            Las unidades se descontarán directamente del inventario central del almacén.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center px-1">
+        <span className="text-xs font-semibold text-slate-500">Stock en almacén: {stockDisponible}</span>
+        <div className="text-sm">
+          <span className="font-medium text-slate-600">Total a merma: </span>
+          <span className={`font-bold ${cantidadTotal > stockDisponible ? 'text-red-500' : 'text-rose-700'}`}>
+            {cantidadTotal}
+          </span>
+        </div>
+      </div>
+
+      {product.tiene_parametros && product.parametros ? (
+        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+          {product.parametros.map((param, index) => (
+            <div key={index} className="space-y-1.5 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-700">{param.nombre}</span>
+                <span className="text-slate-400">Stock: {param.cantidad}</span>
+              </div>
+              <Input
+                type="number"
+                min={0}
+                max={param.cantidad}
+                value={parameterMermaQuantities[param.nombre] || 0}
+                onChange={(e) =>
+                  onParameterQuantityChange(
+                    param.nombre,
+                    Math.min(Math.max(0, Number(e.target.value)), param.cantidad)
+                  )
+                }
+                className="h-9 text-xs bg-white"
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-1.5 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+          <Label className="text-xs font-bold text-slate-700">Cantidad a reportar como merma</Label>
+          <Input
+            type="number"
+            min={0}
+            max={product.cantidad}
+            value={simpleMermaQuantity || ''}
+            onChange={(e) =>
+              onSimpleQuantityChange(Math.min(Math.max(0, Number(e.target.value)), product.cantidad))
+            }
+            placeholder="0"
+            className="h-9 text-xs bg-white"
+          />
+        </div>
+      )}
+
+      <div className="flex justify-between gap-2 pt-4 border-t">
+        <Button variant="outline" onClick={onBack} disabled={isReportingMerma} className="flex-1 text-xs">
+          Atrás
+        </Button>
+        <Button
+          onClick={onConfirmMerma}
+          disabled={isReportingMerma || cantidadTotal <= 0 || cantidadTotal > stockDisponible}
+          className="flex-1 text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold"
+        >
+          {isReportingMerma ? (
+            <>
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Registrando...
+            </>
+          ) : (
+            <>
+              <AlertTriangle className="mr-1.5 h-3.5 w-3.5" /> Confirmar Merma
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 // En el componente ViewMode, modifica la sección de precios:
 

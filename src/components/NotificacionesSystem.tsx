@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { 
   Bell, 
@@ -24,7 +25,11 @@ import {
   AlertOctagon, 
   RefreshCw,
   Search,
-  Loader2
+  Loader2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  SlidersHorizontal
 } from 'lucide-react';
 import { Producto, Vendedor, AlertaVendedorStock } from '@/types';
 import { getNotificationKey } from './VencimientoBell';
@@ -59,11 +64,33 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
   const [filtroAlmacen, setFiltroAlmacen] = useState<'todos' | 'agotados' | 'bajo_stock'>('todos');
   
   const [vendedoresAlertas, setVendedoresAlertas] = useState<AlertaVendedorStock[]>([]);
+  const [listaVendedoresApi, setListaVendedoresApi] = useState<{ id: string; nombre: string }[]>([]);
   const [vendedorSeleccionado, setVendedorSeleccionado] = useState<string>('todos');
   const [rotacionProductos, setRotacionProductos] = useState<any[]>([]);
   const [productosEstrella, setProductosEstrella] = useState<any[]>([]);
   const [productosEstancados, setProductosEstancados] = useState<any[]>([]);
   const [rankingVendedores, setRankingVendedores] = useState<any[]>([]);
+  
+  // Filtros para la tabla de rotación
+  const [rotacionVendedorFiltro, setRotacionVendedorFiltro] = useState<string>('todos');
+  const [rotacionEstadoFiltro, setRotacionEstadoFiltro] = useState<string>('todos');
+  const [rotacionSearchTerm, setRotacionSearchTerm] = useState<string>('');
+
+  // Ordenamiento para rotación (Tocar para organizar de menor a mayor / mayor a menor)
+  type SortField = 'indice_rotacion_diaria' | 'unidades_vendidas' | 'stock_actual' | 'dias_vigencia' | 'producto_nombre' | 'vendedor_nombre';
+  type SortDirection = 'asc' | 'desc';
+
+  const [sortField, setSortField] = useState<SortField>('indice_rotacion_diaria');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  const handleSortToggle = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
   
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -77,6 +104,9 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
         setVencimientos(data.vencimientos || []);
         setAlertasAlmacen(data.almacen || []);
         if (data.vendedores) {
+          if (data.vendedores.lista) {
+            setListaVendedoresApi(data.vendedores.lista);
+          }
           setVendedoresAlertas(data.vendedores.alertas || []);
           setRotacionProductos(data.vendedores.rotacionProductos || []);
           setProductosEstrella(data.vendedores.productosEstrella || []);
@@ -185,6 +215,69 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
     }
     return v.vendedor_nombre.toLowerCase().includes(searchTerm.toLowerCase());
   });
+
+  // Todos los vendedores consolidados (prop vendedores, API lista, rotacion y alertas)
+  const todosLosVendedores = React.useMemo(() => {
+    const map = new Map<string, string>();
+    // 1. De prop vendedores
+    (vendedores || []).forEach(v => {
+      if (v && v.id) map.set(String(v.id), v.nombre || `Vendedor #${v.id}`);
+    });
+    // 2. De lista de la API
+    (listaVendedoresApi || []).forEach(v => {
+      if (v && v.id) map.set(String(v.id), v.nombre || `Vendedor #${v.id}`);
+    });
+    // 3. De productos en rotación
+    (rotacionProductos || []).forEach(r => {
+      if (r && r.vendedor_id) map.set(String(r.vendedor_id), r.vendedor_nombre || `Vendedor #${r.vendedor_id}`);
+    });
+    // 4. De alertas de vendedores
+    (vendedoresAlertas || []).forEach(va => {
+      if (va && va.vendedor_id) map.set(String(va.vendedor_id), va.vendedor_nombre || `Vendedor #${va.vendedor_id}`);
+    });
+
+    return Array.from(map.entries())
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [vendedores, listaVendedoresApi, rotacionProductos, vendedoresAlertas]);
+
+  // Productos de rotación filtrados para la tabla
+  const filteredRotacionProductos = rotacionProductos.filter(item => {
+    if (rotacionVendedorFiltro !== 'todos' && String(item.vendedor_id) !== String(rotacionVendedorFiltro)) {
+      return false;
+    }
+    if (rotacionEstadoFiltro !== 'todos' && item.estado_vigencia !== rotacionEstadoFiltro) {
+      return false;
+    }
+    if (rotacionSearchTerm.trim() !== '') {
+      const matchProd = item.producto_nombre.toLowerCase().includes(rotacionSearchTerm.toLowerCase());
+      const matchVend = item.vendedor_nombre.toLowerCase().includes(rotacionSearchTerm.toLowerCase());
+      if (!matchProd && !matchVend) return false;
+    }
+    return true;
+  });
+
+  // Productos de rotación ordenados dinámicamente según campo y dirección (menor a mayor / mayor a menor)
+  const sortedRotacionProductos = React.useMemo(() => {
+    const list = [...filteredRotacionProductos];
+    list.sort((a, b) => {
+      const valA = a[sortField];
+      const valB = b[sortField];
+
+      if (sortField === 'producto_nombre' || sortField === 'vendedor_nombre') {
+        const strA = String(valA || '').toLowerCase();
+        const strB = String(valB || '').toLowerCase();
+        return sortDirection === 'asc'
+          ? strA.localeCompare(strB)
+          : strB.localeCompare(strA);
+      }
+
+      const numA = Number(valA) || 0;
+      const numB = Number(valB) || 0;
+      return sortDirection === 'asc' ? numA - numB : numB - numA;
+    });
+    return list;
+  }, [filteredRotacionProductos, sortField, sortDirection]);
 
   const mainContent = (
     <div className="w-full space-y-4">
@@ -417,12 +510,12 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
 
             {subTabVendedores === 'cantidades' && (
               <Select value={vendedorSeleccionado} onValueChange={setVendedorSeleccionado}>
-                <SelectTrigger className="w-full sm:w-[220px] h-9 text-xs">
+                <SelectTrigger className="w-full sm:w-[220px] h-10 sm:h-9 text-xs sm:text-sm bg-white">
                   <SelectValue placeholder="Filtrar por Vendedor" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos los Vendedores</SelectItem>
-                  {vendedores.map(v => (
+                <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-xl max-h-72">
+                  <SelectItem value="todos">Todos los Vendedores ({todosLosVendedores.length})</SelectItem>
+                  {todosLosVendedores.map(v => (
                     <SelectItem key={v.id} value={String(v.id)}>{v.nombre}</SelectItem>
                   ))}
                 </SelectContent>
@@ -492,81 +585,486 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
           {/* SUB-TAB B: RENDIMIENTO VENTAS Y ROTACIÓN */}
           {subTabVendedores === 'rendimiento' && (
             <div className="space-y-4 sm:space-y-6">
-              {/* ÍNDICE DE ROTACIÓN DE PRODUCTOS */}
-              <div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
+              {/* ÍNDICE DE ROTACIÓN DE PRODUCTOS - TABLA CALIFICADORA */}
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <h4 className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 shrink-0" />
-                      Sistema de Valoración por Índice de Rotación
+                      <TrendingUp className="h-5 w-5 text-blue-600 shrink-0" />
+                      Tabla de Calificación por Índice de Rotación
                     </h4>
-                    <p className="text-xs text-slate-500">
-                      Promedio de ventas ÷ Días de vigencia (cerrada al agotar o activa en curso). Exclusivo Puntos de Venta.
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Calificación por vendedor: Ventas acumuladas ÷ Días de vigencia en existencia. A mayor ventas en menor vigencia, mejor índice.
                     </p>
+                  </div>
+                  <Badge variant="outline" className="text-xs self-start sm:self-auto border-blue-200 text-blue-700 bg-blue-50/50">
+                    {filteredRotacionProductos.length} productos calificados
+                  </Badge>
+                </div>
+
+                {/* FILTROS DE LA TABLA DE ROTACIÓN - RESPONSIVE MOBILE FIRST */}
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                        Punto de Venta / Vendedor
+                      </label>
+                      <Select value={rotacionVendedorFiltro} onValueChange={setRotacionVendedorFiltro}>
+                        <SelectTrigger className="h-10 sm:h-9 text-xs sm:text-sm bg-white dark:bg-slate-900 border-slate-200">
+                          <SelectValue placeholder="Todos los vendedores" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[9999] bg-white dark:bg-slate-900 border border-slate-200 shadow-xl max-h-72">
+                          <SelectItem value="todos">Todos los vendedores ({todosLosVendedores.length})</SelectItem>
+                          {todosLosVendedores.map(v => (
+                            <SelectItem key={v.id} value={String(v.id)}>{v.nombre}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                        Estado de Vigencia
+                      </label>
+                      <Select value={rotacionEstadoFiltro} onValueChange={setRotacionEstadoFiltro}>
+                        <SelectTrigger className="h-10 sm:h-9 text-xs sm:text-sm bg-white dark:bg-slate-900 border-slate-200">
+                          <SelectValue placeholder="Todos los estados" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[9999] bg-white dark:bg-slate-900 border border-slate-200 shadow-xl max-h-72">
+                          <SelectItem value="todos">Todos los estados</SelectItem>
+                          <SelectItem value="activa">En Existencia (Vigencia activa)</SelectItem>
+                          <SelectItem value="agotada">Agotados (Vigencia finalizada)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                        Buscar Producto o Vendedor
+                      </label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-3 sm:top-2.5 h-4 w-4 text-slate-400" />
+                        <Input
+                          placeholder="Nombre de producto o vendedor..."
+                          value={rotacionSearchTerm}
+                          onChange={(e) => setRotacionSearchTerm(e.target.value)}
+                          className="pl-9 pr-7 h-10 sm:h-9 text-xs sm:text-sm bg-white dark:bg-slate-900 border-slate-200"
+                        />
+                        {rotacionSearchTerm && (
+                          <button
+                            type="button"
+                            onClick={() => setRotacionSearchTerm('')}
+                            className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-xs p-0.5"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CHIPS DE FILTROS ACTIVOS (Ideal para Mobile) */}
+                  {(rotacionVendedorFiltro !== 'todos' || rotacionEstadoFiltro !== 'todos' || rotacionSearchTerm.trim() !== '') && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-200/60 dark:border-slate-800">
+                      <span className="text-[11px] font-semibold text-slate-500">Filtros activos:</span>
+                      {rotacionVendedorFiltro !== 'todos' && (
+                        <Badge variant="secondary" className="text-[11px] py-1 px-2.5 bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1.5 rounded-lg">
+                          <span>Vendedor: {todosLosVendedores.find(v => String(v.id) === String(rotacionVendedorFiltro))?.nombre || rotacionVendedorFiltro}</span>
+                          <button type="button" onClick={() => setRotacionVendedorFiltro('todos')} className="hover:text-blue-900 text-xs font-bold">✕</button>
+                        </Badge>
+                      )}
+                      {rotacionEstadoFiltro !== 'todos' && (
+                        <Badge variant="secondary" className="text-[11px] py-1 px-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 rounded-lg">
+                          <span>Estado: {rotacionEstadoFiltro === 'activa' ? 'En existencia' : 'Agotados'}</span>
+                          <button type="button" onClick={() => setRotacionEstadoFiltro('todos')} className="hover:text-emerald-900 text-xs font-bold">✕</button>
+                        </Badge>
+                      )}
+                      {rotacionSearchTerm.trim() !== '' && (
+                        <Badge variant="secondary" className="text-[11px] py-1 px-2.5 bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5 rounded-lg">
+                          <span>&quot;{rotacionSearchTerm}&quot;</span>
+                          <button type="button" onClick={() => setRotacionSearchTerm('')} className="hover:text-amber-900 text-xs font-bold">✕</button>
+                        </Badge>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRotacionVendedorFiltro('todos');
+                          setRotacionEstadoFiltro('todos');
+                          setRotacionSearchTerm('');
+                        }}
+                        className="text-[11px] text-rose-600 hover:underline font-semibold ml-1 py-1"
+                      >
+                        Limpiar filtros
+                      </button>
+                    </div>
+                  )}
+                  {/* BARRA TÁCTIL DE ORDENAMIENTO (Menor a Mayor / Mayor a Menor) */}
+                  <div className="pt-2.5 border-t border-slate-200/60 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1 mr-1">
+                        <SlidersHorizontal className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                        Ordenar por:
+                      </span>
+                      {[
+                        { field: 'indice_rotacion_diaria', label: 'Índice Rotación' },
+                        { field: 'unidades_vendidas', label: 'Ventas' },
+                        { field: 'stock_actual', label: 'Stock' },
+                        { field: 'dias_vigencia', label: 'Vigencia' },
+                        { field: 'producto_nombre', label: 'Producto' },
+                      ].map((f) => {
+                        const isActive = sortField === f.field;
+                        return (
+                          <button
+                            key={f.field}
+                            type="button"
+                            onClick={() => handleSortToggle(f.field as SortField)}
+                            className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1 active:scale-95 ${
+                              isActive
+                                ? 'bg-blue-600 text-white shadow-xs font-bold'
+                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <span>{f.label}</span>
+                            {isActive && (
+                              sortDirection === 'asc' ? (
+                                <ArrowUp className="h-3 w-3 stroke-[2.5]" />
+                              ) : (
+                                <ArrowDown className="h-3 w-3 stroke-[2.5]" />
+                              )
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* BOTÓN RÁPIDO PARA ALTERNAR DIRECCIÓN (MENOR A MAYOR / MAYOR A MENOR) */}
+                    <button
+                      type="button"
+                      onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                      className={`h-9 px-3 text-xs font-bold rounded-lg border transition-all active:scale-95 flex items-center justify-center gap-1.5 self-start sm:self-auto shadow-xs ${
+                        sortDirection === 'asc'
+                          ? 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-700'
+                          : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-100'
+                      }`}
+                      title="Toca para alternar entre Menor a Mayor y Mayor a Menor"
+                    >
+                      {sortDirection === 'asc' ? (
+                        <>
+                          <ArrowUp className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                          <span>Menor a Mayor ⬆️</span>
+                        </>
+                      ) : (
+                        <>
+                          <ArrowDown className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                          <span>Mayor a Menor ⬇️</span>
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
 
-                {rotacionProductos.length === 0 ? (
-                  <p className="text-xs sm:text-sm text-slate-500 italic p-4 bg-slate-50 rounded-xl text-center">
-                    No hay suficientes datos de rotación o entregas registradas aún.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {rotacionProductos.map((item, idx) => (
-                      <Card 
-                        key={idx} 
-                        className={`p-3 border-l-4 ${
-                          item.evaluacion === 'Alta Rotación' 
-                            ? 'border-l-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20' 
-                            : item.evaluacion === 'Rotación Media' 
-                              ? 'border-l-blue-500 bg-blue-50/20 dark:bg-blue-950/20' 
-                              : 'border-l-red-500 bg-red-50/20 dark:bg-red-950/20'
-                        }`}
+                {sortedRotacionProductos.length === 0 ? (
+                  <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+                    <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                      No hay productos registrados con datos de vigencia y ventas para los filtros seleccionados.
+                    </p>
+                    {(rotacionVendedorFiltro !== 'todos' || rotacionEstadoFiltro !== 'todos' || rotacionSearchTerm !== '') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setRotacionVendedorFiltro('todos');
+                          setRotacionEstadoFiltro('todos');
+                          setRotacionSearchTerm('');
+                        }}
+                        className="mt-3 text-xs"
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <h5 className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-100 truncate">{item.producto_nombre}</h5>
-                            <p className="text-[11px] font-semibold text-blue-600 truncate">Punto de Venta: {item.vendedor_nombre}</p>
-                          </div>
-                          {item.evaluacion === 'Alta Rotación' ? (
-                            <Badge className="bg-emerald-600 text-white text-[9px] sm:text-[10px] shrink-0">🚀 Alta Rotación</Badge>
-                          ) : item.evaluacion === 'Rotación Media' ? (
-                            <Badge className="bg-blue-600 text-white text-[9px] sm:text-[10px] shrink-0">⚡ Rotación Media</Badge>
-                          ) : (
-                            <Badge variant="destructive" className="bg-red-600 text-[9px] sm:text-[10px] shrink-0">🐢 Mala Rotación</Badge>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-1.5 mt-3 pt-2 border-t text-center">
-                          <div>
-                            <p className="text-[9px] sm:text-[10px] text-slate-400 uppercase font-semibold">Vendido/Entregado</p>
-                            <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                              {item.unidades_vendidas}/{item.unidades_entregadas}u
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[9px] sm:text-[10px] text-slate-400 uppercase font-semibold">Vigencia</p>
-                            <p className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-0.5">
-                              {item.dias_vigencia}d
-                              {item.estado_vigencia === 'activa' ? (
-                                <span title="Vigencia activa (en curso)">&nbsp;🟢</span>
-                              ) : (
-                                <span title="Vigencia cerrada (agotado)">&nbsp;🔴</span>
-                              )}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[9px] sm:text-[10px] text-slate-400 uppercase font-semibold">Rotación/día</p>
-                            <p className={`text-xs font-extrabold ${
-                              item.evaluacion === 'Alta Rotación' ? 'text-emerald-600' : item.evaluacion === 'Rotación Media' ? 'text-blue-600' : 'text-red-600'
-                            }`}>
-                              {item.indice_rotacion_diaria} u/d
-                            </p>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
+                        Restablecer todos los filtros
+                      </Button>
+                    )}
                   </div>
+                ) : (
+                  <>
+                    {/* VISTA MOBILE FIRST (< md): Tarjetas interactivas y compactas */}
+                    <div className="block md:hidden space-y-3">
+                      {sortedRotacionProductos.map((item, idx) => {
+                        const rank = idx + 1;
+                        return (
+                          <div
+                            key={`${item.vendedor_id}-${item.producto_id}-${idx}`}
+                            className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-2.5"
+                          >
+                            {/* Cabecera: Rank, Foto, Nombre, Vendedor y Calificación */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <span className="shrink-0 flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 font-black text-xs">
+                                  {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`}
+                                </span>
+                                {item.producto_foto ? (
+                                  <img
+                                    src={item.producto_foto}
+                                    alt={item.producto_nombre}
+                                    className="w-10 h-10 rounded-lg object-cover border border-slate-100 dark:border-slate-800 shrink-0"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 shrink-0">
+                                    <Package className="h-5 w-5" />
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <h5 className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-100 truncate" title={item.producto_nombre}>
+                                    {item.producto_nombre}
+                                  </h5>
+                                  <span className="inline-block mt-0.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium truncate max-w-full">
+                                    📍 {item.vendedor_nombre}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="shrink-0">
+                                {item.evaluacion === 'Alta Rotación' ? (
+                                  <Badge className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 whitespace-nowrap">
+                                    🚀 Alta
+                                  </Badge>
+                                ) : item.evaluacion === 'Rotación Media' ? (
+                                  <Badge className="bg-blue-600 text-white text-[10px] px-2 py-0.5 whitespace-nowrap">
+                                    ⚡ Media
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="destructive" className="bg-rose-500 text-[10px] px-2 py-0.5 whitespace-nowrap">
+                                    🐢 Baja
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Métricas en cuadrícula 2x2 optimizada para teléfonos móviles */}
+                            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                              <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60">
+                                <span className="text-[10px] font-semibold text-slate-400 uppercase block">Existencias</span>
+                                <span className={`font-bold text-xs ${item.stock_actual > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
+                                  {item.stock_actual > 0 ? `${item.stock_actual} u` : '0 (Agotado)'}
+                                </span>
+                              </div>
+
+                              <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60">
+                                <span className="text-[10px] font-semibold text-slate-400 uppercase block">Ventas</span>
+                                <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                                  {item.unidades_vendidas} unidades
+                                </span>
+                              </div>
+
+                              <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60">
+                                <span className="text-[10px] font-semibold text-slate-400 uppercase block">Vigencia</span>
+                                <div className="flex items-center gap-1.5 font-bold text-xs text-slate-700 dark:text-slate-300">
+                                  <span>{item.dias_vigencia} días</span>
+                                  {item.estado_vigencia === 'activa' ? (
+                                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" title="En existencia" />
+                                  ) : (
+                                    <span className="inline-block w-2 h-2 rounded-full bg-rose-400" title="Agotado" />
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60">
+                                <span className="text-[10px] font-semibold text-slate-400 uppercase block">Índice Rotación</span>
+                                <span className={`font-black text-xs ${
+                                  item.evaluacion === 'Alta Rotación' ? 'text-emerald-600' : item.evaluacion === 'Rotación Media' ? 'text-blue-600' : 'text-rose-600'
+                                }`}>
+                                  {Number(item.indice_rotacion_diaria).toFixed(2)} u/día
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* VISTA DESKTOP / TABLET (>= md): Tabla completa con scroll */}
+                    <div className="hidden md:block overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 shadow-xs">
+                      <Table>
+                        <TableHeader className="bg-slate-50/80 dark:bg-slate-800/60">
+                          <TableRow>
+                            <TableHead className="w-12 text-center text-xs font-bold text-slate-700 dark:text-slate-300">Rank</TableHead>
+                            <TableHead 
+                              className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 select-none transition-colors"
+                              onClick={() => handleSortToggle('producto_nombre')}
+                              title="Toca para ordenar por producto"
+                            >
+                              <div className="flex items-center gap-1">
+                                <span>Producto</span>
+                                {sortField === 'producto_nombre' ? (
+                                  sortDirection === 'asc' ? <ArrowUp className="h-3 w-3 text-blue-600 stroke-[2.5]" /> : <ArrowDown className="h-3 w-3 text-blue-600 stroke-[2.5]" />
+                                ) : (
+                                  <ArrowUpDown className="h-3 w-3 text-slate-400 opacity-50" />
+                                )}
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 select-none transition-colors"
+                              onClick={() => handleSortToggle('vendedor_nombre')}
+                              title="Toca para ordenar por punto de venta"
+                            >
+                              <div className="flex items-center gap-1">
+                                <span>Punto de Venta</span>
+                                {sortField === 'vendedor_nombre' ? (
+                                  sortDirection === 'asc' ? <ArrowUp className="h-3 w-3 text-blue-600 stroke-[2.5]" /> : <ArrowDown className="h-3 w-3 text-blue-600 stroke-[2.5]" />
+                                ) : (
+                                  <ArrowUpDown className="h-3 w-3 text-slate-400 opacity-50" />
+                                )}
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="text-center text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 select-none transition-colors"
+                              onClick={() => handleSortToggle('stock_actual')}
+                              title="Toca para ordenar por existencias de menor a mayor o viceversa"
+                            >
+                              <div className="flex items-center justify-center gap-1">
+                                <span>Stock</span>
+                                {sortField === 'stock_actual' ? (
+                                  sortDirection === 'asc' ? <ArrowUp className="h-3 w-3 text-blue-600 stroke-[2.5]" /> : <ArrowDown className="h-3 w-3 text-blue-600 stroke-[2.5]" />
+                                ) : (
+                                  <ArrowUpDown className="h-3 w-3 text-slate-400 opacity-50" />
+                                )}
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="text-center text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 select-none transition-colors"
+                              onClick={() => handleSortToggle('unidades_vendidas')}
+                              title="Toca para ordenar por ventas de menor a mayor o viceversa"
+                            >
+                              <div className="flex items-center justify-center gap-1">
+                                <span>Ventas</span>
+                                {sortField === 'unidades_vendidas' ? (
+                                  sortDirection === 'asc' ? <ArrowUp className="h-3 w-3 text-blue-600 stroke-[2.5]" /> : <ArrowDown className="h-3 w-3 text-blue-600 stroke-[2.5]" />
+                                ) : (
+                                  <ArrowUpDown className="h-3 w-3 text-slate-400 opacity-50" />
+                                )}
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="text-center text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 select-none transition-colors"
+                              onClick={() => handleSortToggle('dias_vigencia')}
+                              title="Toca para ordenar por vigencia de menor a mayor o viceversa"
+                            >
+                              <div className="flex items-center justify-center gap-1">
+                                <span>Vigencia</span>
+                                {sortField === 'dias_vigencia' ? (
+                                  sortDirection === 'asc' ? <ArrowUp className="h-3 w-3 text-blue-600 stroke-[2.5]" /> : <ArrowDown className="h-3 w-3 text-blue-600 stroke-[2.5]" />
+                                ) : (
+                                  <ArrowUpDown className="h-3 w-3 text-slate-400 opacity-50" />
+                                )}
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="text-center text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 select-none transition-colors"
+                              onClick={() => handleSortToggle('indice_rotacion_diaria')}
+                              title="Toca para ordenar por índice de rotación de menor a mayor o viceversa"
+                            >
+                              <div className="flex items-center justify-center gap-1">
+                                <span>Índice Rotación</span>
+                                {sortField === 'indice_rotacion_diaria' ? (
+                                  sortDirection === 'asc' ? <ArrowUp className="h-3 w-3 text-blue-600 stroke-[2.5]" /> : <ArrowDown className="h-3 w-3 text-blue-600 stroke-[2.5]" />
+                                ) : (
+                                  <ArrowUpDown className="h-3 w-3 text-slate-400 opacity-50" />
+                                )}
+                              </div>
+                            </TableHead>
+                            <TableHead className="text-center text-xs font-bold text-slate-700 dark:text-slate-300">Calificación</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sortedRotacionProductos.map((item, idx) => {
+                            const rank = idx + 1;
+                            return (
+                              <TableRow key={`${item.vendedor_id}-${item.producto_id}-${idx}`} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 text-xs">
+                                <TableCell className="text-center font-bold">
+                                  {rank === 1 ? (
+                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-800 font-black text-xs">
+                                      🥇
+                                    </span>
+                                  ) : rank === 2 ? (
+                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-black text-xs">
+                                      🥈
+                                    </span>
+                                  ) : rank === 3 ? (
+                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-black text-xs">
+                                      🥉
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400 font-semibold">#{rank}</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2 min-w-[140px]">
+                                    {item.producto_foto ? (
+                                      <img
+                                        src={item.producto_foto}
+                                        alt={item.producto_nombre}
+                                        className="w-8 h-8 rounded-lg object-cover border border-slate-100 dark:border-slate-800 shrink-0"
+                                      />
+                                    ) : (
+                                      <div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 shrink-0">
+                                        <Package className="h-4 w-4" />
+                                      </div>
+                                    )}
+                                    <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">{item.producto_nombre}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[11px]">
+                                    {item.vendedor_nombre}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-center font-bold">
+                                  {item.stock_actual > 0 ? (
+                                    <span className="text-emerald-700 dark:text-emerald-400">{item.stock_actual} u</span>
+                                  ) : (
+                                    <span className="text-slate-400 italic">0 (Agotado)</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-center font-bold text-slate-800 dark:text-slate-200">
+                                  {item.unidades_vendidas} u
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <div className="inline-flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                                    <span>{item.dias_vigencia} d</span>
+                                    {item.estado_vigencia === 'activa' ? (
+                                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" title="Vigencia activa en existencia" />
+                                    ) : (
+                                      <span className="inline-block w-2 h-2 rounded-full bg-red-400" title="Vigencia cerrada (agotado)" />
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-center font-black">
+                                  <span className={`text-xs ${
+                                    item.evaluacion === 'Alta Rotación' ? 'text-emerald-600' : item.evaluacion === 'Rotación Media' ? 'text-blue-600' : 'text-rose-600'
+                                  }`}>
+                                    {Number(item.indice_rotacion_diaria).toFixed(2)} u/d
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {item.evaluacion === 'Alta Rotación' ? (
+                                    <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] px-2 py-0.5">
+                                      🚀 Alta Rotación
+                                    </Badge>
+                                  ) : item.evaluacion === 'Rotación Media' ? (
+                                    <Badge className="bg-blue-600 hover:bg-blue-600 text-white text-[10px] px-2 py-0.5">
+                                      ⚡ Rotación Media
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="destructive" className="bg-rose-500 hover:bg-rose-500 text-[10px] px-2 py-0.5">
+                                      🐢 Baja Rotación
+                                    </Badge>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
                 )}
               </div>
 

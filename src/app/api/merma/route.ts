@@ -45,6 +45,8 @@ export async function POST(request: Request) {
 
     const mermaId = mermaResult.rows[0].id;
 
+    const isAlmacen = usuario.rows[0].rol === 'Almacen' || String(usuario_id) === '1';
+
     if (producto.rows[0].tiene_parametros && parametros && parametros.length > 0) {
       // 3a. Para productos con parámetros
       const transaccionResult = await sql`
@@ -95,13 +97,40 @@ export async function POST(request: Request) {
           )
         `;
 
-        // Actualizar inventario
+        // Actualizar inventario según origen
+        if (isAlmacen) {
+          await sql`
+            UPDATE producto_parametros
+            SET cantidad = GREATEST(cantidad - ${param.cantidad}, 0)
+            WHERE producto_id = ${producto_id}
+            AND nombre = ${param.nombre}
+          `;
+        } else {
+          await sql`
+            UPDATE usuario_producto_parametros
+            SET cantidad = GREATEST(cantidad - ${param.cantidad}, 0)
+            WHERE usuario_id = ${usuario_id}
+            AND producto_id = ${producto_id}
+            AND nombre = ${param.nombre}
+          `;
+        }
+      }
+
+      if (isAlmacen) {
+        const totalParametros = parametros.reduce((sum: number, p: any) => sum + (Number(p.cantidad) || 0), 0);
         await sql`
-          UPDATE usuario_producto_parametros
-          SET cantidad = cantidad - ${param.cantidad}
-          WHERE usuario_id = ${usuario_id}
-          AND producto_id = ${producto_id}
-          AND nombre = ${param.nombre}
+          UPDATE productos 
+          SET cantidad = GREATEST(cantidad - ${totalParametros}, 0)
+          WHERE id = ${producto_id}
+        `;
+      } else {
+        // Verificar si se agotó para cerrar vigencia
+        await sql`
+          UPDATE usuario_productos
+          SET 
+            vigencia_fin = CASE WHEN cantidad <= 0 AND vigencia_fin IS NULL THEN NOW() ELSE vigencia_fin END,
+            vigencia = CASE WHEN cantidad <= 0 THEN ROUND(GREATEST(EXTRACT(EPOCH FROM (NOW() - COALESCE(vigencia_inicio, NOW()))) / 86400.0, 0.1)::numeric, 1) ELSE vigencia END
+          WHERE usuario_id = ${usuario_id} AND producto_id = ${producto_id}
         `;
       }
     } else {
@@ -124,13 +153,23 @@ export async function POST(request: Request) {
         )
       `;
 
-      // Actualizar inventario
-      await sql`
-        UPDATE usuario_productos 
-        SET cantidad = cantidad - ${cantidad}
-        WHERE usuario_id = ${usuario_id}
-        AND producto_id = ${producto_id}
-      `;
+      // Actualizar inventario según origen
+      if (isAlmacen) {
+        await sql`
+          UPDATE productos 
+          SET cantidad = GREATEST(cantidad - ${cantidad}, 0)
+          WHERE id = ${producto_id}
+        `;
+      } else {
+        await sql`
+          UPDATE usuario_productos 
+          SET cantidad = GREATEST(cantidad - ${cantidad}, 0),
+              vigencia_fin = CASE WHEN (cantidad - ${cantidad}) <= 0 AND vigencia_fin IS NULL THEN NOW() ELSE vigencia_fin END,
+              vigencia = CASE WHEN (cantidad - ${cantidad}) <= 0 THEN ROUND(GREATEST(EXTRACT(EPOCH FROM (NOW() - COALESCE(vigencia_inicio, NOW()))) / 86400.0, 0.1)::numeric, 1) ELSE vigencia END
+          WHERE usuario_id = ${usuario_id}
+          AND producto_id = ${producto_id}
+        `;
+      }
     }
 
     return NextResponse.json({ success: true, merma_id: mermaId });
