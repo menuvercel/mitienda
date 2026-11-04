@@ -24,6 +24,9 @@ export async function POST(request: Request) {
     }
 
     // 2. Crear registro en la tabla merma guardando el precio y precio_compra actuales al momento de la merma
+    const precioMerma = producto.rows[0].precio != null ? Number(producto.rows[0].precio) : 0;
+    const precioCompraMerma = producto.rows[0].precio_compra != null ? Number(producto.rows[0].precio_compra) : 0;
+
     const mermaResult = await sql`
       INSERT INTO merma (
         producto_id,
@@ -41,8 +44,8 @@ export async function POST(request: Request) {
         NOW(),
         ${usuario_id},
         ${usuario.rows[0].nombre},
-        ${producto.rows[0].precio || 0},
-        ${producto.rows[0].precio_compra || 0}
+        ${precioMerma},
+        ${precioCompraMerma}
       )
       RETURNING id
     `;
@@ -60,14 +63,16 @@ export async function POST(request: Request) {
           desde,
           hacia,
           fecha,
-          tipo
+          tipo,
+          precio
         ) VALUES (
           ${producto_id},
           ${cantidad},
           ${usuario_id},
           'MERMA',
           NOW(),
-          'Baja'
+          'Baja',
+          ${precioMerma}
         )
         RETURNING id
       `;
@@ -146,14 +151,16 @@ export async function POST(request: Request) {
           desde,
           hacia,
           fecha,
-          tipo
+          tipo,
+          precio
         ) VALUES (
           ${producto_id},
           ${cantidad},
           ${usuario_id},
           'MERMA',
           NOW(),
-          'Baja'
+          'Baja',
+          ${precioMerma}
         )
       `;
 
@@ -201,12 +208,12 @@ export async function GET(request: Request) {
         m.fecha,
         m.usuario_id,
         m.usuario_nombre,
-        COALESCE(m.precio, p.precio) as precio,
-        COALESCE(m.precio_compra, p.precio_compra) as precio_compra,
-        p.foto,
-        p.tiene_parametros
+        COALESCE(m.precio, p.precio, 0) as precio,
+        COALESCE(m.precio_compra, p.precio_compra, 0) as precio_compra,
+        COALESCE(p.foto, '') as foto,
+        COALESCE(p.tiene_parametros, false) as tiene_parametros
       FROM merma m
-      INNER JOIN productos p ON m.producto_id = p.id
+      LEFT JOIN productos p ON m.producto_id = p.id
       WHERE CASE 
         WHEN ${usuario_id}::text IS NOT NULL THEN m.usuario_id = ${usuario_id}
         ELSE TRUE
@@ -247,6 +254,8 @@ export async function GET(request: Request) {
         cantidad: merma.cantidad,
         fecha: merma.fecha,
         usuario_id: merma.usuario_id,
+        precio: Number(merma.precio || 0),
+        precio_compra: Number(merma.precio_compra || 0),
         producto: {
           id: merma.producto_id,
           nombre: merma.producto_nombre,

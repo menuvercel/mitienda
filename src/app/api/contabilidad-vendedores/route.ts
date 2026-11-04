@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
       `SELECT m.id, m.cantidad, m.fecha, m.producto_nombre,
               COALESCE(m.precio_compra, p.precio_compra, 0) as precio_compra
        FROM merma m
-       JOIN productos p ON m.producto_id = p.id
+       LEFT JOIN productos p ON m.producto_id = p.id
        WHERE DATE(m.fecha) >= DATE($1) AND DATE(m.fecha) <= DATE($2)
        ORDER BY m.fecha DESC`,
       [fechaInicio, fechaFin]
