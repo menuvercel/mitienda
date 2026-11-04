@@ -19,7 +19,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose, open }
   const instanceId = useId();
   const scannerContainerId = `barcode-scanner-video-container-${instanceId.replace(/:/g, '')}`;
 
-  // Formatos soportados (movidos fuera para mayor claridad)
+  // Formatos soportados (movidos fuera para mllayor claridad)
   const formats = [
     Html5QrcodeSupportedFormats.CODE_128,
     Html5QrcodeSupportedFormats.EAN_13,
