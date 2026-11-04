@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import jwt from 'jsonwebtoken';
+import jwt from '@/lib/jwt';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   const { nombre, password }: { nombre: string; password: string } = await request.json();

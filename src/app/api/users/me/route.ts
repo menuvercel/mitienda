@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import jwt from 'jsonwebtoken';
+import jwt from '@/lib/jwt';
 
 export const dynamic = 'force-dynamic';
 

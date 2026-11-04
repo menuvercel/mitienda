@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import bcrypt from 'bcrypt';
 
+export const dynamic = 'force-dynamic';
+
 // GET: Listar todos los moderadores
 export async function GET(request: NextRequest) {
   try {
