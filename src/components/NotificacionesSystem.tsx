@@ -91,9 +91,25 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
       setSortDirection('asc');
     }
   };
-  
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
+
+  // Paginación progresiva para máxima fluidez y evitar congelamiento del navegador
+  const [rotacionVisibleCount, setRotacionVisibleCount] = useState<number>(20);
+  const [almacenVisibleCount, setAlmacenVisibleCount] = useState<number>(30);
+  const [vencimientosVisibleCount, setVencimientosVisibleCount] = useState<number>(30);
+
+  // Reset de paginación al cambiar filtros de rotación
+  useEffect(() => {
+    setRotacionVisibleCount(20);
+  }, [rotacionVendedorFiltro, rotacionEstadoFiltro, rotacionSearchTerm, sortField, sortDirection]);
+
+  // Reset de paginación al cambiar filtros de almacén o búsqueda
+  useEffect(() => {
+    setAlmacenVisibleCount(30);
+    setVencimientosVisibleCount(30);
+  }, [filtroAlmacen, searchTerm]);
 
   const fetchNotificaciones = useCallback(async () => {
     setIsLoading(true);
@@ -279,6 +295,21 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
     return list;
   }, [filteredRotacionProductos, sortField, sortDirection]);
 
+  // Productos de rotación paginados progresivamente (de 20 en 20 para fluidez inmediata)
+  const paginatedRotacionProductos = React.useMemo(() => {
+    return sortedRotacionProductos.slice(0, rotacionVisibleCount);
+  }, [sortedRotacionProductos, rotacionVisibleCount]);
+
+  // Almacén paginado progresivamente (de 30 en 30)
+  const paginatedAlmacen = React.useMemo(() => {
+    return almacenFiltrado.slice(0, almacenVisibleCount);
+  }, [almacenFiltrado, almacenVisibleCount]);
+
+  // Vencimientos paginados progresivamente (de 30 en 30)
+  const paginatedVencimientos = React.useMemo(() => {
+    return vencimientosFiltrados.slice(0, vencimientosVisibleCount);
+  }, [vencimientosFiltrados, vencimientosVisibleCount]);
+
   const mainContent = (
     <div className="w-full space-y-4">
       {/* CABECERA RESPONSIVE */}
@@ -369,46 +400,66 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
               <p className="text-xs text-slate-500">Todos los artículos marcados están al día.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {vencimientosFiltrados.map((item) => (
-                <Card 
-                  key={item.id} 
-                  className={`border-l-4 ${
-                    item.estado === 'vencido' 
-                      ? 'border-l-red-600 bg-red-50/30 dark:bg-red-950/20' 
-                      : item.estado === 'vence_pronto' 
-                        ? 'border-l-amber-500 bg-amber-50/30 dark:bg-amber-950/20' 
-                        : 'border-l-emerald-500'
-                  }`}
-                >
-                  <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <div>
-                      <h4 className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">{item.nombre}</h4>
-                      <p className="text-xs text-slate-500">Sección: {item.seccion || 'General'} | Stock: {item.cantidad}</p>
-                      <p className="text-xs sm:text-sm font-medium mt-1">
-                        Vencimiento: <span className="underline">{item.fecha_vencimiento}</span>
-                      </p>
-                    </div>
-                    <div className="self-start sm:self-auto sm:text-right">
-                      {item.estado === 'vencido' && (
-                        <Badge variant="destructive" className="bg-red-600 text-[10px] sm:text-xs">
-                          Hace {item.dias_diferencia} día(s)
-                        </Badge>
-                      )}
-                      {item.estado === 'vence_pronto' && (
-                        <Badge className="bg-amber-500 text-white text-[10px] sm:text-xs">
-                          Faltan {item.dias_diferencia} día(s)
-                        </Badge>
-                      )}
-                      {item.estado === 'vigente' && (
-                        <Badge className="bg-emerald-600 text-white text-[10px] sm:text-xs">
-                          Vigente ({item.dias_diferencia} días)
-                        </Badge>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {paginatedVencimientos.map((item) => (
+                  <Card 
+                    key={item.id} 
+                    className={`border-l-4 ${
+                      item.estado === 'vencido' 
+                        ? 'border-l-red-600 bg-red-50/30 dark:bg-red-950/20' 
+                        : item.estado === 'vence_pronto' 
+                          ? 'border-l-amber-500 bg-amber-50/30 dark:bg-amber-950/20' 
+                          : 'border-l-emerald-500'
+                    }`}
+                  >
+                    <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div>
+                        <h4 className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">{item.nombre}</h4>
+                        <p className="text-xs text-slate-500">Sección: {item.seccion || 'General'} | Stock: {item.cantidad}</p>
+                        <p className="text-xs sm:text-sm font-medium mt-1">
+                          Vencimiento: <span className="underline">{item.fecha_vencimiento}</span>
+                        </p>
+                      </div>
+                      <div className="self-start sm:self-auto sm:text-right">
+                        {item.estado === 'vencido' && (
+                          <Badge variant="destructive" className="bg-red-600 text-[10px] sm:text-xs">
+                            Hace {item.dias_diferencia} día(s)
+                          </Badge>
+                        )}
+                        {item.estado === 'vence_pronto' && (
+                          <Badge className="bg-amber-500 text-white text-[10px] sm:text-xs">
+                            Faltan {item.dias_diferencia} día(s)
+                          </Badge>
+                        )}
+                        {item.estado === 'vigente' && (
+                          <Badge className="bg-emerald-600 text-white text-[10px] sm:text-xs">
+                            Vigente ({item.dias_diferencia} días)
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {vencimientosFiltrados.length > 30 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t">
+                  <span className="text-xs text-slate-500">
+                    Mostrando {Math.min(vencimientosVisibleCount, vencimientosFiltrados.length)} de {vencimientosFiltrados.length}
+                  </span>
+                  {vencimientosVisibleCount < vencimientosFiltrados.length && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setVencimientosVisibleCount(prev => Math.min(prev + 30, vencimientosFiltrados.length))}
+                      className="text-xs h-8"
+                    >
+                      Mostrar 30 más ⬇️
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
@@ -459,27 +510,47 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
               <p className="text-xs text-slate-500">Todos los productos en almacén cuentan con existencias adecuadas.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {almacenFiltrado.map((item, idx) => (
-                <Card key={idx} className="border-l-4 border-l-orange-500">
-                  <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <div>
-                      <h4 className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">{item.nombre}</h4>
-                      <p className="text-xs text-slate-500">Ubicación: {item.ubicacion || 'Almacén General'}</p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Cantidad Actual: <span className="font-bold text-slate-900 dark:text-slate-100">{item.cantidad}</span> | Stock Mínimo: {item.stock_minimo}
-                      </p>
-                    </div>
-                    <div className="self-start sm:self-auto">
-                      {item.estado === 'agotado' ? (
-                        <Badge variant="destructive" className="bg-red-600 text-[10px] sm:text-xs">🔴 Agotado</Badge>
-                      ) : (
-                        <Badge className="bg-orange-500 text-white text-[10px] sm:text-xs">🟠 Bajo Stock</Badge>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {paginatedAlmacen.map((item, idx) => (
+                  <Card key={idx} className="border-l-4 border-l-orange-500">
+                    <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div>
+                        <h4 className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">{item.nombre}</h4>
+                        <p className="text-xs text-slate-500">Ubicación: {item.ubicacion || 'Almacén General'}</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Cantidad Actual: <span className="font-bold text-slate-900 dark:text-slate-100">{item.cantidad}</span> | Stock Mínimo: {item.stock_minimo}
+                        </p>
+                      </div>
+                      <div className="self-start sm:self-auto">
+                        {item.estado === 'agotado' ? (
+                          <Badge variant="destructive" className="bg-red-600 text-[10px] sm:text-xs">🔴 Agotado</Badge>
+                        ) : (
+                          <Badge className="bg-orange-500 text-white text-[10px] sm:text-xs">🟠 Bajo Stock</Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {almacenFiltrado.length > 30 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t">
+                  <span className="text-xs text-slate-500">
+                    Mostrando {Math.min(almacenVisibleCount, almacenFiltrado.length)} de {almacenFiltrado.length} productos
+                  </span>
+                  {almacenVisibleCount < almacenFiltrado.length && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setAlmacenVisibleCount(prev => Math.min(prev + 30, almacenFiltrado.length))}
+                      className="text-xs h-8 font-bold text-blue-700 border-blue-200"
+                    >
+                      Mostrar 30 más ⬇️
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
@@ -597,8 +668,8 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
                       Calificación por vendedor: Ventas acumuladas ÷ Días de vigencia en existencia. A mayor ventas en menor vigencia, mejor índice.
                     </p>
                   </div>
-                  <Badge variant="outline" className="text-xs self-start sm:self-auto border-blue-200 text-blue-700 bg-blue-50/50">
-                    {filteredRotacionProductos.length} productos calificados
+                  <Badge variant="outline" className="text-xs self-start sm:self-auto border-blue-200 text-blue-700 bg-blue-50/50 font-bold">
+                    Mostrando {Math.min(rotacionVisibleCount, sortedRotacionProductos.length)} de {sortedRotacionProductos.length} productos
                   </Badge>
                 </div>
 
@@ -787,7 +858,7 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
                   <>
                     {/* VISTA MOBILE FIRST (< md): Tarjetas interactivas y compactas */}
                     <div className="block md:hidden space-y-3">
-                      {sortedRotacionProductos.map((item, idx) => {
+                      {paginatedRotacionProductos.map((item, idx) => {
                         const rank = idx + 1;
                         return (
                           <div
@@ -974,7 +1045,7 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {sortedRotacionProductos.map((item, idx) => {
+                          {paginatedRotacionProductos.map((item, idx) => {
                             const rank = idx + 1;
                             return (
                               <TableRow key={`${item.vendedor_id}-${item.producto_id}-${idx}`} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 text-xs">
@@ -1064,6 +1135,39 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
                         </TableBody>
                       </Table>
                     </div>
+
+                    {/* Controles de paginación progresiva (20 en 20) */}
+                    {sortedRotacionProductos.length > 20 && (
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-800">
+                        <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                          Mostrando <strong className="text-slate-900 dark:text-slate-100">{Math.min(rotacionVisibleCount, sortedRotacionProductos.length)}</strong> de <strong className="text-slate-900 dark:text-slate-100">{sortedRotacionProductos.length}</strong> productos
+                        </p>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          {rotacionVisibleCount < sortedRotacionProductos.length && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setRotacionVisibleCount(prev => Math.min(prev + 20, sortedRotacionProductos.length))}
+                              className="flex-1 sm:flex-none text-xs font-bold h-9 bg-white dark:bg-slate-800 hover:bg-slate-50 border-blue-200 text-blue-700 shadow-xs"
+                            >
+                              Mostrar 20 más ⬇️
+                            </Button>
+                          )}
+                          {rotacionVisibleCount < sortedRotacionProductos.length && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setRotacionVisibleCount(sortedRotacionProductos.length)}
+                              className="text-xs font-medium h-9 text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                            >
+                              Mostrar todos ({sortedRotacionProductos.length})
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>

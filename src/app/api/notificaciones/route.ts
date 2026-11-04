@@ -3,136 +3,60 @@ import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+async function safeQuery(sqlText: string, params: any[] = []): Promise<any[]> {
+  try {
+    const res = await query(sqlText, params);
+    return res.rows || [];
+  } catch (err: any) {
+    console.warn('safeQuery caught warning:', err?.message || err);
+    return [];
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-
-    // 1. VENCIMIENTOS
-    let vencimientos: any[] = [];
-    try {
-      const resVencimientos = await query(`
+    const [
+      vencimientosRows,
+      almacenRows,
+      vendedorItemsRows,
+      rotacionRows,
+      rankingRows,
+      recordatoriosRows,
+      vendorsRows
+    ] = await Promise.all([
+      // 1. Vencimientos (solo con vencimiento activo)
+      safeQuery(`
         SELECT 
           p.id, p.nombre, p.foto,
-          COALESCE(
-            CASE 
-              WHEN p.tiene_parametros = true THEN (
-                SELECT SUM(pp.cantidad) 
-                FROM producto_parametros pp 
-                WHERE pp.producto_id = p.id
-              )
-              ELSE p.cantidad
-            END, 
-            0
-          ) as cantidad,
+          p.cantidad,
           'General' as seccion,
           p.tiene_vencimiento, 
           TO_CHAR(p.fecha_vencimiento, 'YYYY-MM-DD') as fecha_vencimiento
         FROM productos p
         WHERE p.tiene_vencimiento = true 
           AND p.fecha_vencimiento IS NOT NULL
-          AND COALESCE(
-            CASE 
-              WHEN p.tiene_parametros = true THEN (
-                SELECT SUM(pp.cantidad) 
-                FROM producto_parametros pp 
-                WHERE pp.producto_id = p.id
-              )
-              ELSE p.cantidad
-            END, 
-            0
-          ) > 0
+          AND p.cantidad > 0
         ORDER BY p.fecha_vencimiento ASC
-      `);
-      
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
+      `),
 
-      vencimientos = resVencimientos.rows.map((p) => {
-        const fVenc = new Date(p.fecha_vencimiento + 'T00:00:00');
-        const diffMs = fVenc.getTime() - hoy.getTime();
-        const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-        let estado: 'vencido' | 'vence_pronto' | 'vigente' = 'vigente';
-        if (diffDias < 0) {
-          estado = 'vencido';
-        } else if (diffDias <= 7) {
-          estado = 'vence_pronto';
-        }
-
-        return {
-          ...p,
-          dias_diferencia: Math.abs(diffDias),
-          estado
-        };
-      });
-    } catch (err) {
-      console.warn('DB notification columns warning (vencimientos):', err);
-    }
-
-    // 2. ALMACÉN (Inventario Central: Agotados y Bajo Stock)
-    let alertasAlmacen: any[] = [];
-    try {
-      const resAlmacen = await query(`
+      // 2. Almacén (inventario central: solo agotados y bajo stock)
+      safeQuery(`
         SELECT 
           p.id as producto_id,
           p.id,
           p.nombre,
           p.foto,
           'Almacén General' as ubicacion,
-          COALESCE(
-            CASE 
-              WHEN p.tiene_parametros = true THEN (
-                SELECT SUM(pp.cantidad) 
-                FROM producto_parametros pp 
-                WHERE pp.producto_id = p.id
-              )
-              ELSE p.cantidad
-            END, 
-            0
-          ) as cantidad,
-          COALESCE(p.stock_minimo, 0) as stock_minimo
+          p.cantidad,
+          COALESCE(p.stock_minimo, 0) as stock_minimo,
+          CASE WHEN p.cantidad = 0 THEN 'agotado' ELSE 'bajo_stock' END as estado
         FROM productos p
-        ORDER BY p.nombre ASC
-      `);
+        WHERE p.cantidad = 0 OR (p.stock_minimo > 0 AND p.cantidad <= p.stock_minimo)
+        ORDER BY p.cantidad ASC, p.nombre ASC
+      `),
 
-      alertasAlmacen = resAlmacen.rows.map((row) => {
-        const cant = Number(row.cantidad);
-        const stMin = Number(row.stock_minimo);
-        let estado: 'agotado' | 'bajo_stock' | 'normal' = 'normal';
-        
-        if (cant === 0) {
-          estado = 'agotado';
-        } else if (stMin > 0 && cant <= stMin) {
-          estado = 'bajo_stock';
-        }
-
-        return {
-          ...row,
-          cantidad: cant,
-          stock_minimo: stMin,
-          estado
-        };
-      })
-      .filter((item) => item.estado !== 'normal')
-      .sort((a, b) => {
-        if (a.estado === 'agotado' && b.estado !== 'agotado') return -1;
-        if (a.estado !== 'agotado' && b.estado === 'agotado') return 1;
-        return a.nombre.localeCompare(b.nombre);
-      });
-    } catch (err) {
-      console.warn('DB notification query warning (almacen):', err);
-    }
-
-    // 3. VENDEDORES (Puntos de Venta: Stock Crítico e Inteligencia de Ventas)
-    let vendedoresAlertas: any[] = [];
-    let rotacionProductos: any[] = [];
-    let productosEstrella: any[] = [];
-    let productosEstancados: any[] = [];
-    let rankingVendedores: any[] = [];
-
-    try {
-      // Query productos asignados a vendedores activos
-      const resVendedorItems = await query(`
+      // 3. Puntos de venta: artículos críticos
+      safeQuery(`
         SELECT 
           u.id as usuario_id,
           u.nombre as usuario_nombre,
@@ -140,194 +64,89 @@ export async function GET(request: NextRequest) {
           p.id as producto_id,
           p.nombre as producto_nombre,
           p.foto as producto_foto,
-          COALESCE(
-            CASE 
-              WHEN p.tiene_parametros = true THEN (
-                SELECT SUM(upp.cantidad) 
-                FROM usuario_producto_parametros upp 
-                WHERE upp.producto_id = p.id AND upp.usuario_id = u.id
-              )
-              ELSE up.cantidad
-            END, 
-            0
-          ) as cantidad,
+          COALESCE(up.cantidad, 0) as cantidad,
           COALESCE(p.stock_minimo, 0) as stock_minimo
         FROM usuarios u
-        JOIN (
-          SELECT DISTINCT usuario_id, producto_id FROM (
-            SELECT usuario_id, producto_id FROM usuario_productos
-            UNION
-            SELECT usuario_id, producto_id FROM usuario_producto_parametros
-          ) sub_asig
-        ) asig ON asig.usuario_id = u.id
-        JOIN productos p ON p.id = asig.producto_id
-        LEFT JOIN usuario_productos up ON up.usuario_id = asig.usuario_id AND up.producto_id = asig.producto_id
+        JOIN usuario_productos up ON up.usuario_id = u.id
+        JOIN productos p ON p.id = up.producto_id
         WHERE u.rol = 'Vendedor' AND u.activo = true
+          AND (up.cantidad = 0 OR (p.stock_minimo > 0 AND up.cantidad <= p.stock_minimo))
         ORDER BY u.nombre ASC, p.nombre ASC
-      `);
+      `),
 
-      const vendorMap = new Map<string, any>();
-
-      for (const row of resVendedorItems.rows) {
-        const cant = Number(row.cantidad);
-        const stMin = Number(row.stock_minimo);
-        let estado: 'agotado' | 'bajo_stock' | 'normal' = 'normal';
-
-        if (cant === 0) {
-          estado = 'agotado';
-        } else if (stMin > 0 && cant <= stMin) {
-          estado = 'bajo_stock';
-        }
-
-        if (estado === 'normal') continue;
-
-        const vId = String(row.usuario_id);
-        if (!vendorMap.has(vId)) {
-          vendorMap.set(vId, {
-            vendedor_id: vId,
-            vendedor_nombre: row.usuario_nombre,
-            vendedor_telefono: row.usuario_telefono,
-            total_agotados: 0,
-            total_bajo_stock: 0,
-            productos_criticos: []
-          });
-        }
-
-        const vObj = vendorMap.get(vId);
-        if (estado === 'agotado') vObj.total_agotados++;
-        if (estado === 'bajo_stock') vObj.total_bajo_stock++;
-        vObj.productos_criticos.push({
-          id: row.producto_id,
-          nombre: row.producto_nombre,
-          cantidad: cant,
-          stock_minimo: stMin,
-          estado
-        });
-      }
-
-      vendedoresAlertas = Array.from(vendorMap.values());
-
-      // NUEVA LÓGICA: Sistema de valoración por Índice de Rotación (Ventas vs Tiempo de Vigencia en usuario_productos)
-      // Aplica únicamente a Vendedores / Puntos de venta (excluye Almacenes)
-      try {
-        const resRotacion = await query(`
-          SELECT 
-            u.id AS vendedor_id,
-            u.nombre AS vendedor_nombre,
-            p.id AS producto_id,
-            p.nombre AS producto_nombre,
-            p.foto AS producto_foto,
-            COALESCE(
-              CASE 
-                WHEN p.tiene_parametros = true THEN (
-                  SELECT SUM(upp.cantidad) 
-                  FROM usuario_producto_parametros upp 
-                  WHERE upp.producto_id = p.id AND upp.usuario_id = u.id
-                )
-                ELSE up.cantidad
-              END, 
-              0
-            ) AS stock_actual,
-            up.vigencia_inicio,
-            up.vigencia_fin,
-            CASE 
-              WHEN COALESCE(
-                CASE 
-                  WHEN p.tiene_parametros = true THEN (
-                    SELECT SUM(upp.cantidad) 
-                    FROM usuario_producto_parametros upp 
-                    WHERE upp.producto_id = p.id AND upp.usuario_id = u.id
-                  )
-                  ELSE up.cantidad
-                END, 0
-              ) > 0 THEN 'activa'
-              ELSE 'agotada'
-            END AS estado_vigencia,
-            ROUND(
+      // 4. Índice de rotación optimizado con CTE (ventas agregadas)
+      safeQuery(`
+        WITH upp_agg AS (
+          SELECT usuario_id, producto_id, SUM(cantidad) AS cant_parametros
+          FROM usuario_producto_parametros
+          GROUP BY usuario_id, producto_id
+        ),
+        ventas_agg AS (
+          SELECT v.vendedor, v.producto, SUM(v.cantidad) AS unidades_vendidas
+          FROM ventas v
+          JOIN usuario_productos up ON up.usuario_id = v.vendedor AND up.producto_id = v.producto
+          WHERE v.fecha >= COALESCE(up.vigencia_inicio, '2020-01-01'::timestamp)
+            AND v.fecha <= COALESCE(up.vigencia_fin, NOW())
+          GROUP BY v.vendedor, v.producto
+        )
+        SELECT 
+          u.id AS vendedor_id,
+          u.nombre AS vendedor_nombre,
+          p.id AS producto_id,
+          p.nombre AS producto_nombre,
+          p.foto AS producto_foto,
+          COALESCE(
+            CASE WHEN p.tiene_parametros = true THEN upp.cant_parametros ELSE up.cantidad END,
+            0
+          ) AS stock_actual,
+          up.vigencia_inicio,
+          up.vigencia_fin,
+          CASE 
+            WHEN COALESCE(CASE WHEN p.tiene_parametros = true THEN upp.cant_parametros ELSE up.cantidad END, 0) > 0 THEN 'activa'
+            ELSE 'agotada'
+          END AS estado_vigencia,
+          ROUND(
+            GREATEST(
+              EXTRACT(EPOCH FROM (COALESCE(up.vigencia_fin, NOW()) - COALESCE(up.vigencia_inicio, NOW()))) / 86400.0,
+              0.1
+            )::numeric, 1
+          ) AS dias_vigencia,
+          COALESCE(va.unidades_vendidas, 0) AS unidades_vendidas,
+          ROUND(
+            (
+              COALESCE(va.unidades_vendidas, 0) / 
               GREATEST(
                 EXTRACT(EPOCH FROM (COALESCE(up.vigencia_fin, NOW()) - COALESCE(up.vigencia_inicio, NOW()))) / 86400.0,
                 0.1
-              )::numeric, 1
-            ) AS dias_vigencia,
-            COALESCE(SUM(v.cantidad), 0) AS unidades_vendidas,
-            ROUND(
-              (
-                COALESCE(SUM(v.cantidad), 0) / 
-                GREATEST(
-                  EXTRACT(EPOCH FROM (COALESCE(up.vigencia_fin, NOW()) - COALESCE(up.vigencia_inicio, NOW()))) / 86400.0,
-                  0.1
-                )
-              )::numeric, 2
-            ) AS indice_rotacion_diaria
-          FROM usuario_productos up
-          JOIN usuarios u ON u.id = up.usuario_id AND u.rol = 'Vendedor'
-          JOIN productos p ON p.id = up.producto_id
-          LEFT JOIN ventas v ON v.vendedor = up.usuario_id
-                            AND v.producto = up.producto_id
-                            AND v.fecha >= COALESCE(up.vigencia_inicio, '2020-01-01'::timestamp)
-                            AND v.fecha <= COALESCE(up.vigencia_fin, NOW())
-          GROUP BY u.id, u.nombre, p.id, p.nombre, p.foto, p.tiene_parametros, up.cantidad, up.vigencia_inicio, up.vigencia_fin
-          HAVING COALESCE(SUM(v.cantidad), 0) > 0 OR COALESCE(up.cantidad, 0) > 0
-          ORDER BY indice_rotacion_diaria DESC, unidades_vendidas DESC
-        `);
+              )
+            )::numeric, 2
+          ) AS indice_rotacion_diaria
+        FROM usuario_productos up
+        JOIN usuarios u ON u.id = up.usuario_id AND u.rol = 'Vendedor'
+        JOIN productos p ON p.id = up.producto_id
+        LEFT JOIN upp_agg upp ON upp.usuario_id = up.usuario_id AND upp.producto_id = up.producto_id
+        LEFT JOIN ventas_agg va ON va.vendedor = up.usuario_id AND va.producto = up.producto_id
+        WHERE COALESCE(va.unidades_vendidas, 0) > 0 
+           OR COALESCE(CASE WHEN p.tiene_parametros = true THEN upp.cant_parametros ELSE up.cantidad END, 0) > 0
+        ORDER BY indice_rotacion_diaria DESC, unidades_vendidas DESC
+      `),
 
-        rotacionProductos = resRotacion.rows.map((row) => {
-          const unidadesVendidas = Number(row.unidades_vendidas);
-          const stockActual = Number(row.stock_actual);
-          const indice = Number(row.indice_rotacion_diaria);
-          return {
-            vendedor_id: String(row.vendedor_id),
-            vendedor_nombre: row.vendedor_nombre,
-            producto_id: row.producto_id,
-            producto_nombre: row.producto_nombre,
-            producto_foto: row.producto_foto,
-            unidades_entregadas: stockActual + unidadesVendidas,
-            stock_actual: stockActual,
-            dias_vigencia: Number(row.dias_vigencia),
-            unidades_vendidas: unidadesVendidas,
-            indice_rotacion_diaria: indice,
-            estado_vigencia: row.estado_vigencia,
-            evaluacion: indice >= 1.5 ? 'Alta Rotación' : indice >= 0.4 ? 'Rotación Media' : 'Baja Rotación'
-          };
-        });
-      } catch (err) {
-        console.warn('Error al obtener índice de rotación:', err);
-      }
-
-      // Compatibilidad con la respuesta anterior
-      productosEstrella = rotacionProductos.filter(r => r.evaluacion === 'Alta Rotación').slice(0, 10);
-      productosEstancados = rotacionProductos.filter(r => r.evaluacion === 'Baja Rotación');
-
-      // Ranking mejores vendedores
-      const resRankVendedores = await query(`
+      // 5. Ranking de vendedores
+      safeQuery(`
         SELECT 
           u.id as vendedor_id,
           u.nombre as vendedor_nombre,
           COALESCE(SUM(v.cantidad), 0) as unidades_vendidas,
           COALESCE(SUM(v.total), 0) as monto_total
         FROM usuarios u
-        LEFT JOIN ventas v ON (CAST(v.vendedor AS VARCHAR) = CAST(u.id AS VARCHAR) OR v.vendedor = u.nombre)
+        LEFT JOIN ventas v ON v.vendedor = u.id
         WHERE u.rol = 'Vendedor' AND u.activo = true
         GROUP BY u.id, u.nombre
         ORDER BY monto_total DESC
-      `);
+      `),
 
-      rankingVendedores = resRankVendedores.rows.map((row, idx) => ({
-        vendedor_id: String(row.vendedor_id),
-        vendedor_nombre: row.vendedor_nombre,
-        unidades_vendidas: Number(row.unidades_vendidas),
-        monto_total: Number(row.monto_total),
-        rank: idx + 1
-      }));
-
-    } catch (err) {
-      console.warn('DB notification query warning (vendedores):', err);
-    }
-
-    // 4. RECORDATORIOS
-    let recordatoriosNotif: any[] = [];
-    try {
-      const resRecordatorios = await query(`
+      // 6. Recordatorios
+      safeQuery(`
         SELECT 
           id, 
           texto, 
@@ -337,27 +156,125 @@ export async function GET(request: NextRequest) {
         FROM recordatorios
         WHERE completado = false AND fecha <= CURRENT_DATE
         ORDER BY fecha ASC
-      `);
-      recordatoriosNotif = resRecordatorios.rows;
-    } catch (err) {
-      console.warn('DB notification query warning (recordatorios):', err);
+      `),
+
+      // 7. Lista de todos los vendedores activos
+      safeQuery(`
+        SELECT id, nombre 
+        FROM usuarios 
+        WHERE rol = 'Vendedor' AND activo = true 
+        ORDER BY nombre ASC
+      `)
+    ]);
+
+    // Procesar vencimientos
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const vencimientos = vencimientosRows.map((p) => {
+      const fVenc = new Date(p.fecha_vencimiento + 'T00:00:00');
+      const diffMs = fVenc.getTime() - hoy.getTime();
+      const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+      let estado: 'vencido' | 'vence_pronto' | 'vigente' = 'vigente';
+      if (diffDias < 0) {
+        estado = 'vencido';
+      } else if (diffDias <= 7) {
+        estado = 'vence_pronto';
+      }
+
+      return {
+        ...p,
+        dias_diferencia: Math.abs(diffDias),
+        estado
+      };
+    });
+
+    // Procesar alertas de almacén
+    const alertasAlmacen = almacenRows.map((row) => ({
+      ...row,
+      cantidad: Number(row.cantidad),
+      stock_minimo: Number(row.stock_minimo)
+    }));
+
+    // Procesar alertas de vendedores
+    const vendorMap = new Map<string, any>();
+    for (const row of vendedorItemsRows) {
+      const cant = Number(row.cantidad);
+      const stMin = Number(row.stock_minimo);
+      let estado: 'agotado' | 'bajo_stock' = cant === 0 ? 'agotado' : 'bajo_stock';
+
+      const vId = String(row.usuario_id);
+      if (!vendorMap.has(vId)) {
+        vendorMap.set(vId, {
+          vendedor_id: vId,
+          vendedor_nombre: row.usuario_nombre,
+          vendedor_telefono: row.usuario_telefono,
+          total_agotados: 0,
+          total_bajo_stock: 0,
+          productos_criticos: []
+        });
+      }
+
+      const vObj = vendorMap.get(vId);
+      if (estado === 'agotado') vObj.total_agotados++;
+      else vObj.total_bajo_stock++;
+
+      vObj.productos_criticos.push({
+        id: row.producto_id,
+        nombre: row.producto_nombre,
+        cantidad: cant,
+        stock_minimo: stMin,
+        estado
+      });
     }
 
-    // Lista general de todos los vendedores activos para los filtros
-    let listaVendedores: { id: string; nombre: string }[] = [];
-    try {
-      const resVendors = await query(`
-        SELECT id, nombre FROM usuarios WHERE rol = 'Vendedor' AND activo = true ORDER BY nombre ASC
-      `);
-      listaVendedores = resVendors.rows.map(r => ({ id: String(r.id), nombre: r.nombre }));
-    } catch (e) {
-      console.warn('Error fetching all vendors list in notificaciones:', e);
-    }
+    const vendedoresAlertas = Array.from(vendorMap.values());
+
+    // Procesar rotación de productos
+    const rotacionProductos = rotacionRows.map((row) => {
+      const unidadesVendidas = Number(row.unidades_vendidas);
+      const stockActual = Number(row.stock_actual);
+      const indice = Number(row.indice_rotacion_diaria);
+      return {
+        vendedor_id: String(row.vendedor_id),
+        vendedor_nombre: row.vendedor_nombre,
+        producto_id: row.producto_id,
+        producto_nombre: row.producto_nombre,
+        producto_foto: row.producto_foto,
+        unidades_entregadas: stockActual + unidadesVendidas,
+        stock_actual: stockActual,
+        dias_vigencia: Number(row.dias_vigencia),
+        unidades_vendidas: unidadesVendidas,
+        indice_rotacion_diaria: indice,
+        estado_vigencia: row.estado_vigencia,
+        evaluacion: indice >= 1.5 ? 'Alta Rotación' : indice >= 0.4 ? 'Rotación Media' : 'Baja Rotación'
+      };
+    });
+
+    // Productos estrella y estancados (primeros 15 para rápido payload)
+    const productosEstrella = rotacionProductos.filter(r => r.evaluacion === 'Alta Rotación').slice(0, 15);
+    const productosEstancados = rotacionProductos.filter(r => r.evaluacion === 'Baja Rotación').slice(0, 15);
+
+    // Ranking de vendedores
+    const rankingVendedores = rankingRows.map((row, idx) => ({
+      vendedor_id: String(row.vendedor_id),
+      vendedor_nombre: row.vendedor_nombre,
+      unidades_vendidas: Number(row.unidades_vendidas),
+      monto_total: Number(row.monto_total),
+      rank: idx + 1
+    }));
+
+    // Lista de vendedores
+    const listaVendedores = vendorsRows.map((r: any) => ({
+      id: String(r.id),
+      nombre: r.nombre
+    }));
 
     return NextResponse.json({
       vencimientos,
       almacen: alertasAlmacen,
-      recordatorios: recordatoriosNotif,
+      recordatorios: recordatoriosRows,
       vendedores: {
         lista: listaVendedores,
         alertas: vendedoresAlertas,

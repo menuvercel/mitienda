@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Crear registro en la tabla merma
+    // 2. Crear registro en la tabla merma guardando el precio y precio_compra actuales al momento de la merma
     const mermaResult = await sql`
       INSERT INTO merma (
         producto_id,
@@ -31,14 +31,18 @@ export async function POST(request: Request) {
         cantidad,
         fecha,
         usuario_id,
-        usuario_nombre
+        usuario_nombre,
+        precio,
+        precio_compra
       ) VALUES (
         ${producto_id},
         ${producto.rows[0].nombre},
         ${cantidad},
         NOW(),
         ${usuario_id},
-        ${usuario.rows[0].nombre}
+        ${usuario.rows[0].nombre},
+        ${producto.rows[0].precio || 0},
+        ${producto.rows[0].precio_compra || 0}
       )
       RETURNING id
     `;
@@ -197,7 +201,8 @@ export async function GET(request: Request) {
         m.fecha,
         m.usuario_id,
         m.usuario_nombre,
-        p.precio,
+        COALESCE(m.precio, p.precio) as precio,
+        COALESCE(m.precio_compra, p.precio_compra) as precio_compra,
         p.foto,
         p.tiene_parametros
       FROM merma m
@@ -245,7 +250,8 @@ export async function GET(request: Request) {
         producto: {
           id: merma.producto_id,
           nombre: merma.producto_nombre,
-          precio: merma.precio,
+          precio: Number(merma.precio || 0),
+          precio_compra: Number(merma.precio_compra || 0),
           foto: merma.foto,
           tiene_parametros: merma.tiene_parametros,
           parametros: parametros

@@ -74,8 +74,8 @@ export async function GET(request: NextRequest) {
 
     // 5. Obtener mermas del período
     const mermasResult = await query(
-      `SELECT m.id, m.cantidad, m.fecha, p.nombre as producto_nombre,
-              COALESCE(p.precio_compra, 0) as precio_compra
+      `SELECT m.id, m.cantidad, m.fecha, m.producto_nombre,
+              COALESCE(m.precio_compra, p.precio_compra, 0) as precio_compra
        FROM merma m
        JOIN productos p ON m.producto_id = p.id
        WHERE DATE(m.fecha) >= DATE($1) AND DATE(m.fecha) <= DATE($2)
