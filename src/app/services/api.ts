@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Venta, Notificacion, Vendedor, Transaccion, VentaParametro, TransferProductParams, Seccion, Promocion, Parametro, Producto, CalculoContabilidadVendedor, GastoVendedor } from '@/types';
+import { Venta, Notificacion, Vendedor, Transaccion, VentaParametro, TransferProductParams, Seccion, Promocion, Parametro, Producto, CalculoContabilidadVendedor, GastoVendedor, Balance, Gasto, GastoBalance, IngresoBalance, CuentaBanco, RegistroTransferenciaItem, RegistroTransferenciasResponse, Recordatorio } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -315,9 +315,17 @@ export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
   return response.data;
 };
 
-export const getAllVentas = async (): Promise<Venta[]> => {
-  const response = await api.get('/ventas');
-  return response.data;
+export const getAllVentas = async (startDate?: string, endDate?: string): Promise<Venta[]> => {
+  try {
+    const params: Record<string, any> = { all: true };
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    const response = await api.get('/ventas', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener todas las ventas:', error);
+    throw new Error('No se pudieron obtener todas las ventas');
+  }
 };
 
 export const getTransaccionesVendedor = async (vendedorId: string) => {
@@ -1064,4 +1072,282 @@ export const eliminarInventario = async (id: string | number): Promise<void> => 
     console.error('Error al eliminar inventario:', error);
     throw new Error('No se pudo eliminar el inventario');
   }
-};
+};
+
+
+
+// ==========================================
+// Gastos
+// ==========================================
+
+export const getGastos = async (): Promise<Gasto[]> => {
+  try {
+    const response = await api.get('/gastos');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener gastos:', error);
+    throw new Error('No se pudieron obtener los gastos');
+  }
+};
+
+export const crearGasto = async (gasto: Omit<Gasto, 'id'>): Promise<Gasto> => {
+  try {
+    const response = await api.post('/gastos', gasto);
+    return response.data;
+  } catch (error) {
+    console.error('Error al crear gasto:', error);
+    throw new Error('No se pudo crear el gasto');
+  }
+};
+
+export const createGasto = crearGasto;
+
+export const eliminarGasto = async (gastoId: string): Promise<void> => {
+  try {
+    await api.delete(`/gastos?id=${gastoId}`);
+  } catch (error) {
+    console.error('Error al eliminar gasto:', error);
+    throw new Error('No se pudo eliminar el gasto');
+  }
+};
+
+export const deleteGasto = eliminarGasto;
+
+// ==========================================
+// Balances
+// ==========================================
+
+export const getBalances = async (): Promise<Balance[]> => {
+  try {
+    const response = await api.get('/balances');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener balances:', error);
+    throw new Error('No se pudieron obtener los balances');
+  }
+};
+
+export const crearBalance = async (balance: Omit<Balance, 'id'> & { gastosDirectosIds?: string[] }): Promise<Balance> => {
+  try {
+    const response = await api.post('/balances', balance);
+    return response.data;
+  } catch (error) {
+    console.error('Error al crear balance:', error);
+    throw new Error('No se pudo crear el balance');
+  }
+};
+
+export const createBalance = crearBalance;
+
+export const eliminarBalance = async (balanceId: string): Promise<void> => {
+  try {
+    await api.delete(`/balances?id=${balanceId}`);
+  } catch (error) {
+    console.error('Error al eliminar balance:', error);
+    throw new Error('No se pudo eliminar el balance');
+  }
+};
+
+export const deleteBalance = eliminarBalance;
+
+export const editarBalance = async (balanceId: string, balance: Omit<Balance, 'id' | 'fechaCreacion'>): Promise<Balance> => {
+  try {
+    const response = await api.put(`/balances/${balanceId}`, balance);
+    return response.data;
+  } catch (error) {
+    console.error('Error al editar balance:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        throw new Error('Balance no encontrado');
+      } else if (error.response?.status === 400) {
+        throw new Error(`Error de validación: ${error.response.data.error || 'Datos inválidos'}`);
+      } else if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+    }
+    throw new Error('No se pudo editar el balance');
+  }
+};
+
+export const getGastosFromBalances = async (): Promise<Array<{ fecha: string; gastos: GastoBalance[]; total: number }>> => {
+  try {
+    const response = await api.get('/balances/gastos');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener gastos de balances:', error);
+    throw new Error('No se pudieron obtener los gastos de los balances');
+  }
+};
+
+export const getGastosDetallados = async (): Promise<Array<{
+  balanceId: string;
+  fechaInicio: string;
+  fechaFin: string;
+  gastos: GastoBalance[];
+  totalGastos: number;
+}>> => {
+  try {
+    const response = await api.get('/balances/gastos-detallados');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener gastos detallados:', error);
+    throw new Error('No se pudieron obtener los gastos detallados');
+  }
+};
+
+export const getGastosCombinados = async (): Promise<Array<{
+  fecha: string;
+  gastos: Array<{
+    nombre: string;
+    cantidad: number;
+    tipo: 'balance' | 'directo';
+    balanceId?: string;
+    fechaInicio?: string;
+    fechaFin?: string;
+    gastoId?: string;
+    fechaCreacion?: string;
+    metadata?: any;
+  }>;
+  total: number;
+}>> => {
+  try {
+    const response = await api.get('/balances/gastos-combinados');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener gastos combinados:', error);
+    throw new Error('No se pudieron obtener los gastos combinados');
+  }
+};
+
+// ==========================================
+// Cuentas de Banco y Registro de Transferencias
+// ==========================================
+
+export const getRegistroTransferencias = async (params: {
+  search?: string;
+  vendedorId?: string;
+  banco?: string;
+  fechaInicio?: string;
+  fechaFin?: string;
+  page?: number;
+  limit?: number;
+} = {}): Promise<RegistroTransferenciasResponse> => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params.search) queryParams.append('search', params.search);
+    if (params.vendedorId && params.vendedorId !== 'todos') queryParams.append('vendedorId', params.vendedorId);
+    if (params.banco && params.banco !== 'todos') queryParams.append('banco', params.banco);
+    if (params.fechaInicio) queryParams.append('fechaInicio', params.fechaInicio);
+    if (params.fechaFin) queryParams.append('fechaFin', params.fechaFin);
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+
+    const response = await api.get(`/registro-transferencias?${queryParams.toString()}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener registro de transferencias:', error);
+    throw new Error('No se pudo obtener el registro de transferencias');
+  }
+};
+
+export const deleteRegistroTransferencia = async (id: number): Promise<void> => {
+  try {
+    await api.delete(`/registro-transferencias?id=${id}`);
+  } catch (error) {
+    console.error('Error al eliminar registro de transferencia:', error);
+    throw new Error('No se pudo eliminar el registro de transferencia');
+  }
+};
+
+export const getCuentasBanco = async (): Promise<CuentaBanco[]> => {
+  try {
+    const response = await api.get('/cuentas-banco');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener cuentas bancarias:', error);
+    throw new Error('No se pudieron obtener las cuentas bancarias');
+  }
+};
+
+export const createCuentaBanco = async (cuenta: {
+  nombre: string;
+  banco: string;
+  numero_cuenta: string;
+  activa?: boolean;
+}): Promise<CuentaBanco> => {
+  try {
+    const response = await api.post('/cuentas-banco', cuenta);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error al crear cuenta bancaria:', error);
+    throw new Error(error.response?.data?.error || 'No se pudo crear la cuenta bancaria');
+  }
+};
+
+export const updateCuentaBanco = async (
+  idOrCuenta: number | { id: number; nombre: string; banco: string; numero_cuenta: string; activa?: boolean },
+  data?: Partial<{ nombre: string; banco: string; numero_cuenta: string; activa: boolean }>
+): Promise<CuentaBanco> => {
+  try {
+    const payload = typeof idOrCuenta === 'number' ? { id: idOrCuenta, ...data } : idOrCuenta;
+    const response = await api.put('/cuentas-banco', payload);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error al actualizar cuenta bancaria:', error);
+    throw new Error(error.response?.data?.error || 'No se pudo actualizar la cuenta bancaria');
+  }
+};
+
+export const deleteCuentaBanco = async (id: number): Promise<void> => {
+  try {
+    await api.delete(`/cuentas-banco?id=${id}`);
+  } catch (error: any) {
+    console.error('Error al eliminar cuenta bancaria:', error);
+    throw new Error(error.response?.data?.error || 'No se pudo eliminar la cuenta bancaria');
+  }
+};
+
+// ==========================================
+// Recordatorios
+// ==========================================
+
+export const getRecordatorios = async (): Promise<Recordatorio[]> => {
+  try {
+    const response = await api.get('/recordatorios');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener recordatorios:', error);
+    throw new Error('No se pudieron obtener los recordatorios');
+  }
+};
+
+export const createRecordatorio = async (data: { texto: string; fecha: string }): Promise<Recordatorio> => {
+  try {
+    const response = await api.post('/recordatorios', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error al crear recordatorio:', error);
+    throw new Error('No se pudo crear el recordatorio');
+  }
+};
+
+export const updateRecordatorio = async (data: { id: number; texto?: string; fecha?: string; completado?: boolean }): Promise<Recordatorio> => {
+  try {
+    const response = await api.put('/recordatorios', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error al actualizar recordatorio:', error);
+    throw new Error('No se pudo actualizar el recordatorio');
+  }
+};
+
+export const deleteRecordatorio = async (id: number): Promise<void> => {
+  try {
+    await api.delete(`/recordatorios?id=${id}`);
+  } catch (error) {
+    console.error('Error al eliminar recordatorio:', error);
+    throw new Error('No se pudo eliminar el recordatorio');
+  }
+};
+
+export type { CuentaBanco, RegistroTransferenciaItem, RegistroTransferenciasResponse } from '@/types';

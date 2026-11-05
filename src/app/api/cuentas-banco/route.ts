@@ -1,0 +1,98 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { query } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest) {
+  try {
+    const res = await query(`
+      SELECT id, nombre, banco, numero_cuenta, activa, creado_en 
+      FROM cuentas_banco 
+      ORDER BY id ASC
+    `);
+    return NextResponse.json(res.rows);
+  } catch (error: any) {
+    if (error.code === '42P01') {
+      return NextResponse.json([]);
+    }
+    console.error('Error fetching cuentas_banco:', error);
+    return NextResponse.json({ error: 'Error al obtener cuentas' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { nombre, banco, numero_cuenta, activa } = body;
+
+    if (!nombre || !banco || !numero_cuenta) {
+      return NextResponse.json({ error: 'Nombre, banco y número de cuenta son obligatorios' }, { status: 400 });
+    }
+
+    const res = await query(
+      `INSERT INTO cuentas_banco (nombre, banco, numero_cuenta, activa) 
+       VALUES ($1, $2, $3, $4) 
+       RETURNING id, nombre, banco, numero_cuenta, activa, creado_en`,
+      [nombre.trim(), banco.trim(), numero_cuenta.trim(), activa !== false]
+    );
+
+    return NextResponse.json(res.rows[0]);
+  } catch (error: any) {
+    console.error('Error creating cuenta_banco:', error);
+    return NextResponse.json({ error: error.message || 'Error al crear cuenta' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, nombre, banco, numero_cuenta, activa } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'El ID de la cuenta es obligatorio' }, { status: 400 });
+    }
+
+    // Permitir actualización parcial (por ejemplo, solo cambiar 'activa')
+    const existingRes = await query('SELECT * FROM cuentas_banco WHERE id = $1', [id]);
+    if (existingRes.rows.length === 0) {
+      return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 });
+    }
+
+    const current = existingRes.rows[0];
+    const newNombre = nombre !== undefined ? String(nombre).trim() : current.nombre;
+    const newBanco = banco !== undefined ? String(banco).trim() : current.banco;
+    const newNumeroCuenta = numero_cuenta !== undefined ? String(numero_cuenta).trim() : current.numero_cuenta;
+    const newActiva = activa !== undefined ? Boolean(activa) : current.activa;
+
+    const res = await query(
+      `UPDATE cuentas_banco 
+       SET nombre = $1, banco = $2, numero_cuenta = $3, activa = $4 
+       WHERE id = $5 
+       RETURNING id, nombre, banco, numero_cuenta, activa, creado_en`,
+      [newNombre, newBanco, newNumeroCuenta, newActiva, id]
+    );
+
+    return NextResponse.json(res.rows[0]);
+  } catch (error: any) {
+    console.error('Error updating cuenta_banco:', error);
+    return NextResponse.json({ error: error.message || 'Error al actualizar cuenta' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID de cuenta no especificado' }, { status: 400 });
+    }
+
+    await query('DELETE FROM cuentas_banco WHERE id = $1', [parseInt(id, 10)]);
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting cuenta_banco:', error);
+    return NextResponse.json({ error: error.message || 'Error al eliminar cuenta' }, { status: 500 });
+  }
+}

@@ -73,6 +73,20 @@ export interface Venta {
   total: number;
   vendedor: string;
   fecha: string;
+  metodo_pago?: 'efectivo' | 'transferencia' | 'mixto';
+  monto_efectivo?: number;
+  monto_transferencia?: number;
+  cliente_nombre?: string;
+  cliente_carnet?: string;
+  cliente_telefono?: string;
+  numero_transaccion?: string;
+  banco?: string;
+  cuenta_banco_id?: number;
+  cuenta_nombre?: string;
+  cuenta_numero?: string;
+  transferencia_id?: number;
+  ganancia_unitaria?: number;
+  ganancia_total?: number;
   parametros?: VentaParametro[];
 }
 
@@ -113,6 +127,7 @@ export interface Transaccion {
   precio: number;
   parametro_nombre?: string;
   parametros?: TransaccionParametro[];
+  es_cocina?: boolean;
 }
 
 export interface Entrega {
@@ -308,3 +323,98 @@ export interface RendimientoProducto {
   dias_sin_ventas?: number;
 }
 
+
+
+// ==========================================
+// Cuentas de Banco y Registro de Transferencias
+// ==========================================
+
+export interface CuentaBanco {
+  id: number;
+  nombre: string;
+  banco: string;
+  numero_cuenta: string;
+  activa: boolean;
+  creado_en?: string;
+}
+
+export interface RegistroTransferenciaItem {
+  id: number;
+  vendedor_id: number | null;
+  vendedor_nombre: string;
+  cliente_nombre: string;
+  cliente_telefono: string;
+  cliente_carnet?: string | null;
+  numero_transaccion: string;
+  banco: string;
+  cuenta_banco_id?: number | null;
+  cuenta_nombre?: string | null;
+  cuenta_numero?: string | null;
+  monto: number;
+  fecha: string;
+  detalles: any;
+  creado_en: string;
+}
+
+export interface RegistroTransferenciasResponse {
+  transferencias: RegistroTransferenciaItem[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  summary: {
+    totalRegistros: number;
+    totalMonto: number;
+  };
+  tableNotCreated?: boolean;
+}
+
+// ==========================================
+// Recordatorios / Tareas Internas
+// ==========================================
+
+export interface Recordatorio {
+  id: number;
+  texto: string;
+  fecha: string; // YYYY-MM-DD
+  completado: boolean;
+  fecha_creacion?: string;
+}
+
+// ==========================================
+// Balances Financieros e Ingresos / Gastos
+// ==========================================
+
+export interface GastoBalance {
+  nombre: string;
+  cantidad: number | string;
+  tipo_gasto?: 'fijo' | 'variable';
+}
+
+export interface IngresoBalance {
+  nombre: string;
+  cantidad: number | string;
+}
+
+export interface Balance {
+  id: string;
+  fechaInicio: string;
+  fechaFin: string;
+  gananciaBruta: number;
+  gastos: GastoBalance[];
+  totalGastos: number;
+  ingresos: IngresoBalance[];
+  totalIngresos: number;
+  gananciaNeta: number;
+  fechaCreacion: string;
+}
+
+export interface Gasto {
+  id: string;
+  nombre: string;
+  cantidad: number;
+  fecha: string;
+  tipo_gasto?: 'fijo' | 'variable';
+}

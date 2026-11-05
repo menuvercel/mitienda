@@ -80,6 +80,8 @@ import ContabilidadVendedoresPage from '@/components/ContabilidadVendedoresPage'
 import ComparativaGeneral from '@/components/ComparativaGeneral';
 import ExportacionComparacion from '@/components/ExportacionComparacion';
 import ModeradoresSection from '@/components/ModeradoresSection';
+import RegistroTransferenciasSection from '@/components/RegistroTransferenciasSection';
+import RecordatoriosSection from '@/components/RecordatoriosSection';
 
 
 interface VentaSemana {
@@ -1971,6 +1973,26 @@ export default function AlmacenPage() {
               </Button>
               <Button
                 variant="ghost"
+                className={activeSection === 'registro-transferencia' ? 'bg-accent' : ''}
+                onClick={() => {
+                  setActiveSection('registro-transferencia')
+                  setIsMenuOpen(false)
+                }}
+              >
+                Registro de Transferencias
+              </Button>
+              <Button
+                variant="ghost"
+                className={activeSection === 'recordatorios' ? 'bg-accent' : ''}
+                onClick={() => {
+                  setActiveSection('recordatorios')
+                  setIsMenuOpen(false)
+                }}
+              >
+                Recordatorios
+              </Button>
+              <Button
+                variant="ghost"
                 className={activeSection === 'contabilidad' ? 'bg-accent' : ''}
                 onClick={() => {
                   setActiveSection('contabilidad')
@@ -2426,6 +2448,14 @@ export default function AlmacenPage() {
           <SalesSection userRole="Almacen" />
         )
       }
+
+      {activeSection === 'registro-transferencia' && (
+        <RegistroTransferenciasSection />
+      )}
+
+      {activeSection === 'recordatorios' && (
+        <RecordatoriosSection />
+      )}
 
       {
         activeSection === 'contabilidad' && (
