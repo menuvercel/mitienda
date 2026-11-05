@@ -24,31 +24,50 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { nombre, password, telefono, activo } = body;
 
-    if (!nombre || !password) {
-      return NextResponse.json({ error: 'Nombre y contraseña son requeridos' }, { status: 400 });
+    const trimmedNombre = nombre ? String(nombre).trim() : '';
+    const trimmedPassword = password ? String(password).trim() : '';
+
+    if (!trimmedNombre || !trimmedPassword) {
+      console.warn('⚠️ Intento de crear moderador con datos incompletos:', { nombre: trimmedNombre, passwordLength: trimmedPassword.length });
+      return NextResponse.json({ error: 'El nombre y la contraseña son requeridos' }, { status: 400 });
     }
 
-    // Verificar si ya existe un usuario con el mismo nombre
-    const existingUser = await query('SELECT id FROM usuarios WHERE nombre = $1', [nombre]);
+    // Verificar si ya existe un usuario con el mismo nombre (insensible a mayúsculas/minúsculas y espacios)
+    const existingUser = await query(
+      'SELECT id, nombre, rol FROM usuarios WHERE LOWER(TRIM(nombre)) = LOWER(TRIM($1)) LIMIT 1', 
+      [trimmedNombre]
+    );
+
     if (existingUser.rows.length > 0) {
-      return NextResponse.json({ error: 'Ya existe una cuenta con este nombre' }, { status: 400 });
+      const userFound = existingUser.rows[0];
+      console.warn(`⚠️ Ya existe un usuario con el nombre "${trimmedNombre}" (ID: ${userFound.id}, Rol: ${userFound.rol})`);
+      return NextResponse.json({ 
+        error: `Ya existe una cuenta con el nombre "${trimmedNombre}" (Rol actual: ${userFound.rol}). Por favor elige otro nombre.` 
+      }, { status: 400 });
     }
 
     // Encriptar contraseña
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const isActivo = activo !== undefined ? activo : true;
+    const hashedPassword = await bcrypt.hash(trimmedPassword, 10);
+    const isActivo = activo !== undefined ? Boolean(activo) : true;
+    const cleanTelefono = telefono ? String(telefono).trim() : '';
 
     const result = await query(
       `INSERT INTO usuarios (nombre, password, telefono, rol, activo) 
        VALUES ($1, $2, $3, $4, $5) 
        RETURNING id, nombre, telefono, rol, activo`,
-      [nombre, hashedPassword, telefono || '', 'Moderador', isActivo]
+      [trimmedNombre, hashedPassword, cleanTelefono, 'Moderador', isActivo]
     );
 
-    return NextResponse.json(result.rows[0]);
-  } catch (error) {
+    console.log(`✅ Moderador creado exitosamente: "${trimmedNombre}" (ID: ${result.rows[0].id})`);
+    return NextResponse.json(result.rows[0], { status: 201 });
+  } catch (error: any) {
     console.error('Error al crear moderador:', error);
-    return NextResponse.json({ error: 'Error al crear moderador' }, { status: 500 });
+    if (error.code === '23505') {
+      return NextResponse.json({ 
+        error: 'Ya existe una cuenta registrada con este nombre en la base de datos.' 
+      }, { status: 400 });
+    }
+    return NextResponse.json({ error: error.message || 'Error interno al crear moderador' }, { status: 500 });
   }
 }
 
@@ -75,13 +94,26 @@ export async function PUT(request: NextRequest) {
     }
     const currentModerator = userResult.rows[0];
 
-    const nombreToUpdate = nombre !== undefined ? nombre : currentModerator.nombre;
-    const telefonoToUpdate = telefono !== undefined ? telefono : currentModerator.telefono;
-    const activoToUpdate = activo !== undefined ? activo : true;
+    const cleanNombre = nombre !== undefined ? String(nombre).trim() : currentModerator.nombre;
+    const cleanTelefono = telefono !== undefined ? String(telefono).trim() : currentModerator.telefono;
+    const isActivo = activo !== undefined ? Boolean(activo) : true;
+
+    // Si cambió de nombre, verificar que el nuevo nombre no esté en uso por otro usuario
+    if (cleanNombre.toLowerCase() !== currentModerator.nombre.toLowerCase()) {
+      const existingUser = await query(
+        'SELECT id, rol FROM usuarios WHERE LOWER(TRIM(nombre)) = LOWER(TRIM($1)) AND id != $2 LIMIT 1',
+        [cleanNombre, id]
+      );
+      if (existingUser.rows.length > 0) {
+        return NextResponse.json({ 
+          error: `Ya existe otra cuenta con el nombre "${cleanNombre}".` 
+        }, { status: 400 });
+      }
+    }
 
     let hashedPassword = currentModerator.password;
-    if (password && password.trim()) {
-      hashedPassword = await bcrypt.hash(password, 10);
+    if (password && String(password).trim()) {
+      hashedPassword = await bcrypt.hash(String(password).trim(), 10);
     }
 
     const result = await query(
@@ -89,13 +121,16 @@ export async function PUT(request: NextRequest) {
        SET nombre = $1, telefono = $2, password = $3, activo = $4 
        WHERE id = $5 AND rol = $6 
        RETURNING id, nombre, telefono, rol, activo`,
-      [nombreToUpdate, telefonoToUpdate, hashedPassword, activoToUpdate, id, 'Moderador']
+      [cleanNombre, cleanTelefono, hashedPassword, isActivo, id, 'Moderador']
     );
 
     return NextResponse.json(result.rows[0]);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error al actualizar moderador:', error);
-    return NextResponse.json({ error: 'Error al actualizar moderador' }, { status: 500 });
+    if (error.code === '23505') {
+      return NextResponse.json({ error: 'Ya existe una cuenta con este nombre' }, { status: 400 });
+    }
+    return NextResponse.json({ error: error.message || 'Error al actualizar moderador' }, { status: 500 });
   }
 }
 
@@ -125,13 +160,13 @@ export async function DELETE(request: NextRequest) {
       await query('DELETE FROM usuarios WHERE id = $1 AND rol = $2', [id, 'Moderador']);
 
       await query('COMMIT');
-      return NextResponse.json({ message: 'Moderador eliminado con éxito', id });
-    } catch (err) {
+      return NextResponse.json({ success: true, message: 'Moderador eliminado correctamente' });
+    } catch (txError) {
       await query('ROLLBACK');
-      throw err;
+      throw txError;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error al eliminar moderador:', error);
-    return NextResponse.json({ error: 'Error al eliminar moderador' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Error al eliminar moderador' }, { status: 500 });
   }
 }

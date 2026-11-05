@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { 
   Bell, 
   AlertTriangle, 
+  AlertCircle,
   Calendar, 
   Package, 
   Users, 
@@ -328,7 +329,7 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
           size="sm" 
           onClick={fetchNotificaciones} 
           disabled={isLoading}
-          className="flex items-center justify-center gap-1.5 text-slate-600 border-orange-200 hover:bg-orange-50 w-full sm:w-auto h-9 text-xs sm:text-sm"
+          className="flex items-center justify-center gap-1.5 text-slate-600 border-slate-200 hover:bg-slate-100 dark:border-slate-800 dark:hover:bg-slate-800 w-full sm:w-auto h-9 text-xs sm:text-sm"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
           Actualizar
@@ -357,9 +358,9 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
             </span>
           </TabsTrigger>
           <TabsTrigger value="almacen" className="flex items-center justify-center gap-1 sm:gap-2 py-2 text-[11px] sm:text-sm font-medium">
-            <Package className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+            <Package className="h-3.5 w-3.5 text-blue-600 shrink-0" />
             <span className="truncate">Almacén</span>
-            <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-bold">
+            <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold">
               {alertasAlmacen.length}
             </span>
           </TabsTrigger>
@@ -376,9 +377,9 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
 
         {/* 1. PESTAÑA VENCIMIENTOS */}
         <TabsContent value="vencimientos" className="mt-3 sm:mt-4 space-y-3 sm:space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 bg-orange-50 dark:bg-orange-950/40 p-3 rounded-xl border border-orange-200 dark:border-orange-800">
-            <span className="text-xs sm:text-sm font-medium text-orange-800 dark:text-orange-300 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-orange-600" />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+            <span className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 text-blue-600" />
               Seguimiento global de fechas de expiración en inventario.
             </span>
             <div className="flex flex-wrap gap-1.5 sm:gap-2 w-full sm:w-auto">
@@ -390,7 +391,7 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
 
           {isLoading ? (
             <div className="text-center py-12 sm:py-16 border rounded-xl bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center gap-3">
-              <Loader2 className="h-8 w-8 sm:h-10 sm:w-10 animate-spin text-orange-500 mx-auto" />
+              <Loader2 className="h-8 w-8 sm:h-10 sm:w-10 animate-spin text-blue-600 mx-auto" />
               <p className="font-semibold text-xs sm:text-sm text-slate-700 dark:text-slate-300">Cargando notificaciones y vencimientos...</p>
             </div>
           ) : vencimientosFiltrados.length === 0 ? (
@@ -491,16 +492,16 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
                 size="sm"
                 variant={filtroAlmacen === 'bajo_stock' ? 'default' : 'outline'}
                 onClick={() => setFiltroAlmacen('bajo_stock')}
-                className={`h-8 text-xs flex-1 sm:flex-none ${filtroAlmacen === 'bajo_stock' ? 'bg-orange-600 text-white' : ''}`}
+                className={`h-8 text-xs flex-1 sm:flex-none ${filtroAlmacen === 'bajo_stock' ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}`}
               >
-                🟠 Bajo Stock ({alertasAlmacen.filter(a => a.estado === 'bajo_stock').length})
+                ⚠️ Bajo Stock ({alertasAlmacen.filter(a => a.estado === 'bajo_stock').length})
               </Button>
             </div>
           </div>
 
           {isLoading ? (
             <div className="text-center py-12 sm:py-16 border rounded-xl bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center gap-3">
-              <Loader2 className="h-8 w-8 sm:h-10 sm:w-10 animate-spin text-orange-500 mx-auto" />
+              <Loader2 className="h-8 w-8 sm:h-10 sm:w-10 animate-spin text-blue-600 mx-auto" />
               <p className="font-semibold text-xs sm:text-sm text-slate-700 dark:text-slate-300">Cargando alertas de inventario...</p>
             </div>
           ) : almacenFiltrado.length === 0 ? (
@@ -513,7 +514,7 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
             <div className="space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {paginatedAlmacen.map((item, idx) => (
-                  <Card key={idx} className="border-l-4 border-l-orange-500">
+                  <Card key={idx} className={`border-l-4 ${item.estado === 'agotado' ? 'border-l-red-500' : 'border-l-amber-500'}`}>
                     <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                       <div>
                         <h4 className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">{item.nombre}</h4>
@@ -526,7 +527,7 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
                         {item.estado === 'agotado' ? (
                           <Badge variant="destructive" className="bg-red-600 text-[10px] sm:text-xs">🔴 Agotado</Badge>
                         ) : (
-                          <Badge className="bg-orange-500 text-white text-[10px] sm:text-xs">🟠 Bajo Stock</Badge>
+                          <Badge className="bg-amber-500 text-white text-[10px] sm:text-xs">⚠️ Bajo Stock</Badge>
                         )}
                       </div>
                     </CardContent>
@@ -617,13 +618,13 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
                           {vend.vendedor_nombre}
                         </CardTitle>
                         <CardDescription className="text-xs text-slate-500 mt-0.5">
-                          Agotados: <span className="font-semibold text-red-600">{vend.total_agotados}</span> | Bajo Stock: <span className="font-semibold text-orange-600">{vend.total_bajo_stock}</span>
+                          Agotados: <span className="font-semibold text-red-600">{vend.total_agotados}</span> | Bajo Stock: <span className="font-semibold text-amber-600">{vend.total_bajo_stock}</span>
                         </CardDescription>
                       </div>
                       <Button 
                         size="sm"
                         onClick={() => handleQuickNotify(vend)}
-                        className="bg-amber-600 hover:bg-amber-700 text-white flex items-center justify-center gap-1.5 shadow h-8 text-xs w-full sm:w-auto"
+                        className="bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-1.5 shadow h-8 text-xs w-full sm:w-auto"
                         title="Enviar aviso preconfigurado por WhatsApp / Notificación rápida"
                       >
                         <Bell className="h-3.5 w-3.5" />
@@ -640,7 +641,7 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
                               {prod.estado === 'agotado' ? (
                                 <Badge variant="destructive" className="bg-red-600 text-[10px]">🔴 AGOTADO</Badge>
                               ) : (
-                                <Badge className="bg-orange-500 text-white text-[10px]">🟠 BAJO STOCK</Badge>
+                                <Badge className="bg-amber-500 text-white text-[10px]">⚠️ BAJO STOCK</Badge>
                               )}
                             </div>
                           </div>
@@ -1202,7 +1203,7 @@ export const NotificacionesSystem: React.FC<NotificacionesSystemProps> = ({
 
   if (isFullPage) {
     return (
-      <Card className="border-orange-200 shadow-md p-3 sm:p-6 bg-white dark:bg-slate-900 rounded-2xl overflow-hidden">
+      <Card className="border-slate-200 dark:border-slate-800 shadow-sm p-3 sm:p-6 bg-white dark:bg-slate-900 rounded-2xl overflow-hidden">
         {mainContent}
       </Card>
     );

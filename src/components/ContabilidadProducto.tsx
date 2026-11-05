@@ -578,7 +578,7 @@ export default function ContabilidadProducto({ inventario }: ContabilidadProduct
                     </div>
                     <div className="text-center">
                       <p className="text-sm text-gray-600">Ganancia Bruta</p>
-                      <p className="text-2xl font-bold text-orange-600">
+                      <p className="text-2xl font-bold text-indigo-600">
                         ${getContabilidadData().reduce((sum, item) => {
                           const gananciaProducto = item.ventas.reduce((gananciaSum, venta) => {
                             const producto = inventario.find(p => p.nombre === venta.producto_nombre)

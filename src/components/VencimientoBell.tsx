@@ -297,13 +297,13 @@ export const VencimientoBell: React.FC<VencimientoBellProps> = ({
           <Button
             variant="outline"
             size="icon"
-            className="relative border-orange-200 hover:bg-orange-50 text-orange-700 dark:border-orange-800 dark:hover:bg-orange-950"
+            className="relative border-slate-200 hover:bg-slate-100 text-slate-700 dark:border-slate-800 dark:hover:bg-slate-800 dark:text-slate-200 shadow-sm"
             title={displayCount > 0 ? `${displayCount} notificaciones sin leer` : 'Notificaciones y Alertas'}
           >
-            <Bell className="h-5 w-5" />
+            <Bell className="h-5 w-5 text-slate-700 dark:text-slate-200" />
             {displayCount > 0 && (
               <span className={`absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white shadow-sm ${
-                hasUrgent ? 'bg-red-600 animate-pulse' : 'bg-amber-500'
+                hasUrgent ? 'bg-red-600 animate-pulse' : 'bg-blue-600'
               }`}>
                 {displayCount > 99 ? '99+' : displayCount}
               </span>
@@ -311,13 +311,13 @@ export const VencimientoBell: React.FC<VencimientoBellProps> = ({
           </Button>
         </div>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[calc(100vw-1.5rem)] max-w-sm sm:w-96 p-0 shadow-xl border-orange-200 bg-white dark:bg-slate-900 rounded-xl">
-        <div className="p-3 border-b flex items-center justify-between bg-orange-50/50 dark:bg-slate-800/50">
+      <PopoverContent align="end" className="w-[calc(100vw-1.5rem)] max-w-sm sm:w-96 p-0 shadow-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-xl">
+        <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/50">
           <div className="flex items-center gap-2">
-            <Bell className="h-4 w-4 text-orange-600" />
+            <Bell className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             <h4 className="font-semibold text-sm text-slate-800 dark:text-slate-100">Notificaciones</h4>
             {visibleNotifications.length > 0 && (
-              <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-[10px]">
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 text-[10px] font-semibold">
                 {visibleNotifications.length} nuevas
               </Badge>
             )}
@@ -327,10 +327,10 @@ export const VencimientoBell: React.FC<VencimientoBellProps> = ({
               variant="ghost"
               size="sm"
               onClick={markAllAsRead}
-              className="text-[11px] h-7 px-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1 hover:bg-orange-100/50"
+              className="text-[11px] h-7 px-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1 hover:bg-slate-100 dark:hover:bg-slate-800"
               title="Marcar todas como leídas y quitarlas de la lista"
             >
-              <CheckCheck className="h-3.5 w-3.5 text-orange-600" />
+              <CheckCheck className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
               Marcar leídas
             </Button>
           )}
@@ -339,7 +339,7 @@ export const VencimientoBell: React.FC<VencimientoBellProps> = ({
         <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
           {isLoading ? (
             <div className="p-8 text-center text-slate-500 text-xs flex flex-col items-center justify-center gap-2">
-              <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
+              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
               <span>Cargando notificaciones...</span>
             </div>
           ) : visibleNotifications.length === 0 ? (
@@ -353,7 +353,7 @@ export const VencimientoBell: React.FC<VencimientoBellProps> = ({
               <div
                 key={item.id}
                 onClick={() => handleNotificationClick(item)}
-                className="group relative p-3 cursor-pointer transition-colors bg-amber-50/20 hover:bg-orange-50/70 dark:hover:bg-slate-800/80 flex items-start gap-2.5"
+                className="group relative p-3 cursor-pointer transition-colors bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/80 flex items-start gap-2.5"
               >
                 <div className="mt-0.5 shrink-0">
                   {item.type === 'recordatorio' ? (
@@ -374,7 +374,7 @@ export const VencimientoBell: React.FC<VencimientoBellProps> = ({
                     </p>
                   )}
                   {item.dateLabel && (
-                    <div className="flex items-center gap-1 mt-1 text-[10px] text-orange-700/80 dark:text-orange-400/80 font-medium">
+                    <div className="flex items-center gap-1 mt-1 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                       <Calendar className="h-3 w-3 inline shrink-0" />
                       <span>{item.dateLabel}</span>
                     </div>
@@ -395,7 +395,7 @@ export const VencimientoBell: React.FC<VencimientoBellProps> = ({
           )}
         </div>
 
-        <div className="p-2 border-t bg-slate-50 dark:bg-slate-900 text-center">
+        <div className="p-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-center">
           <Button
             variant="ghost"
             size="sm"
@@ -405,7 +405,7 @@ export const VencimientoBell: React.FC<VencimientoBellProps> = ({
                 onNavigateToNotificaciones();
               }
             }}
-            className="w-full text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-100/50 flex items-center justify-center gap-1 font-semibold"
+            className="w-full text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-slate-800 flex items-center justify-center gap-1 font-semibold"
           >
             Ver todas las notificaciones en página completa
             <ExternalLink className="h-3.5 w-3.5" />

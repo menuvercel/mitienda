@@ -1912,7 +1912,7 @@ export default function AlmacenPage() {
           <VencimientoBell 
             onNavigateToNotificaciones={(tab) => {
               if (tab === 'recordatorios') {
-                setActiveSection('notificaciones');
+                setActiveSection('recordatorios');
               } else {
                 if (tab === 'vencimientos' || tab === 'almacen' || tab === 'vendedores') {
                   setInitialNotifTab(tab);
@@ -2769,7 +2769,7 @@ export default function AlmacenPage() {
                           </div>
                           <div className="text-center">
                             <p className="text-sm text-gray-600">Ganancia Bruta</p>
-                            <p className="text-2xl font-bold text-orange-600">
+                            <p className="text-2xl font-bold text-indigo-600">
                               ${getContabilidadData().reduce((sum, item) => {
                                 // Calcular ganancia por cada venta del producto
                                 const gananciaProducto = item.ventas.reduce((gananciaSum, venta) => {

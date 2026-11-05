@@ -369,10 +369,10 @@ export default function RegistroTransferenciasSection() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-4 sm:p-6 rounded-xl border border-orange-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm">
         <div>
-          <h2 className="text-2xl font-bold text-orange-950 flex items-center gap-2">
-            <CreditCard className="h-7 w-7 text-orange-600" />
+          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <CreditCard className="h-7 w-7 text-blue-600" />
             Registro Transferencia
           </h2>
           <p className="text-sm text-gray-600 mt-1">
@@ -382,12 +382,12 @@ export default function RegistroTransferenciasSection() {
       </div>
 
       <Tabs defaultValue="transferencias" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md bg-orange-100/60 p-1 border border-orange-200">
-          <TabsTrigger value="transferencias" className="data-[state=active]:bg-white data-[state=active]:text-orange-900 font-semibold flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-2 max-w-md bg-gray-100 p-1 border border-gray-200">
+          <TabsTrigger value="transferencias" className="data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
             Transferencias
           </TabsTrigger>
-          <TabsTrigger value="cuentas" className="data-[state=active]:bg-white data-[state=active]:text-orange-900 font-semibold flex items-center gap-2">
+          <TabsTrigger value="cuentas" className="data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold flex items-center gap-2">
             <Landmark className="h-4 w-4" />
             Cuentas ({cuentas.length})
           </TabsTrigger>
@@ -401,7 +401,7 @@ export default function RegistroTransferenciasSection() {
               size="sm"
               onClick={() => fetchTransferencias(currentPage)}
               disabled={loading}
-              className="border-orange-200 text-orange-800 hover:bg-orange-50"
+              className="border-gray-200 text-gray-800 hover:bg-gray-50"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Actualizar
@@ -409,7 +409,7 @@ export default function RegistroTransferenciasSection() {
             <Button
               size="sm"
               onClick={handleExportExcel}
-              className="bg-orange-600 hover:bg-orange-700 text-white"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
             >
               <Download className="h-4 w-4 mr-2" />
               Exportar Excel
@@ -418,7 +418,7 @@ export default function RegistroTransferenciasSection() {
 
           {tableNotCreated && (
             <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 text-amber-900 flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-gray-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-sm">Tabla no inicializada en Base de Datos</p>
                 <p className="text-xs text-amber-800 mt-0.5">
@@ -430,26 +430,26 @@ export default function RegistroTransferenciasSection() {
 
           {/* KPI Cards - Mobile First Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card className="border-orange-200 shadow-sm bg-gradient-to-br from-orange-50/50 to-white">
+            <Card className="border-gray-200 shadow-sm bg-gradient-to-br from-gray-50/50 to-white">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-orange-700 flex items-center justify-between">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-blue-600 flex items-center justify-between">
                   Monto Total en Transferencias
-                  <DollarSign className="h-4 w-4 text-orange-600" />
+                  <DollarSign className="h-4 w-4 text-blue-600" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl sm:text-3xl font-extrabold text-orange-950">
+                <div className="text-2xl sm:text-3xl font-extrabold text-gray-900">
                   ${summary.totalMonto.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Suma acumulada según filtros aplicados</p>
               </CardContent>
             </Card>
 
-            <Card className="border-orange-200 shadow-sm bg-gradient-to-br from-amber-50/50 to-white">
+            <Card className="border-gray-200 shadow-sm bg-gradient-to-br from-gray-50/50 to-white">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-amber-700 flex items-center justify-between">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-gray-700 flex items-center justify-between">
                   Total de Operaciones
-                  <CheckCircle2 className="h-4 w-4 text-amber-600" />
+                  <CheckCircle2 className="h-4 w-4 text-gray-600" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -460,7 +460,7 @@ export default function RegistroTransferenciasSection() {
               </CardContent>
             </Card>
 
-            <Card className="border-orange-200 shadow-sm sm:col-span-2 lg:col-span-1 bg-white">
+            <Card className="border-gray-200 shadow-sm sm:col-span-2 lg:col-span-1 bg-white">
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs font-semibold uppercase tracking-wider text-gray-600 flex items-center justify-between">
                   Plataformas Principales
@@ -471,7 +471,7 @@ export default function RegistroTransferenciasSection() {
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {Object.keys(bancoBreakdown).length > 0 ? (
                     Object.entries(bancoBreakdown).slice(0, 4).map(([banco, monto]) => (
-                      <Badge key={banco} variant="secondary" className="bg-orange-100 text-orange-900 border-orange-200 text-xs">
+                      <Badge key={banco} variant="secondary" className="bg-gray-100 text-gray-900 border-gray-200 text-xs">
                         {banco}: ${Number(monto).toLocaleString()}
                       </Badge>
                     ))
@@ -485,7 +485,7 @@ export default function RegistroTransferenciasSection() {
           </div>
 
           {/* Barra de Búsqueda y Filtros */}
-          <Card className="border-orange-200 shadow-sm">
+          <Card className="border-gray-200 shadow-sm">
             <CardContent className="p-4 space-y-3">
               <div className="flex flex-col md:flex-row gap-3">
                 {/* Input de Búsqueda Principal */}
@@ -495,7 +495,7 @@ export default function RegistroTransferenciasSection() {
                     placeholder="Buscar por cliente, teléfono, carnet, no. transacción, banco, cuenta o vendedor..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="pl-9 border-orange-200 focus:border-orange-500 focus:ring-orange-500 bg-white"
+                    className="pl-9 border-gray-200 focus:border-blue-500 focus:ring-blue-500 bg-white"
                   />
                   {search && (
                     <button 
@@ -510,7 +510,7 @@ export default function RegistroTransferenciasSection() {
                 {/* Selector de Vendedor */}
                 <div className="w-full md:w-48">
                   <Select value={selectedVendedor} onValueChange={setSelectedVendedor}>
-                    <SelectTrigger className="border-orange-200 bg-white">
+                    <SelectTrigger className="border-gray-200 bg-white">
                       <SelectValue placeholder="Punto de Venta" />
                     </SelectTrigger>
                     <SelectContent>
@@ -527,7 +527,7 @@ export default function RegistroTransferenciasSection() {
                 {/* Selector de Banco */}
                 <div className="w-full md:w-44">
                   <Select value={selectedBanco} onValueChange={setSelectedBanco}>
-                    <SelectTrigger className="border-orange-200 bg-white">
+                    <SelectTrigger className="border-gray-200 bg-white">
                       <SelectValue placeholder="Todos los bancos" />
                     </SelectTrigger>
                     <SelectContent>
@@ -543,9 +543,9 @@ export default function RegistroTransferenciasSection() {
               </div>
 
               {/* Rango de Fechas */}
-              <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-orange-100">
+              <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-100">
                 <div className="flex items-center gap-2 text-xs text-gray-600 font-medium">
-                  <Calendar className="h-3.5 w-3.5 text-orange-600" />
+                  <Calendar className="h-3.5 w-3.5 text-blue-600" />
                   Rango de Fecha:
                 </div>
                 <div className="flex items-center gap-2">
@@ -553,14 +553,14 @@ export default function RegistroTransferenciasSection() {
                     type="date"
                     value={fechaInicio}
                     onChange={(e) => setFechaInicio(e.target.value)}
-                    className="h-8 text-xs border-orange-200 bg-white w-36"
+                    className="h-8 text-xs border-gray-200 bg-white w-36"
                   />
                   <span className="text-xs text-gray-400">hasta</span>
                   <Input
                     type="date"
                     value={fechaFin}
                     onChange={(e) => setFechaFin(e.target.value)}
-                    className="h-8 text-xs border-orange-200 bg-white w-36"
+                    className="h-8 text-xs border-gray-200 bg-white w-36"
                   />
                 </div>
 
@@ -569,7 +569,7 @@ export default function RegistroTransferenciasSection() {
                     variant="ghost"
                     size="sm"
                     onClick={handleLimpiarFiltros}
-                    className="h-8 text-xs text-orange-700 hover:text-orange-900 hover:bg-orange-100 ml-auto"
+                    className="h-8 text-xs text-blue-600 hover:text-gray-900 hover:bg-gray-100 ml-auto"
                   >
                     <X className="h-3.5 w-3.5 mr-1" />
                     Limpiar filtros
@@ -580,10 +580,10 @@ export default function RegistroTransferenciasSection() {
           </Card>
 
           {/* Vista Móvil (Cards) & Vista Desktop (Tabla) */}
-          <Card className="border-orange-200 shadow-sm overflow-hidden">
+          <Card className="border-gray-200 shadow-sm overflow-hidden">
             {loading ? (
               <div className="p-12 text-center">
-                <RefreshCw className="h-8 w-8 animate-spin mx-auto text-orange-600 mb-3" />
+                <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-600 mb-3" />
                 <p className="text-gray-500 font-medium">Cargando transferencias...</p>
               </div>
             ) : transferencias.length === 0 ? (
@@ -597,13 +597,13 @@ export default function RegistroTransferenciasSection() {
             ) : (
               <>
                 {/* VISTA MÓVIL (Visible en pantallas < md) */}
-                <div className="block md:hidden divide-y divide-orange-100">
+                <div className="block md:hidden divide-y divide-gray-100">
                   {transferencias.map((item) => (
-                    <div key={item.id} className="p-4 hover:bg-orange-50/50 transition-colors">
+                    <div key={item.id} className="p-4 hover:bg-white transition-colors">
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="bg-orange-50 text-orange-800 border-orange-200 text-xs font-bold">
+                            <Badge variant="outline" className="bg-gray-50 text-gray-800 border-gray-200 text-xs font-bold">
                               {item.banco}
                             </Badge>
                             <span className="text-xs font-mono font-bold text-gray-700">
@@ -616,7 +616,7 @@ export default function RegistroTransferenciasSection() {
                           </p>
                         </div>
                         <div className="text-right">
-                          <span className="text-lg font-black text-orange-700">
+                          <span className="text-lg font-black text-blue-600">
                             ${Number(item.monto).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                           </span>
                         </div>
@@ -634,8 +634,8 @@ export default function RegistroTransferenciasSection() {
                           </span>
                         )}
                         {item.cuenta_nombre && (
-                          <span className="flex items-center gap-1 text-orange-900 font-medium">
-                            <Landmark className="h-3 w-3 text-orange-600" />
+                          <span className="flex items-center gap-1 text-gray-900 font-medium">
+                            <Landmark className="h-3 w-3 text-blue-600" />
                             {item.cuenta_nombre} ({item.cuenta_numero})
                           </span>
                         )}
@@ -657,7 +657,7 @@ export default function RegistroTransferenciasSection() {
                             setSelectedItem(item)
                             setIsDetailOpen(true)
                           }}
-                          className="h-7 text-xs text-orange-700 hover:bg-orange-100"
+                          className="h-7 text-xs text-blue-600 hover:bg-gray-100"
                         >
                           <Eye className="h-3.5 w-3.5 mr-1" />
                           Ver Detalle
@@ -670,7 +670,7 @@ export default function RegistroTransferenciasSection() {
                 {/* VISTA DESKTOP / TABLET (Visible en pantallas >= md) */}
                 <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-left text-sm text-gray-600">
-                    <thead className="bg-orange-50/80 text-xs uppercase font-semibold text-orange-900 border-b border-orange-200">
+                    <thead className="bg-gray-50 text-xs uppercase font-semibold text-gray-900 border-b border-gray-200">
                       <tr>
                         <th className="py-3 px-4">Fecha / Hora</th>
                         <th className="py-3 px-4">No. Transacción</th>
@@ -684,9 +684,9 @@ export default function RegistroTransferenciasSection() {
                         <th className="py-3 px-4 text-center">Acciones</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-orange-100">
+                    <tbody className="divide-y divide-gray-100">
                       {transferencias.map((item) => (
-                        <tr key={item.id} className="hover:bg-orange-50/40 transition-colors">
+                        <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
                           <td className="py-3 px-4 whitespace-nowrap text-xs text-gray-700 font-medium">
                             {item.fecha ? new Date(item.fecha).toLocaleString('es-ES', {
                               day: '2-digit',
@@ -709,7 +709,7 @@ export default function RegistroTransferenciasSection() {
                             {item.cliente_carnet || '-'}
                           </td>
                           <td className="py-3 px-4">
-                            <Badge variant="outline" className="bg-orange-50/60 text-orange-800 border-orange-200">
+                            <Badge variant="outline" className="bg-gray-50 text-gray-800 border-gray-200">
                               {item.banco}
                             </Badge>
                           </td>
@@ -723,7 +723,7 @@ export default function RegistroTransferenciasSection() {
                               <span className="text-gray-400 italic">No especificada</span>
                             )}
                           </td>
-                          <td className="py-3 px-4 text-right font-black text-orange-800 whitespace-nowrap">
+                          <td className="py-3 px-4 text-right font-black text-gray-800 whitespace-nowrap">
                             ${Number(item.monto).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td className="py-3 px-4 text-gray-700">
@@ -737,7 +737,7 @@ export default function RegistroTransferenciasSection() {
                                 setSelectedItem(item)
                                 setIsDetailOpen(true)
                               }}
-                              className="h-8 w-8 p-0 text-orange-700 hover:bg-orange-100 rounded-full"
+                              className="h-8 w-8 p-0 text-blue-600 hover:bg-gray-100 rounded-full"
                               title="Ver detalle de la venta"
                             >
                               <Eye className="h-4 w-4" />
@@ -751,7 +751,7 @@ export default function RegistroTransferenciasSection() {
 
                 {/* Paginación */}
                 {totalPages > 1 && (
-                  <div className="p-4 border-t border-orange-100 flex items-center justify-between text-xs text-gray-500">
+                  <div className="p-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
                     <div>
                       Página {currentPage} de {totalPages} ({summary.totalRegistros} registros)
                     </div>
@@ -761,7 +761,7 @@ export default function RegistroTransferenciasSection() {
                         size="sm"
                         disabled={currentPage <= 1 || loading}
                         onClick={() => fetchTransferencias(currentPage - 1)}
-                        className="h-8 text-xs border-orange-200 hover:bg-orange-50"
+                        className="h-8 text-xs border-gray-200 hover:bg-gray-50"
                       >
                         Anterior
                       </Button>
@@ -770,7 +770,7 @@ export default function RegistroTransferenciasSection() {
                         size="sm"
                         disabled={currentPage >= totalPages || loading}
                         onClick={() => fetchTransferencias(currentPage + 1)}
-                        className="h-8 text-xs border-orange-200 hover:bg-orange-50"
+                        className="h-8 text-xs border-gray-200 hover:bg-gray-50"
                       >
                         Siguiente
                       </Button>
@@ -784,11 +784,11 @@ export default function RegistroTransferenciasSection() {
 
         {/* TAB 2: GESTIÓN DE CUENTAS DE BANCO */}
         <TabsContent value="cuentas" className="space-y-6 mt-4">
-          <Card className="border-orange-200 shadow-sm">
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-orange-100">
+          <Card className="border-gray-200 shadow-sm">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-100">
               <div>
-                <CardTitle className="text-lg font-bold text-orange-950 flex items-center gap-2">
-                  <Landmark className="h-5 w-5 text-orange-600" />
+                <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Landmark className="h-5 w-5 text-blue-600" />
                   Cuentas de Banco Receptoras
                 </CardTitle>
                 <CardDescription className="text-xs text-gray-600 mt-1">
@@ -801,7 +801,7 @@ export default function RegistroTransferenciasSection() {
                   size="sm"
                   onClick={fetchCuentas}
                   disabled={loadingCuentas}
-                  className="border-orange-200 text-orange-800 hover:bg-orange-50"
+                  className="border-gray-200 text-gray-800 hover:bg-gray-50"
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${loadingCuentas ? 'animate-spin' : ''}`} />
                   Actualizar
@@ -809,7 +809,7 @@ export default function RegistroTransferenciasSection() {
                 <Button
                   size="sm"
                   onClick={openNewCuentaModal}
-                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
                 >
                   <Plus className="h-4 w-4 mr-1.5" />
                   Nueva Cuenta
@@ -819,7 +819,7 @@ export default function RegistroTransferenciasSection() {
             <CardContent className="p-0">
               {loadingCuentas ? (
                 <div className="p-12 text-center">
-                  <RefreshCw className="h-8 w-8 animate-spin mx-auto text-orange-600 mb-3" />
+                  <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-600 mb-3" />
                   <p className="text-gray-500 font-medium">Cargando cuentas...</p>
                 </div>
               ) : cuentas.length === 0 ? (
@@ -832,7 +832,7 @@ export default function RegistroTransferenciasSection() {
                   <Button
                     size="sm"
                     onClick={openNewCuentaModal}
-                    className="mt-4 bg-orange-600 hover:bg-orange-700 text-white"
+                    className="mt-4 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
                   >
                     <Plus className="h-4 w-4 mr-1.5" />
                     Crear Cuenta Ahora
@@ -841,7 +841,7 @@ export default function RegistroTransferenciasSection() {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm text-gray-600">
-                    <thead className="bg-orange-50/80 text-xs uppercase font-semibold text-orange-900 border-b border-orange-200">
+                    <thead className="bg-gray-50 text-xs uppercase font-semibold text-gray-900 border-b border-gray-200">
                       <tr>
                         <th className="py-3 px-4">Nombre / Titular</th>
                         <th className="py-3 px-4">Banco / Plataforma</th>
@@ -850,14 +850,14 @@ export default function RegistroTransferenciasSection() {
                         <th className="py-3 px-4 text-right">Acciones</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-orange-100">
+                    <tbody className="divide-y divide-gray-100">
                       {cuentas.map((c) => (
-                        <tr key={c.id} className="hover:bg-orange-50/40 transition-colors">
+                        <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
                           <td className="py-3 px-4 font-semibold text-gray-900">
                             {c.nombre}
                           </td>
                           <td className="py-3 px-4">
-                            <Badge variant="outline" className="bg-orange-50 text-orange-800 border-orange-200 font-medium">
+                            <Badge variant="outline" className="bg-gray-50 text-gray-800 border-gray-200 font-medium">
                               {c.banco}
                             </Badge>
                           </td>
@@ -882,7 +882,7 @@ export default function RegistroTransferenciasSection() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => openEditCuentaModal(c)}
-                                className="h-8 w-8 p-0 text-orange-700 hover:bg-orange-100 rounded-full"
+                                className="h-8 w-8 p-0 text-blue-600 hover:bg-gray-100 rounded-full"
                                 title="Editar cuenta"
                               >
                                 <Edit2 className="h-4 w-4" />
@@ -913,8 +913,8 @@ export default function RegistroTransferenciasSection() {
       <Dialog open={isCuentaModalOpen} onOpenChange={setIsCuentaModalOpen}>
         <DialogContent className="max-w-md w-[95%] rounded-xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-orange-950 text-lg">
-              <Landmark className="h-5 w-5 text-orange-600" />
+            <DialogTitle className="flex items-center gap-2 text-gray-900 text-lg">
+              <Landmark className="h-5 w-5 text-blue-600" />
               {editingCuenta ? 'Editar Cuenta de Banco' : 'Nueva Cuenta de Banco'}
             </DialogTitle>
             <DialogDescription className="text-xs text-gray-600">
@@ -933,7 +933,7 @@ export default function RegistroTransferenciasSection() {
                 placeholder="Ej: Cafetería Central / Juan Pérez"
                 value={cuentaForm.nombre}
                 onChange={(e) => setCuentaForm({ ...cuentaForm, nombre: e.target.value })}
-                className="border-orange-200 focus:border-orange-500"
+                className="border-gray-200 focus:border-blue-500"
                 required
               />
             </div>
@@ -946,7 +946,7 @@ export default function RegistroTransferenciasSection() {
                 value={cuentaForm.banco}
                 onValueChange={(val) => setCuentaForm({ ...cuentaForm, banco: val })}
               >
-                <SelectTrigger className="border-orange-200 bg-white">
+                <SelectTrigger className="border-gray-200 bg-white">
                   <SelectValue placeholder="Seleccione el banco" />
                 </SelectTrigger>
                 <SelectContent>
@@ -965,7 +965,7 @@ export default function RegistroTransferenciasSection() {
                 placeholder="Ej: 9202 0699 1234 5678"
                 value={cuentaForm.numero_cuenta}
                 onChange={(e) => setCuentaForm({ ...cuentaForm, numero_cuenta: e.target.value })}
-                className="border-orange-200 focus:border-orange-500 font-mono"
+                className="border-gray-200 focus:border-blue-500 font-mono"
                 required
               />
             </div>
@@ -976,7 +976,7 @@ export default function RegistroTransferenciasSection() {
                 id="cuentaActiva"
                 checked={cuentaForm.activa}
                 onChange={(e) => setCuentaForm({ ...cuentaForm, activa: e.target.checked })}
-                className="rounded border-orange-300 text-orange-600 focus:ring-orange-500 h-4 w-4"
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
               />
               <label htmlFor="cuentaActiva" className="text-xs font-medium text-gray-700 cursor-pointer">
                 Cuenta Activa (disponible en la app móvil)
@@ -989,14 +989,14 @@ export default function RegistroTransferenciasSection() {
                 variant="outline"
                 onClick={() => setIsCuentaModalOpen(false)}
                 disabled={savingCuenta}
-                className="border-orange-200"
+                className="border-gray-200"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={savingCuenta}
-                className="bg-orange-600 hover:bg-orange-700 text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
               >
                 {savingCuenta ? (
                   <>
@@ -1016,8 +1016,8 @@ export default function RegistroTransferenciasSection() {
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="max-w-lg w-[95%] rounded-xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-orange-950 text-lg">
-              <CreditCard className="h-5 w-5 text-orange-600" />
+            <DialogTitle className="flex items-center gap-2 text-gray-900 text-lg">
+              <CreditCard className="h-5 w-5 text-blue-600" />
               Detalle de Transferencia #{selectedItem?.numero_transaccion}
             </DialogTitle>
           </DialogHeader>
@@ -1025,16 +1025,16 @@ export default function RegistroTransferenciasSection() {
           {selectedItem && (
             <div className="space-y-4 text-sm mt-2">
               {/* Resumen Principal */}
-              <div className="grid grid-cols-2 gap-3 p-3 bg-orange-50 rounded-lg border border-orange-100">
+              <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
                 <div>
                   <span className="text-xs text-gray-500 block">Monto Transferido</span>
-                  <span className="text-xl font-black text-orange-900">
+                  <span className="text-xl font-black text-gray-900">
                     ${Number(selectedItem.monto).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
                 <div>
                   <span className="text-xs text-gray-500 block">Banco / Plataforma</span>
-                  <Badge className="bg-orange-600 text-white mt-0.5">{selectedItem.banco}</Badge>
+                  <Badge className="bg-blue-600 text-white mt-0.5">{selectedItem.banco}</Badge>
                 </div>
                 <div>
                   <span className="text-xs text-gray-500 block">Cliente</span>
@@ -1050,7 +1050,7 @@ export default function RegistroTransferenciasSection() {
                 </div>
                 <div>
                   <span className="text-xs text-gray-500 block">Cuenta Destino</span>
-                  <span className="font-semibold text-orange-950">
+                  <span className="font-semibold text-gray-900">
                     {selectedItem.cuenta_nombre ? `${selectedItem.cuenta_nombre} (${selectedItem.cuenta_numero || ''})` : 'No especificada'}
                   </span>
                 </div>
@@ -1069,7 +1069,7 @@ export default function RegistroTransferenciasSection() {
               {/* Detalle de Productos / Carrito */}
               <div>
                 <h4 className="font-bold text-gray-900 text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <FileText className="h-4 w-4 text-orange-600" />
+                  <FileText className="h-4 w-4 text-blue-600" />
                   Productos en esta Operación
                 </h4>
                 {(() => {
@@ -1082,9 +1082,9 @@ export default function RegistroTransferenciasSection() {
                     )
                   }
                   return (
-                    <div className="border border-orange-200 rounded-lg overflow-hidden divide-y divide-orange-100">
+                    <div className="border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100">
                       {items.map((prod: any, idx: number) => (
-                        <div key={idx} className="p-2.5 flex items-center justify-between text-xs hover:bg-orange-50/30">
+                        <div key={idx} className="p-2.5 flex items-center justify-between text-xs hover:bg-gray-50/50">
                           <div>
                             <span className="font-semibold text-gray-900">
                               {prod.nombre || prod.nombre_producto || 'Producto'}
@@ -1093,7 +1093,7 @@ export default function RegistroTransferenciasSection() {
                               Cantidad: {prod.cantidad} {prod.precio ? `× $${Number(prod.precio).toLocaleString()}` : ''}
                             </span>
                           </div>
-                          <span className="font-bold text-orange-950">
+                          <span className="font-bold text-gray-900">
                             ${((prod.total !== undefined ? prod.total : (prod.precio || 0) * (prod.cantidad || 1))).toLocaleString()}
                           </span>
                         </div>
@@ -1109,7 +1109,7 @@ export default function RegistroTransferenciasSection() {
             <Button 
               variant="outline" 
               onClick={() => setIsDetailOpen(false)}
-              className="border-orange-200 hover:bg-orange-50 w-full sm:w-auto"
+              className="border-gray-200 hover:bg-gray-50 w-full sm:w-auto"
             >
               Cerrar
             </Button>

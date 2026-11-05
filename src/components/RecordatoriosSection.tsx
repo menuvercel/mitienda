@@ -237,11 +237,11 @@ export default function RecordatoriosSection() {
   return (
     <div className="space-y-6">
       {/* Tarjeta Encabezado */}
-      <Card className="border-orange-200 dark:border-orange-900 bg-gradient-to-r from-amber-50/50 to-orange-50/50 dark:from-slate-900 dark:to-slate-800">
+      <Card className="border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
           <div>
             <div className="flex items-center gap-2">
-              <Clock className="h-6 w-6 text-orange-600" />
+              <Clock className="h-6 w-6 text-blue-600" />
               <CardTitle className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100">
                 Recordatorios de Almacén
               </CardTitle>
@@ -257,14 +257,14 @@ export default function RecordatoriosSection() {
               size="sm"
               onClick={fetchRecordatorios}
               disabled={loading}
-              className="border-orange-200 hover:bg-orange-100 text-orange-700 dark:border-orange-800 dark:text-orange-300"
+              className="border-gray-200 hover:bg-gray-100 text-gray-700 dark:text-gray-300"
             >
               <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
               Actualizar
             </Button>
             <Button
               onClick={handleOpenAddModal}
-              className="bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-md flex-1 sm:flex-initial"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md flex-1 sm:flex-initial"
             >
               <Plus className="h-4 w-4 mr-1.5" />
               Agregar Recordatorio
@@ -307,7 +307,7 @@ export default function RecordatoriosSection() {
         <CardContent>
           {loading ? (
             <div className="p-12 text-center text-slate-500 flex flex-col items-center justify-center gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
               <span>Cargando recordatorios...</span>
             </div>
           ) : filteredRecordatorios.length === 0 ? (
@@ -367,7 +367,7 @@ export default function RecordatoriosSection() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleOpenEditModal(rec)}
-                            className="h-8 w-8 text-slate-600 hover:text-orange-600 hover:bg-orange-50"
+                            className="h-8 w-8 text-slate-600 hover:text-blue-600 hover:bg-slate-100"
                             title="Editar recordatorio"
                           >
                             <Edit className="h-4 w-4" />
@@ -397,7 +397,7 @@ export default function RecordatoriosSection() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
-              <Clock className="h-5 w-5 text-orange-600" />
+              <Clock className="h-5 w-5 text-blue-600" />
               {editingRecordatorio ? 'Editar Recordatorio' : 'Nuevo Recordatorio'}
             </DialogTitle>
           </DialogHeader>
@@ -427,7 +427,7 @@ export default function RecordatoriosSection() {
                 value={formTexto}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormTexto(e.target.value)}
                 rows={4}
-                className="flex min-h-[80px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100 resize-none"
+                className="flex min-h-[80px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100 resize-none"
               />
             </div>
           </div>
@@ -443,7 +443,7 @@ export default function RecordatoriosSection() {
             <Button
               onClick={handleSave}
               disabled={isSaving}
-              className="bg-orange-600 hover:bg-orange-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               {isSaving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
               {editingRecordatorio ? 'Guardar Cambios' : 'Crear Recordatorio'}
