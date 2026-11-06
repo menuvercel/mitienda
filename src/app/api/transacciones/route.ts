@@ -159,14 +159,30 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const vendedorId = searchParams.get('vendedorId');
   const productoId = searchParams.get('productoId');
-
-  if (!vendedorId && !productoId) {
-    return NextResponse.json({ error: 'Se requiere el ID del vendedor o el ID del producto' }, { status: 400 });
-  }
+  const limitParam = searchParams.get('limit');
+  const limit = Math.min(Math.max(parseInt(limitParam || '100', 10) || 100, 1), 500);
 
   try {
-    let transacciones;
-    const baseQuery = `
+    let whereClause = '';
+    const params: any[] = [];
+
+    if (productoId) {
+      params.push(productoId);
+      whereClause = `WHERE t.producto = $${params.length}`;
+      if (vendedorId) {
+        params.push(vendedorId);
+        whereClause += ` AND (t.hacia = $${params.length} OR t.desde = $${params.length})`;
+      }
+    } else if (vendedorId) {
+      params.push(vendedorId);
+      whereClause = `WHERE t.hacia = $${params.length} OR t.desde = $${params.length}`;
+    }
+
+    params.push(limit);
+    const limitClause = `LIMIT $${params.length}`;
+
+    // Consulta única con subconsulta json_agg para evitar N+1 queries sobre transaccion_parametros
+    const sql = `
       SELECT 
         t.id, 
         p.nombre as producto, 
@@ -176,41 +192,44 @@ export async function GET(request: NextRequest) {
         t.hacia, 
         t.fecha, 
         t.precio, 
-        p.tiene_parametros
+        p.tiene_parametros,
+        t.producto as producto_id,
+        CASE 
+          WHEN p.tiene_parametros THEN
+            COALESCE(
+              (
+                SELECT json_agg(
+                  json_build_object(
+                    'nombre', tp.nombre,
+                    'cantidad', tp.cantidad
+                  )
+                )
+                FROM transaccion_parametros tp
+                WHERE tp.transaccion_id = t.id
+              ),
+              '[]'::json
+            )
+          ELSE NULL
+        END as parametros
       FROM transacciones t 
       JOIN productos p ON t.producto = p.id 
+      ${whereClause}
+      ORDER BY t.fecha DESC
+      ${limitClause}
     `;
 
-    if (productoId) {
-      transacciones = await query(
-        baseQuery + ' WHERE t.producto = $1 ORDER BY t.fecha DESC',
-        [productoId]
-      );
-    } else {
-      transacciones = await query(
-        baseQuery + ' WHERE t.hacia = $1 OR t.desde = $1 ORDER BY t.fecha DESC',
-        [vendedorId]
-      );
-    }
+    const transaccionesResult = await query(sql, params);
 
-    // Obtener los parámetros para cada transacción
-    const transaccionesConParametros = await Promise.all(
-      transacciones.rows.map(async (transaccion) => {
-        if (transaccion.tiene_parametros) {
-          const parametrosResult = await query(
-            `SELECT nombre, cantidad 
-             FROM transaccion_parametros 
-             WHERE transaccion_id = $1`,
-            [transaccion.id]
-          );
-          return {
-            ...transaccion,
-            parametros: parametrosResult.rows
-          };
-        }
-        return transaccion;
-      })
-    );
+    const transaccionesConParametros = transaccionesResult.rows.map((t) => {
+      if (t.tiene_parametros) {
+        return {
+          ...t,
+          parametros: t.parametros || []
+        };
+      }
+      const { parametros, ...rest } = t;
+      return rest;
+    });
 
     return NextResponse.json(transaccionesConParametros);
   } catch (error) {

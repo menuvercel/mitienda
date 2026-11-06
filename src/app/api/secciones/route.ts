@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getCached, setCached, invalidateCache } from '@/lib/cache';
+
+const SECCIONES_CACHE_KEY = 'api_secciones_list';
+const SECCIONES_CACHE_TTL = 300;
 
 export async function GET() {
+    const cached = getCached<any>(SECCIONES_CACHE_KEY);
+    if (cached) return NextResponse.json(cached);
     try {
         const result = await query(`
             SELECT 
@@ -13,6 +19,7 @@ export async function GET() {
             ORDER BY s.nombre ASC
         `);
 
+        setCached(SECCIONES_CACHE_KEY, result.rows, SECCIONES_CACHE_TTL);
         return NextResponse.json(result.rows);
     } catch (error) {
         console.error('Error fetching secciones:', error);
@@ -21,6 +28,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+    invalidateCache('api_secciones');
     try {
         const { nombre, foto } = await request.json();
 

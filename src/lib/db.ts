@@ -88,6 +88,18 @@ export async function ensureDbSchema() {
         fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         tipo_gasto VARCHAR(20) DEFAULT 'fijo'
       );
+
+      -- Índices para optimización de consultas frecuentes y reducción de transferencias
+      CREATE INDEX IF NOT EXISTS idx_transacciones_hacia_fecha ON transacciones(hacia, fecha DESC);
+      CREATE INDEX IF NOT EXISTS idx_transacciones_desde_fecha ON transacciones(desde, fecha DESC);
+      CREATE INDEX IF NOT EXISTS idx_transacciones_producto ON transacciones(producto);
+      CREATE INDEX IF NOT EXISTS idx_transaccion_parametros_tid ON transaccion_parametros(transaccion_id);
+      CREATE INDEX IF NOT EXISTS idx_usuario_prod_param_lookup ON usuario_producto_parametros(usuario_id, producto_id);
+      CREATE INDEX IF NOT EXISTS idx_prod_param_lookup ON producto_parametros(producto_id);
+      CREATE INDEX IF NOT EXISTS idx_productos_barcode ON productos(codigo_barras);
+      CREATE INDEX IF NOT EXISTS idx_notificaciones_user_date ON notificaciones(usuario_id, fecha_creacion DESC);
+      CREATE INDEX IF NOT EXISTS idx_ventas_fecha_desc ON ventas(fecha DESC);
+      CREATE INDEX IF NOT EXISTS idx_ventas_vendedor_fecha ON ventas(vendedor, fecha DESC);
     `);
     schemaInitialized = true;
     console.log('✅ Esquema de base de datos verificado y actualizado.');

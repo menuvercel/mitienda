@@ -57,11 +57,27 @@ export async function DELETE(
       );
     }
 
+    // Guardar referencia a la transferencia antes de borrar la venta
+    const transfId = venta.transferencia_id;
+    const numTrans = venta.numero_transaccion;
+    const sellerId = venta.vendedor;
+
     // Eliminar los registros en venta_parametros
     await query('DELETE FROM venta_parametros WHERE venta_id = $1', [ventaId]);
 
     // Eliminar la venta
     await query('DELETE FROM ventas WHERE id = $1', [ventaId]);
+
+    // Eliminar el registro de transferencia correspondiente si existía
+    if (transfId) {
+      await query('DELETE FROM registro_transferencias WHERE id = $1', [transfId]);
+    }
+    if (numTrans) {
+      await query(
+        'DELETE FROM registro_transferencias WHERE numero_transaccion = $1 AND (vendedor_id::text = $2::text OR vendedor_id IS NULL)',
+        [numTrans, sellerId ? sellerId.toString() : '']
+      );
+    }
     
     await query('COMMIT');
 

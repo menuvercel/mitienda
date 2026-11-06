@@ -39,6 +39,7 @@ import {
   createCuentaBanco,
   updateCuentaBanco,
   deleteCuentaBanco,
+  deleteRegistroTransferencia,
   CuentaBanco
 } from '@/app/services/api'
 import { toast } from '@/hooks/use-toast'
@@ -64,6 +65,11 @@ export default function RegistroTransferenciasSection() {
   // Modal de Detalle
   const [selectedItem, setSelectedItem] = useState<RegistroTransferenciaItem | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
+
+  // Estado para eliminar transferencia
+  const [transferToDelete, setTransferToDelete] = useState<RegistroTransferenciaItem | null>(null)
+  const [isDeleteTransferModalOpen, setIsDeleteTransferModalOpen] = useState(false)
+  const [deletingTransfer, setDeletingTransfer] = useState(false)
 
   // Estado para gestión de Cuentas de Banco
   const [cuentas, setCuentas] = useState<CuentaBanco[]>([])
@@ -257,6 +263,40 @@ export default function RegistroTransferenciasSection() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Eliminar transferencia
+  const handleDeleteTransferClick = (item: RegistroTransferenciaItem) => {
+    setTransferToDelete(item)
+    setIsDeleteTransferModalOpen(true)
+  }
+
+  const handleConfirmDeleteTransfer = async () => {
+    if (!transferToDelete) return
+    setDeletingTransfer(true)
+    try {
+      await deleteRegistroTransferencia(transferToDelete.id)
+      setTransferencias(prev => prev.filter(t => t.id !== transferToDelete.id))
+      setSummary(prev => ({
+        totalRegistros: Math.max(0, prev.totalRegistros - 1),
+        totalMonto: Math.max(0, prev.totalMonto - Number(transferToDelete.monto || 0))
+      }))
+      toast({
+        title: "Transferencia eliminada",
+        description: `El registro #${transferToDelete.numero_transaccion} ha sido eliminado con éxito.`
+      })
+      setIsDeleteTransferModalOpen(false)
+      setTransferToDelete(null)
+    } catch (err: any) {
+      console.error('Error eliminando transferencia:', err)
+      toast({
+        title: "Error al eliminar",
+        description: err.message || "No se pudo eliminar el registro de transferencia",
+        variant: "destructive"
+      })
+    } finally {
+      setDeletingTransfer(false)
     }
   }
 
@@ -649,7 +689,7 @@ export default function RegistroTransferenciasSection() {
                         </span>
                       </div>
 
-                      <div className="mt-3 flex justify-end">
+                      <div className="mt-3 flex items-center justify-end gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -657,10 +697,20 @@ export default function RegistroTransferenciasSection() {
                             setSelectedItem(item)
                             setIsDetailOpen(true)
                           }}
-                          className="h-7 text-xs text-blue-600 hover:bg-gray-100"
+                          className="h-7 text-xs text-blue-600 hover:bg-blue-50"
                         >
                           <Eye className="h-3.5 w-3.5 mr-1" />
                           Ver Detalle
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteTransferClick(item)}
+                          className="h-7 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+                          title="Borrar transferencia"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1" />
+                          Borrar
                         </Button>
                       </div>
                     </div>
@@ -730,18 +780,29 @@ export default function RegistroTransferenciasSection() {
                             {item.vendedor_nombre}
                           </td>
                           <td className="py-3 px-4 text-center">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedItem(item)
-                                setIsDetailOpen(true)
-                              }}
-                              className="h-8 w-8 p-0 text-blue-600 hover:bg-gray-100 rounded-full"
-                              title="Ver detalle de la venta"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedItem(item)
+                                  setIsDetailOpen(true)
+                                }}
+                                className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50 rounded-full"
+                                title="Ver detalle de la venta"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteTransferClick(item)}
+                                className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-full"
+                                title="Borrar transferencia"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1105,13 +1166,75 @@ export default function RegistroTransferenciasSection() {
             </div>
           )}
 
-          <DialogFooter className="mt-4">
+          <DialogFooter className="mt-4 flex flex-row items-center justify-between w-full">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (selectedItem) {
+                  setIsDetailOpen(false)
+                  handleDeleteTransferClick(selectedItem)
+                }
+              }}
+              className="text-red-600 hover:bg-red-50 hover:text-red-700 h-9 px-3 text-xs flex items-center gap-1.5"
+            >
+              <Trash2 className="h-4 w-4" />
+              Borrar Transferencia
+            </Button>
             <Button 
               variant="outline" 
               onClick={() => setIsDetailOpen(false)}
-              className="border-gray-200 hover:bg-gray-50 w-full sm:w-auto"
+              className="border-gray-200 hover:bg-gray-50 h-9 px-4 text-xs"
             >
               Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Modal de Confirmación para Eliminar Transferencia */}
+      <Dialog open={isDeleteTransferModalOpen} onOpenChange={setIsDeleteTransferModalOpen}>
+        <DialogContent className="max-w-md w-[95%] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600 text-lg">
+              <AlertCircle className="h-5 w-5" />
+              Eliminar Registro de Transferencia
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-600 pt-2">
+              ¿Estás seguro de que deseas eliminar la transferencia{' '}
+              <span className="font-semibold text-gray-900 font-mono">
+                #{transferToDelete?.numero_transaccion}
+              </span>{' '}
+              por un monto de{' '}
+              <span className="font-semibold text-blue-600">
+                ${Number(transferToDelete?.monto || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>{' '}
+              a nombre de <span className="font-semibold text-gray-900">{transferToDelete?.cliente_nombre}</span>?
+              <br />
+              <span className="text-xs text-red-500 mt-2 block font-medium">
+                Esta acción eliminará el registro de transferencia de forma permanente.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex flex-row justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsDeleteTransferModalOpen(false)
+                setTransferToDelete(null)
+              }}
+              disabled={deletingTransfer}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleConfirmDeleteTransfer}
+              disabled={deletingTransfer}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deletingTransfer ? 'Eliminando...' : 'Eliminar'}
             </Button>
           </DialogFooter>
         </DialogContent>

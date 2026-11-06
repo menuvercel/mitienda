@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
       FROM notificaciones
       WHERE usuario_id = $1
       ORDER BY fecha_creacion DESC
+      LIMIT 30
     `, [userId]);
 
     return NextResponse.json(notificacionesResult.rows);

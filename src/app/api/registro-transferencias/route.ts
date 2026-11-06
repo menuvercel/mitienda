@@ -220,7 +220,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Se requiere el ID del registro de transferencia' }, { status: 400 });
     }
 
-    const res = await query('DELETE FROM registro_transferencias WHERE id = $1 RETURNING id', [parseInt(id, 10)]);
+    const transferId = parseInt(id, 10);
+    // Desvincular ventas asociadas para evitar conflictos de llave foránea
+    await query('UPDATE ventas SET transferencia_id = NULL WHERE transferencia_id = $1', [transferId]);
+
+    const res = await query('DELETE FROM registro_transferencias WHERE id = $1 RETURNING id', [transferId]);
 
     if (res.rows.length === 0) {
       return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 });

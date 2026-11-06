@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "26d57129-61dd-4257-a1ae-0ec80b68b645"
+      }
+    },
+    "android": {
+      "package": "com.scanner.mitienda"
+    }
+  }
+}

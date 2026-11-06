@@ -94,7 +94,7 @@ export const NotificacionesBell = ({ vendedorId }: NotificacionesBellProps) => {
         fetchNotificaciones();
 
         // Actualizar cada 30 segundos
-        const interval = setInterval(fetchNotificaciones, 30000);
+        const interval = setInterval(() => { if (typeof document !== 'undefined' && !document.hidden) fetchNotificaciones(); }, 60000);
 
         return () => clearInterval(interval);
     }, [vendedorId]);

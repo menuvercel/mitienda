@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { invalidateCache } from '@/lib/cache';
 
 export async function POST(request: NextRequest) {
+  invalidateCache('api_vendedores');
 
   const body = await request.json();
   const { nombre, password, telefono, rol } = body;

@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getCached, setCached, invalidateCache } from '@/lib/cache';
+
+const CUENTAS_CACHE_KEY = 'api_cuentas_banco_list';
+const CUENTAS_CACHE_TTL = 300; // 5 minutos de caché en memoria
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const cached = getCached<any>(CUENTAS_CACHE_KEY);
+  if (cached) return NextResponse.json(cached);
   try {
     const res = await query(`
       SELECT id, nombre, banco, numero_cuenta, activa, creado_en 
       FROM cuentas_banco 
       ORDER BY id ASC
     `);
+    setCached(CUENTAS_CACHE_KEY, res.rows, CUENTAS_CACHE_TTL);
     return NextResponse.json(res.rows);
   } catch (error: any) {
     if (error.code === '42P01') {
@@ -21,6 +28,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  invalidateCache(CUENTAS_CACHE_KEY);
   try {
     const body = await request.json();
     const { nombre, banco, numero_cuenta, activa } = body;
@@ -44,6 +52,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  invalidateCache(CUENTAS_CACHE_KEY);
   try {
     const body = await request.json();
     const { id, nombre, banco, numero_cuenta, activa } = body;
@@ -80,6 +89,7 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  invalidateCache(CUENTAS_CACHE_KEY);
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

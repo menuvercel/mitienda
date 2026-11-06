@@ -311,7 +311,11 @@ export const realizarVenta = async (
 };
 
 export const getVentasMes = async (vendedorId: string): Promise<Venta[]> => {
-  const response = await api.get(`/ventas?vendedorId=${vendedorId}`);
+  // Por defecto cubrir los últimos 45 días para el mes actual y cierre reciente
+  const d = new Date();
+  d.setDate(d.getDate() - 45);
+  const defaultStartDate = d.toISOString().split('T')[0];
+  const response = await api.get(`/ventas?vendedorId=${vendedorId}&startDate=${defaultStartDate}`);
   return response.data;
 };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Bell, AlertTriangle, AlertCircle, ExternalLink, CheckCheck, Check, Loader2, Clock, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -63,9 +63,11 @@ export const VencimientoBell: React.FC<VencimientoBellProps> = ({
   const [notificationsList, setNotificationsList] = useState<NotificationItemText[]>([]);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const lastFetchRef = useRef<number>(0);
 
   const fetchAndCalculate = useCallback(async () => {
     if (typeof document !== 'undefined' && document.hidden) return;
+    lastFetchRef.current = Date.now();
     setIsLoading(true);
 
     try {
@@ -220,14 +222,23 @@ export const VencimientoBell: React.FC<VencimientoBellProps> = ({
     fetchAndCalculate();
 
     const handleUpdate = () => fetchAndCalculate();
+    const handleFocus = () => {
+      if (Date.now() - lastFetchRef.current > 120000) {
+        fetchAndCalculate();
+      }
+    };
     window.addEventListener('notificaciones_updated', handleUpdate);
-    window.addEventListener('focus', handleUpdate);
+    window.addEventListener('focus', handleFocus);
 
-    const interval = setInterval(fetchAndCalculate, 300000);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        fetchAndCalculate();
+      }
+    }, 300000);
 
     return () => {
       window.removeEventListener('notificaciones_updated', handleUpdate);
-      window.removeEventListener('focus', handleUpdate);
+      window.removeEventListener('focus', handleFocus);
       clearInterval(interval);
     };
   }, [fetchAndCalculate]);

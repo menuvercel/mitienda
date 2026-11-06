@@ -38,6 +38,7 @@ import {
   registerUser,
   getProductosVendedor,
   getVentasVendedor,
+  getAllVentas,
   agregarProducto,
   editarProducto,
   entregarProducto,
@@ -727,19 +728,16 @@ export default function AlmacenPage() {
       // Obtener todas las ventas de todos los vendedores
       const allSales: Venta[] = []
 
-      for (const vendedor of vendedores) {
-        try {
-          const ventasVendedor = await getVentasVendedor(vendedor.id)
-          // Agregar información del vendedor a cada venta
-          const ventasConVendedor = ventasVendedor.map(venta => ({
-            ...venta,
-            vendedor_nombre: vendedor.nombre,
-            vendedor_id: vendedor.id
-          }))
-          allSales.push(...ventasConVendedor)
-        } catch (error) {
-          console.error(`Error al obtener ventas del vendedor ${vendedor.nombre}:`, error)
-        }
+      const startStr = fechaInicio ? format(fechaInicio, 'yyyy-MM-dd') : undefined;
+      const endStr = fechaFin ? format(fechaFin, 'yyyy-MM-dd') : undefined;
+      const rawSales = await getAllVentas(startStr, endStr);
+
+      for (const venta of rawSales) {
+        allSales.push({
+          ...venta,
+          vendedor_nombre: (venta as any).vendedor_nombre || 'Vendedor',
+          vendedor_id: (venta as any).vendedor || (venta as any).vendedor_id
+        } as any);
       }
 
       // Ordenar por fecha (más recientes primero)

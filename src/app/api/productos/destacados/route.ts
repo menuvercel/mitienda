@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getCached, setCached, invalidateCache } from '@/lib/cache';
+
+const DESTACADOS_CACHE_KEY = 'api_productos_destacados';
+const DESTACADOS_CACHE_TTL = 180;
 
 export async function GET() {
+    const cached = getCached<any>(DESTACADOS_CACHE_KEY);
+    if (cached) return NextResponse.json(cached);
     try {
         const result = await query(`
             SELECT 
@@ -23,6 +29,7 @@ export async function GET() {
             ORDER BY p.nombre ASC
         `);
 
+        setCached(DESTACADOS_CACHE_KEY, result.rows, DESTACADOS_CACHE_TTL);
         return NextResponse.json(result.rows);
     } catch (error) {
         console.error('Error fetching productos destacados:', error);
@@ -31,6 +38,7 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
+    invalidateCache('api_productos_destacados');
     try {
         const { productIds } = await request.json();
 

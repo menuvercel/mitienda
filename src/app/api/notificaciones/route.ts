@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getCached, setCached } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
+
+const NOTIF_CACHE_KEY = 'api_notificaciones_summary';
+const NOTIF_CACHE_TTL = 60; // 60 segundos en memoria para evitar consultas repetitivas de campanas y pestañas
 
 async function safeQuery(sqlText: string, params: any[] = []): Promise<any[]> {
   try {
@@ -15,6 +19,11 @@ async function safeQuery(sqlText: string, params: any[] = []): Promise<any[]> {
 
 export async function GET(request: NextRequest) {
   try {
+    const cached = getCached<any>(NOTIF_CACHE_KEY);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
+
     const [
       vencimientosRows,
       almacenRows,
@@ -271,7 +280,7 @@ export async function GET(request: NextRequest) {
       nombre: r.nombre
     }));
 
-    return NextResponse.json({
+    const payload = {
       vencimientos,
       almacen: alertasAlmacen,
       recordatorios: recordatoriosRows,
@@ -283,7 +292,11 @@ export async function GET(request: NextRequest) {
         productosEstancados,
         rankingVendedores
       }
-    });
+    };
+
+    setCached(NOTIF_CACHE_KEY, payload, NOTIF_CACHE_TTL);
+
+    return NextResponse.json(payload);
 
   } catch (error) {
     console.error('Error fetching notifications:', error);

@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getCached, setCached, invalidateCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+const VENDEDORES_CACHE_KEY = 'api_vendedores_list';
+const VENDEDORES_CACHE_TTL = 300; // 5 minutos de caché en memoria
 
+export async function GET(request: NextRequest) {
   try {
+    const cached = getCached<any>(VENDEDORES_CACHE_KEY);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
+
     const result = await query('SELECT id, nombre, telefono, rol FROM usuarios WHERE rol = $1', ['Vendedor']);
+    setCached(VENDEDORES_CACHE_KEY, result.rows, VENDEDORES_CACHE_TTL);
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Error al obtener vendedores:', error);
@@ -15,6 +24,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  invalidateCache('api_vendedores');
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
 
@@ -50,6 +60,7 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  invalidateCache('api_vendedores');
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
   const deleteCompleteVendor = searchParams.get('deleteCompleteVendor') === 'true';
