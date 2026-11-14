@@ -579,7 +579,14 @@ export default function ModeradorPage() {
       const targetVendor = vendedores.find(v => v.id.toString() === selectedVendedorDeliver);
 
       let totalItems = 0;
-      const productosEntregados: Array<{ nombre: string; cantidad: number }> = [];
+      let totalMontoCompra = 0;
+      const productosEntregados: Array<{
+        nombre: string;
+        cantidad: number;
+        precio_compra: number;
+        subtotal_compra: number;
+        parametros?: Array<{ nombre: string; cantidad: number }>;
+      }> = [];
 
       for (const [prodId, deliveryState] of Object.entries(selectedProductsDeliver)) {
         const producto = inventario.find(p => p.id.toString() === prodId);
@@ -608,20 +615,35 @@ export default function ModeradorPage() {
           parametrosEntrega
         );
 
+        const precioCompra = parseFloat(producto.precio_compra?.toString() || '0') || 0;
+        const subtotal = cantidadTotal * precioCompra;
+
         totalItems += cantidadTotal;
-        productosEntregados.push({ nombre: producto.nombre, cantidad: cantidadTotal });
+        totalMontoCompra += subtotal;
+
+        productosEntregados.push({
+          nombre: producto.nombre,
+          cantidad: cantidadTotal,
+          precio_compra: precioCompra,
+          subtotal_compra: subtotal,
+          parametros: parametrosEntrega
+        });
       }
 
       if (totalItems > 0) {
         toast({ title: "Entregado", description: "Productos despachados con éxito" });
-        let detalleEntrega: string;
-        if (productosEntregados.length === 1) {
-          const prod = productosEntregados[0];
-          detalleEntrega = `Entregó ${prod.cantidad} unidades de "${prod.nombre}" al punto de venta "${targetVendor?.nombre}"`;
-        } else {
-          const listaProductos = productosEntregados.map(p => `"${p.nombre}": ${p.cantidad}`).join(', ');
-          detalleEntrega = `Entregó ${totalItems} unidades totales (${listaProductos}) al punto de venta "${targetVendor?.nombre}"`;
-        }
+
+        const listaProductos = productosEntregados.map(p => {
+          if (p.parametros && p.parametros.length > 0) {
+            const varStr = p.parametros.map(par => `${par.cantidad}x ${par.nombre}`).join(', ');
+            return `"${p.nombre}": ${p.cantidad} (${varStr})`;
+          }
+          return `"${p.nombre}": ${p.cantidad}`;
+        }).join(', ');
+
+        const montoStr = totalMontoCompra.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+        const detalleEntrega = `Entregó ${totalItems} unidades totales (${listaProductos}) al punto de venta "${targetVendor?.nombre}" | Resumen: ${totalItems} unidades entregadas por un monto de ${montoStr} CUP`;
+
         await logAccion('entregar_producto', detalleEntrega);
       } else {
         toast({ title: "Advertencia", description: "Debe ingresar una cantidad mayor que cero para los productos seleccionados", variant: "default" });

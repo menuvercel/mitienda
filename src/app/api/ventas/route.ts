@@ -208,7 +208,7 @@ export async function GET(request: NextRequest) {
   const startDate = searchParams.get('startDate') || searchParams.get('fechaInicio');
   const endDate = searchParams.get('endDate') || searchParams.get('fechaFin');
   const limitParam = searchParams.get('limit');
-  const limit = limitParam ? Math.max(parseInt(limitParam, 10) || 100, 1) : (!startDate && !endDate && (getAllVentas || vendedorId) ? 300 : undefined);
+  const limit = limitParam ? Math.max(parseInt(limitParam, 10) || 100, 1) : (!startDate && !endDate && !getAllVentas && vendedorId ? 300 : undefined);
 
   try {
     let result;

@@ -725,12 +725,10 @@ export default function AlmacenPage() {
   const fetchAllSales = useCallback(async () => {
     setIsLoadingContabilidad(true)
     try {
-      // Obtener todas las ventas de todos los vendedores
+      // Obtener todas las ventas de la tienda desde el principio de la web
       const allSales: Venta[] = []
 
-      const startStr = fechaInicio ? format(fechaInicio, 'yyyy-MM-dd') : undefined;
-      const endStr = fechaFin ? format(fechaFin, 'yyyy-MM-dd') : undefined;
-      const rawSales = await getAllVentas(startStr, endStr);
+      const rawSales = await getAllVentas();
 
       for (const venta of rawSales) {
         allSales.push({
@@ -754,22 +752,24 @@ export default function AlmacenPage() {
     } finally {
       setIsLoadingContabilidad(false)
     }
-  }, [vendedores])
+  }, [])
 
   // Llamar a la función cuando se selecciona la sección de contabilidad
   useEffect(() => {
-    if (activeSection === 'contabilidad' && vendedores.length > 0) {
+    if (activeSection === 'contabilidad') {
       fetchAllSales()
     }
-  }, [activeSection, vendedores, fetchAllSales])
+  }, [activeSection, fetchAllSales])
 
   const getContabilidadData = useCallback(() => {
     // Filtrar ventas por rango de fechas si hay fechas seleccionadas
     const ventasFiltradas = (fechaInicio || fechaFin)
       ? ventasGlobales.filter(venta => {
         const fechaVenta = new Date(venta.fecha);
-        const cumpleFechaInicio = !fechaInicio || fechaVenta >= fechaInicio;
-        const cumpleFechaFin = !fechaFin || fechaVenta <= fechaFin;
+        const fechaInicioClean = fechaInicio ? new Date(fechaInicio.getFullYear(), fechaInicio.getMonth(), fechaInicio.getDate(), 0, 0, 0, 0) : null;
+        const fechaFinClean = fechaFin ? new Date(fechaFin.getFullYear(), fechaFin.getMonth(), fechaFin.getDate(), 23, 59, 59, 999) : null;
+        const cumpleFechaInicio = !fechaInicioClean || fechaVenta >= fechaInicioClean;
+        const cumpleFechaFin = !fechaFinClean || fechaVenta <= fechaFinClean;
         return cumpleFechaInicio && cumpleFechaFin;
       })
       : ventasGlobales;
@@ -2504,7 +2504,7 @@ export default function AlmacenPage() {
                             }
                           </span>
                         ) : (
-                          "Seleccionar rango de fechas"
+                          "Todo el historial (sin filtro)"
                         )}
                       </Button>
                     </PopoverTrigger>

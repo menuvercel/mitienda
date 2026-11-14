@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,14 @@ import {
   Download,
   AlertTriangle,
   Eye,
-  CheckCircle2
+  CheckCircle2,
+  ListFilter,
+  FileEdit,
+  Truck,
+  ArrowRightLeft,
+  Search,
+  X,
+  Layers
 } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
 import {
@@ -32,8 +39,10 @@ import {
   eliminarModerador,
   getBitacoraModerador,
   getInventariosModerador,
-  getInventarioDetalle
+  getInventarioDetalle,
+  getInventario
 } from '@/app/services/api';
+import { Producto } from '@/types';
 
 interface Moderador {
   id: string;
@@ -50,6 +59,152 @@ interface LogEntry {
   detalles: string;
   fecha: string;
 }
+
+export type BitacoraFilter = 'todos' | 'inventarios' | 'creacion_edicion' | 'entregas' | 'bajas' | 'traslados';
+
+interface ParsedDelivery {
+  header: string;
+  items: Array<{ nombre: string; cantidad: number; detalleExtra?: string }>;
+  totalUnidades: number;
+  totalMonto: number;
+}
+
+const parseDeliveryLog = (detalles: string, inventarioList: Producto[]): ParsedDelivery | null => {
+  if (!detalles || (!detalles.toLowerCase().includes('entregó') && !detalles.toLowerCase().includes('entreg'))) {
+    return null;
+  }
+
+  // Extraer resumen explícito si ya viene en el texto
+  let explicitUnidades: number | null = null;
+  let explicitMonto: number | null = null;
+  const resumenMatch = detalles.match(/Resumen:\s*([\d,.]+)\s*unidades\s*entregadas\s*por\s*un\s*monto\s*de\s*([\d,.]+)\s*CUP/i);
+  if (resumenMatch) {
+    explicitUnidades = parseFloat(resumenMatch[1].replace(/,/g, ''));
+    explicitMonto = parseFloat(resumenMatch[2].replace(/,/g, ''));
+  }
+
+  // Limpiar parte de resumen del texto para procesar los productos
+  const cleanDetalles = detalles.split(/\s*\|\s*Resumen:/i)[0].trim();
+  const items: Array<{ nombre: string; cantidad: number; detalleExtra?: string }> = [];
+
+  // Formato multi: Entregó 408 unidades totales ("Coca Cola": 200, "Galletas": 208) al punto de venta "ML Santa Elena"
+  const multiRegex = /^Entregó\s+(\d+)\s+unidades\s+totales\s*\((.+?)\)\s*(al punto de venta\s*".+?")?$/i;
+  const multiMatch = cleanDetalles.match(multiRegex);
+
+  if (multiMatch) {
+    const totalHeader = parseInt(multiMatch[1], 10) || 0;
+    const productsRaw = multiMatch[2];
+    const destination = multiMatch[3] ? multiMatch[3].trim() : '';
+
+    const productTokens: string[] = [];
+    let currentToken = '';
+    let parenDepth = 0;
+    for (let i = 0; i < productsRaw.length; i++) {
+      const char = productsRaw[i];
+      if (char === '(') parenDepth++;
+      else if (char === ')') parenDepth = Math.max(0, parenDepth - 1);
+
+      if (char === ',' && parenDepth === 0) {
+        if (currentToken.trim()) productTokens.push(currentToken.trim());
+        currentToken = '';
+      } else {
+        currentToken += char;
+      }
+    }
+    if (currentToken.trim()) productTokens.push(currentToken.trim());
+
+    for (const token of productTokens) {
+      const tokenMatch = token.match(/^"?([^":]+)"?\s*:\s*(\d+)(?:\s*\((.+?)\))?/);
+      if (tokenMatch) {
+        items.push({
+          nombre: tokenMatch[1].trim(),
+          cantidad: parseInt(tokenMatch[2], 10) || 0,
+          detalleExtra: tokenMatch[3]?.trim()
+        });
+      } else {
+        items.push({
+          nombre: token.replace(/^["']|["']$/g, '').trim(),
+          cantidad: 1
+        });
+      }
+    }
+
+    const totalUnidades = explicitUnidades !== null ? explicitUnidades : (items.reduce((s, it) => s + it.cantidad, 0) || totalHeader);
+
+    let totalMonto = explicitMonto !== null ? explicitMonto : 0;
+    if (explicitMonto === null) {
+      for (const item of items) {
+        const prod = inventarioList.find(p => p.nombre.trim().toLowerCase() === item.nombre.trim().toLowerCase());
+        const precioCompra = parseFloat(prod?.precio_compra?.toString() || '0') || 0;
+        totalMonto += item.cantidad * precioCompra;
+      }
+    }
+
+    return {
+      header: `Entregó ${totalUnidades} unidades totales ${destination}:`,
+      items,
+      totalUnidades,
+      totalMonto
+    };
+  }
+
+  // Formato individual: Entregó 10 unidades de "Coca Cola" al punto de venta "ML Santa Elena"
+  // o: Entregó 10 unidades totales (5x Roja, 5x Azul) de 'Camisa' al punto de venta "Juan"
+  const singleRegex = /^Entregó\s+(\d+)\s+unidades(?:\s+totales)?(?:\s*\((.+?)\))?\s+de\s+["'](.+?)["']\s*(al punto de venta\s*".+?")?$/i;
+  const singleMatch = cleanDetalles.match(singleRegex);
+
+  if (singleMatch) {
+    const qty = parseInt(singleMatch[1], 10) || 0;
+    const extra = singleMatch[2]?.trim();
+    const prodName = singleMatch[3].trim();
+    const destination = singleMatch[4] ? singleMatch[4].trim() : '';
+
+    items.push({
+      nombre: prodName,
+      cantidad: qty,
+      detalleExtra: extra
+    });
+
+    const totalUnidades = explicitUnidades !== null ? explicitUnidades : qty;
+    let totalMonto = explicitMonto !== null ? explicitMonto : 0;
+    if (explicitMonto === null) {
+      const prod = inventarioList.find(p => p.nombre.trim().toLowerCase() === prodName.toLowerCase());
+      const precioCompra = parseFloat(prod?.precio_compra?.toString() || '0') || 0;
+      totalMonto = qty * precioCompra;
+    }
+
+    return {
+      header: `Entregó ${qty} unidades ${destination}:`,
+      items,
+      totalUnidades,
+      totalMonto
+    };
+  }
+
+  return null;
+};
+
+const matchFilter = (log: LogEntry, filter: BitacoraFilter): boolean => {
+  if (filter === 'todos') return true;
+  const accion = (log.accion || '').toLowerCase();
+  const detalles = (log.detalles || '').toLowerCase();
+
+  switch (filter) {
+    case 'inventarios':
+      return accion.includes('inventario') || detalles.includes('auditoría de inventario') || detalles.includes('inventario físico') || detalles.includes('inventarios');
+    case 'creacion_edicion':
+      return accion.includes('crear') || accion.includes('editar') || accion.includes('eliminar') ||
+             detalles.includes('creó un nuevo') || detalles.includes('editó el producto') || detalles.includes('eliminó el producto');
+    case 'entregas':
+      return accion.includes('entrega') || detalles.startsWith('entregó') || detalles.includes('entregó') || detalles.includes('despachó');
+    case 'bajas':
+      return accion.includes('baja') || accion.includes('merma') || detalles.includes('baja') || detalles.includes('merma');
+    case 'traslados':
+      return accion.includes('mover') || accion.includes('traslado') || detalles.includes('transfirió') || detalles.includes('trasladó');
+    default:
+      return true;
+  }
+};
 
 export default function ModeradoresSection() {
   const [moderadores, setModeradores] = useState<Moderador[]>([]);
@@ -74,9 +229,12 @@ export default function ModeradoresSection() {
     activo: true
   });
 
-  // Bitacora logs
+  // Bitacora logs y filtros
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<BitacoraFilter>('todos');
+  const [searchTermBitacora, setSearchTermBitacora] = useState('');
+  const [inventario, setInventario] = useState<Producto[]>([]);
 
   // Inventarios
   const [inventariosList, setInventariosList] = useState<any[]>([]);
@@ -267,10 +425,18 @@ export default function ModeradoresSection() {
     setSelectedModerador(mod);
     setShowOptionsDialog(false);
     setShowBitacoraDialog(true);
+    setActiveFilter('todos');
+    setSearchTermBitacora('');
     try {
       setLoadingLogs(true);
-      const data = await getBitacoraModerador(mod.id);
-      setLogs(data);
+      const [logsData, invData] = await Promise.all([
+        getBitacoraModerador(mod.id),
+        inventario.length === 0 ? getInventario().catch(() => []) : Promise.resolve(inventario)
+      ]);
+      setLogs(logsData);
+      if (invData && invData.length > 0) {
+        setInventario(invData);
+      }
     } catch {
       toast({ title: "Error", description: "No se pudo cargar la bitácora", variant: "destructive" });
     } finally {
@@ -295,16 +461,53 @@ export default function ModeradoresSection() {
     return groups;
   };
 
-  const groupedLogs = groupLogsByDate(logs);
+  // Opciones de filtros solicitadas
+  const filterOptions: Array<{ id: BitacoraFilter; label: string; icon: React.ReactNode; activeClass: string }> = [
+    { id: 'todos', label: 'Todos', icon: <ListFilter className="w-3.5 h-3.5" />, activeClass: 'bg-gray-900 text-white' },
+    { id: 'inventarios', label: 'Inventarios Realizados', icon: <ClipboardCheck className="w-3.5 h-3.5" />, activeClass: 'bg-teal-600 text-white' },
+    { id: 'creacion_edicion', label: 'Creación/Edición', icon: <FileEdit className="w-3.5 h-3.5" />, activeClass: 'bg-emerald-600 text-white' },
+    { id: 'entregas', label: 'Entregas', icon: <Truck className="w-3.5 h-3.5" />, activeClass: 'bg-blue-600 text-white' },
+    { id: 'bajas', label: 'Bajas', icon: <AlertTriangle className="w-3.5 h-3.5" />, activeClass: 'bg-red-600 text-white' },
+    { id: 'traslados', label: 'Traslados', icon: <ArrowRightLeft className="w-3.5 h-3.5" />, activeClass: 'bg-amber-600 text-white' },
+  ];
+
+  const filterCounts = useMemo(() => {
+    return {
+      todos: logs.length,
+      inventarios: logs.filter(l => matchFilter(l, 'inventarios')).length,
+      creacion_edicion: logs.filter(l => matchFilter(l, 'creacion_edicion')).length,
+      entregas: logs.filter(l => matchFilter(l, 'entregas')).length,
+      bajas: logs.filter(l => matchFilter(l, 'bajas')).length,
+      traslados: logs.filter(l => matchFilter(l, 'traslados')).length,
+    };
+  }, [logs]);
+
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      const matchesCategory = matchFilter(log, activeFilter);
+      if (!matchesCategory) return false;
+      if (!searchTermBitacora.trim()) return true;
+      const term = searchTermBitacora.toLowerCase();
+      return (log.accion || '').toLowerCase().includes(term) || (log.detalles || '').toLowerCase().includes(term);
+    });
+  }, [logs, activeFilter, searchTermBitacora]);
+
+  const groupedLogs = useMemo(() => {
+    return groupLogsByDate(filteredLogs);
+  }, [filteredLogs]);
 
   const getActionBadgeColor = (action: string) => {
     switch (action) {
       case 'crear_producto': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'editar_producto': return 'bg-sky-100 text-sky-800 border-sky-200';
+      case 'eliminar_producto': return 'bg-rose-100 text-rose-800 border-rose-200';
       case 'entregar_producto': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'mover_vendedores': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'ver_transacciones': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'inventario_fisico': return 'bg-teal-100 text-teal-800 border-teal-200';
+      case 'baja':
+      case 'baja_producto':
+      case 'merma': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -526,12 +729,60 @@ export default function ModeradoresSection() {
 
       {/* BITACORA DIALOG */}
       <Dialog open={showBitacoraDialog} onOpenChange={setShowBitacoraDialog}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-950 flex items-center gap-2">
-              <ClipboardList className="w-6 h-6 text-blue-600" />
-              Bitácora de Actividad: {selectedModerador?.nombre}
-            </DialogTitle>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader className="space-y-3 pb-3 border-b border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <DialogTitle className="text-xl font-bold text-gray-950 flex items-center gap-2">
+                <ClipboardList className="w-6 h-6 text-blue-600" />
+                Bitácora de Actividad: {selectedModerador?.nombre}
+              </DialogTitle>
+
+              <div className="relative w-full sm:w-64">
+                <Search className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <Input
+                  placeholder="Buscar en la bitácora..."
+                  value={searchTermBitacora}
+                  onChange={(e) => setSearchTermBitacora(e.target.value)}
+                  className="pl-8 h-8 text-xs bg-gray-50 border-gray-200"
+                />
+                {searchTermBitacora && (
+                  <button
+                    onClick={() => setSearchTermBitacora('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    title="Limpiar búsqueda"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* BARRA DE FILTROS */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 scrollbar-none">
+              {filterOptions.map(f => {
+                const count = filterCounts[f.id];
+                const isActive = activeFilter === f.id;
+                return (
+                  <button
+                    key={f.id}
+                    onClick={() => setActiveFilter(f.id)}
+                    className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all shrink-0 ${
+                      isActive
+                        ? f.activeClass + ' shadow-sm'
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {f.icon}
+                    <span>{f.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      isActive ? 'bg-white/25 text-white' : 'bg-gray-200 text-gray-700'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto pr-2 py-4 space-y-6">
@@ -567,21 +818,31 @@ export default function ModeradoresSection() {
                             <div className="text-sm text-gray-700 leading-relaxed font-normal">
                               {(() => {
                                 const detalles = log.detalles;
-                                const entregarRegex = /^(Entregó \d+ unidades totales )\((.+?)\)( al punto de venta ".+")$/;
-                                const entregarMatch = detalles.match(entregarRegex);
-                                if (entregarMatch) {
-                                  const [_, prefix, productsList, suffix] = entregarMatch;
-                                  const products = productsList.split(/,\s*/);
+
+                                // Caso especial: Entrega de productos (con resumen en negrita calculado)
+                                const delivery = parseDeliveryLog(detalles, inventario);
+                                if (delivery) {
                                   return (
-                                    <div className="space-y-1">
-                                      <span className="font-medium text-gray-800">{prefix}{suffix}:</span>
+                                    <div className="space-y-1.5">
+                                      <span className="font-medium text-gray-800">{delivery.header}</span>
                                       <ul className="list-disc pl-5 mt-1 space-y-1 text-gray-700">
-                                        {products.map((p, idx) => (
-                                          <li key={idx} className="text-sm font-normal text-gray-600">
-                                            {p}
+                                        {delivery.items.map((p, idx) => (
+                                          <li key={idx} className="text-sm font-normal text-gray-700">
+                                            <span className="font-medium text-gray-900">{p.nombre}:</span>{' '}
+                                            <span className="font-semibold text-blue-700">{p.cantidad} {p.cantidad === 1 ? 'unidad' : 'unidades'}</span>
+                                            {p.detalleExtra && (
+                                              <span className="text-xs text-gray-500 ml-1.5 font-normal">({p.detalleExtra})</span>
+                                            )}
                                           </li>
                                         ))}
                                       </ul>
+
+                                      {/* Resumen en negritas al final de la lista de Entrega */}
+                                      <div className="mt-2.5 pt-2 border-t border-gray-100">
+                                        <p className="text-sm font-bold text-gray-950">
+                                          {delivery.totalUnidades.toLocaleString('en-US')} unidades entregadas por un monto de {delivery.totalMonto.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} CUP
+                                        </p>
+                                      </div>
                                     </div>
                                   );
                                 }
@@ -649,8 +910,16 @@ export default function ModeradoresSection() {
             ) : (
               <div className="text-center py-12 text-gray-500">
                 <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="font-medium text-sm">No hay acciones registradas en la bitácora</p>
-                <p className="text-xs text-gray-400 mt-1">Las operaciones que realice el moderador se verán reflejadas aquí por día</p>
+                <p className="font-medium text-sm">
+                  {activeFilter === 'todos' && !searchTermBitacora
+                    ? 'No hay acciones registradas en la bitácora'
+                    : `No hay registros para el filtro seleccionado (${filterOptions.find(f => f.id === activeFilter)?.label || activeFilter})`}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {activeFilter !== 'todos' || searchTermBitacora
+                    ? 'Prueba seleccionando "Todos" o limpiando el buscador.'
+                    : 'Las operaciones que realice el moderador se verán reflejadas aquí por día'}
+                </p>
               </div>
             )}
           </div>
